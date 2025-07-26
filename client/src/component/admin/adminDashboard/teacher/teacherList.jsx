@@ -34,14 +34,7 @@ const TeacherList = () => {
       setTeachers(res.data.data || []);
       setLoading(false); // Stop loading on success
     } catch (error) {
-      toast.error("Failed to fetch teachers", {
-        style: {
-          background: "#fff",
-          color: "#000",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-        },
-      });
+      toast.error("Failed to fetch teachers");
       setLoading(false); // Stop loading on failure
     }
   };
@@ -56,26 +49,12 @@ const TeacherList = () => {
 
       setTeachers((prev) => prev.filter((teacher) => teacher.id !== id));
 
-      toast.success("Teacher deleted successfully", {
-        style: {
-          background: "#fff",
-          color: "#000",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-        },
-      });
+      toast.success("Teacher deleted successfully");
 
       // Close the modal after success
       setConfirmDelete(null);
     } catch (error) {
-      toast.error("Delete failed", {
-        style: {
-          background: "#fff",
-          color: "#000",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-        },
-      });
+      toast.error("Delete failed");
       setConfirmDelete(null);
     }
   };

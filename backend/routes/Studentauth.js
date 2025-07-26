@@ -5,11 +5,47 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const Studnetauth = express.Router();
-
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 // Configuration
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key_here";
 const OTP_EXPIRY_MINUTES = 10;
 const RESET_TOKEN_EXPIRY_MINUTES = 30;
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = "uploads/students";
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, "student-" + uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 2 * 1024 * 1024, // 2MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    const filetypes = /jpeg|jpg|png|gif/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error("Only image files (jpeg, jpg, png, gif) are allowed!"));
+  },
+});
 
 // Email transporter
 const transporter = nodemailer.createTransport({
@@ -24,13 +60,61 @@ const transporter = nodemailer.createTransport({
 const generateOTP = () => crypto.randomInt(100000, 999999).toString();
 const generateToken = (payload, expiresIn) =>
   jwt.sign(payload, JWT_SECRET, { expiresIn });
+// Image Upload Route
+Studnetauth.post("/upload", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
 
+    // Construct the URL to the uploaded file
+    const fileUrl = `${req.protocol}://${req.get(
+      "host"
+    )}/${req.file.path.replace(/\\/g, "/")}`;
+
+    res.status(200).json({
+      message: "File uploaded successfully",
+      url: fileUrl,
+    });
+  } catch (error) {
+    console.error("Upload error:", error);
+    res.status(500).json({
+      message: "File upload failed",
+      error: error.message,
+    });
+  }
+});
+
+// Error handling for file uploads
+Studnetauth.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    // A Multer error occurred when uploading
+    return res.status(400).json({
+      message: "File upload error",
+      error: err.message,
+    });
+  } else if (err) {
+    // An unknown error occurred
+    return res.status(500).json({
+      message: "Server error",
+      error: err.message,
+    });
+  }
+  next();
+});
 // Student Registration with OTP
 Studnetauth.post("/register", async (req, res) => {
   try {
-    const { email, password, full_name, phone, date_of_birth, address } =
-      req.body;
-
+    const {
+      email,
+      password,
+      full_name,
+      phone,
+      date_of_birth,
+      address,
+      profile_pic, // Added profile_pic field
+    } = req.body;
+    console.log(req.body);
     // Validate required fields
     if (!email || !password || !full_name || !phone) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -51,8 +135,9 @@ Studnetauth.post("/register", async (req, res) => {
       password,
       full_name,
       phone,
-      date_of_birth,
-      address,
+      date_of_birth: date_of_birth || null,
+      address: address || null,
+      profile_picture: profile_pic || null, // Add profile picture URL if provided
     });
 
     // Generate and save OTP
@@ -71,6 +156,12 @@ Studnetauth.post("/register", async (req, res) => {
       message:
         "Registration successful. Please verify your account with the OTP sent to your email.",
       email: student.email,
+      student: {
+        id: student._id,
+        email: student.email,
+        full_name: student.full_name,
+        profile_pic: student.profile_pic,
+      },
     });
   } catch (error) {
     console.error("Registration error:", error);
@@ -79,7 +170,6 @@ Studnetauth.post("/register", async (req, res) => {
       .json({ message: "Registration failed", error: error.message });
   }
 });
-
 // Verify OTP
 Studnetauth.post("/verify-otp", async (req, res) => {
   try {

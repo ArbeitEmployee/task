@@ -696,7 +696,7 @@ const TeacherRegistration = () => {
             {/* Certificates Upload */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
-                Certificates (PDF/Image, max 5MB each) *
+                Certificates (PDF/Image, max 5MB each , max 10) *
               </label>
               <div
                 className={`border-2 border-dashed ${

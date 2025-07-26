@@ -1,6 +1,5 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
-import React, { useEffect, useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   FiPlus,
@@ -15,65 +14,14 @@ import {
 } from "react-icons/fi";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
-import toast from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast";
 import axios from "axios";
-import { DndProvider, useDrag, useDrop } from "react-dnd";
-import { HTML5Backend } from "react-dnd-html5-backend";
-const ItemTypes = {
-  CONTENT_ITEM: "contentItem",
-};
+import { useParams, useNavigate } from "react-router-dom";
 
-const DraggableItem = ({ id, index, moveItem, children }) => {
-  const ref = useRef(null);
-
-  const [{ isDragging }, drag] = useDrag({
-    type: ItemTypes.CONTENT_ITEM,
-    item: { id, index },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
-
-  const [, drop] = useDrop({
-    accept: ItemTypes.CONTENT_ITEM,
-    hover(item, monitor) {
-      if (!ref.current) return;
-      const dragIndex = item.index;
-      const hoverIndex = index;
-
-      if (dragIndex === hoverIndex) return;
-
-      const hoverBoundingRect = ref.current?.getBoundingClientRect();
-      const hoverMiddleY =
-        (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
-      const clientOffset = monitor.getClientOffset();
-      const hoverClientY = clientOffset.y - hoverBoundingRect.top;
-
-      if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) return;
-      if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) return;
-
-      moveItem(dragIndex, hoverIndex);
-      item.index = hoverIndex;
-    },
-  });
-
-  drag(drop(ref));
-
-  return (
-    <div
-      ref={ref}
-      style={{
-        opacity: isDragging ? 0.5 : 1,
-        cursor: "move",
-      }}
-    >
-      {children}
-    </div>
-  );
-};
-const CourseCreator = () => {
+const Editcourse = () => {
   const base_url = import.meta.env.VITE_API_KEY_Base_URL;
-  const [hoverIndex, setHoverIndex] = useState(null);
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [courseType, setCourseType] = useState(null);
   const [courseData, setCourseData] = useState({
     title: "",
@@ -82,16 +30,24 @@ const CourseCreator = () => {
     attachments: [],
     content: [],
     price: "",
-    categories: [], // This should be an array
-    category: "", // Add this single-select field
+    categories: [],
+    requirements: [],
+    whatYouWillLearn: [],
     level: "beginner",
+    category: "",
   });
   const [expandedSections, setExpandedSections] = useState({});
-  const [availableCategories, setAvailableCategories] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [loadingCourse, setLoadingCourse] = useState(true);
+  const [existingThumbnail, setExistingThumbnail] = useState(null);
+  const [existingAttachments, setExistingAttachments] = useState([]);
+
+  // React Quill modules configuration
   const quillModules = {
     toolbar: [
       [{ header: [1, 2, 3, false] }],
-      ["bold", "italic", "underline", "strike", "blockquote"],
+      ["bold", "italic", "underline", "strike"],
       [{ list: "ordered" }, { list: "bullet" }],
       ["link", "image"],
       ["clean"],
@@ -104,28 +60,116 @@ const CourseCreator = () => {
     "italic",
     "underline",
     "strike",
-    "blockquote",
     "list",
     "bullet",
     "link",
     "image",
   ];
 
-  const moveContentItem = (dragIndex, hoverIndex) => {
-    setCourseData((prev) => {
-      const newContent = [...prev.content];
-      const draggedItem = newContent[dragIndex];
+  // Fetch course data when component mounts
+  useEffect(() => {
+    const fetchCourseData = async () => {
+      try {
+        setLoadingCourse(true);
+        const response = await axios.get(
+          `${base_url}/api/admin/courses/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+            },
+          }
+        );
 
-      newContent.splice(dragIndex, 1);
-      newContent.splice(hoverIndex, 0, draggedItem);
+        if (response.data.success) {
+          const course = response.data.data;
+          setCourseType(course.type);
 
-      return {
-        ...prev,
-        content: newContent,
-      };
-    });
-    setHoverIndex(null);
-  };
+          // Set existing thumbnail and attachments
+          if (course.thumbnail) {
+            setExistingThumbnail(course.thumbnail);
+          }
+          if (course.attachments && course.attachments.length > 0) {
+            setExistingAttachments(course.attachments);
+          }
+
+          // Transform the course data to match our form state
+          setCourseData({
+            title: course.title,
+            description: course.description,
+            thumbnail: null, // Will handle file upload separately
+            attachments: [], // Will handle file upload separately
+            content: course.content.map((item) => {
+              if (item.type === "quiz") {
+                return {
+                  ...item,
+                  questions: item.questions.map((q) => ({
+                    ...q,
+                    options: q.options || [],
+                    correctAnswer:
+                      q.correctAnswer || (q.type === "mcq-multiple" ? [] : 0),
+                  })),
+                };
+              }
+              return item;
+            }),
+            price: course.price,
+            categories: course.categories || [],
+            level: course.level || "beginner",
+            category: course.category || "",
+          });
+
+          // Expand all sections by default
+          const expanded = {};
+          course.content.forEach((item) => {
+            expanded[item._id] = true;
+          });
+          setExpandedSections(expanded);
+        } else {
+          toast.error("Failed to fetch course data");
+          navigate(-1);
+        }
+      } catch (error) {
+        console.error("Error fetching course:", error);
+        toast.error("Error fetching course data");
+        navigate(-1);
+      } finally {
+        setLoadingCourse(false);
+      }
+    };
+    fetchCourseData();
+  }, [id, base_url, navigate]);
+
+  // Fetch categories when courseType is set
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const response = await axios.get(
+          `${base_url}/api/teacher/all-category`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("teacherToken")}`,
+            },
+          }
+        );
+        if (response.data.success) {
+          setCategories(response.data.data);
+        } else {
+          toast.error("Failed to fetch categories");
+        }
+      } catch (error) {
+        toast.error("Error fetching categories");
+        console.error("Category fetch error:", error);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    if (courseType) {
+      fetchCategories();
+    }
+  }, [courseType, base_url]);
+
   // Toggle section expansion
   const toggleSection = (id) => {
     setExpandedSections((prev) => ({
@@ -142,7 +186,8 @@ const CourseCreator = () => {
       description: "",
       content: isPremium ? null : "",
       youtubeLink: !isPremium ? "" : null,
-      isExpanded: true, // New tutorials are expanded by default
+      isPremium: isPremium,
+      isExpanded: true,
     };
     setCourseData((prev) => ({
       ...prev,
@@ -170,7 +215,7 @@ const CourseCreator = () => {
           answer: "",
         },
       ],
-      isExpanded: true, // New quizzes are expanded by default
+      isExpanded: true,
     };
     setCourseData((prev) => ({
       ...prev,
@@ -191,7 +236,7 @@ const CourseCreator = () => {
       thumbnail: null,
       meetingLink: "",
       schedule: new Date().toISOString().slice(0, 16),
-      isExpanded: true, // New live classes are expanded by default
+      isExpanded: true,
     };
     setCourseData((prev) => ({
       ...prev,
@@ -232,10 +277,10 @@ const CourseCreator = () => {
     setCourseData((prev) => ({
       ...prev,
       content: prev.content.map((item) => {
-        if (item.id === quizId) {
+        if (item.id === quizId || item._id === quizId) {
           return {
             ...item,
-            questions: [...item.questions, question],
+            questions: [...(item.questions || []), question],
           };
         }
         return item;
@@ -247,14 +292,14 @@ const CourseCreator = () => {
     setCourseData((prev) => ({
       ...prev,
       content: prev.content.map((item) => {
-        if (item.id === quizId) {
+        if (item.id === quizId || item._id === quizId) {
           return {
             ...item,
             questions: item.questions.map((q) => {
-              if (q.id === questionId) {
+              if (q.id === questionId || q._id === questionId) {
                 return {
                   ...q,
-                  options: [...q.options, ""],
+                  options: [...(q.options || []), ""],
                 };
               }
               return q;
@@ -269,7 +314,7 @@ const CourseCreator = () => {
   const removeContentItem = (id) => {
     setCourseData((prev) => ({
       ...prev,
-      content: prev.content.filter((item) => item.id !== id),
+      content: prev.content.filter((item) => item.id !== id && item._id !== id),
     }));
   };
 
@@ -285,7 +330,7 @@ const CourseCreator = () => {
     setCourseData((prev) => ({
       ...prev,
       content: prev.content.map((item) => {
-        if (item.id === id) {
+        if (item.id === id || item._id === id) {
           return { ...item, [field]: value };
         }
         return item;
@@ -297,11 +342,11 @@ const CourseCreator = () => {
     setCourseData((prev) => ({
       ...prev,
       content: prev.content.map((item) => {
-        if (item.id === quizId) {
+        if (item.id === quizId || item._id === quizId) {
           return {
             ...item,
             questions: item.questions.map((q) => {
-              if (q.id === questionId) {
+              if (q.id === questionId || q._id === questionId) {
                 return { ...q, [field]: value };
               }
               return q;
@@ -317,12 +362,12 @@ const CourseCreator = () => {
     setCourseData((prev) => ({
       ...prev,
       content: prev.content.map((item) => {
-        if (item.id === quizId) {
+        if (item.id === quizId || item._id === quizId) {
           return {
             ...item,
             questions: item.questions.map((q) => {
-              if (q.id === questionId) {
-                const newOptions = [...q.options];
+              if (q.id === questionId || q._id === questionId) {
+                const newOptions = [...(q.options || [])];
                 newOptions[optionIndex] = value;
                 return { ...q, options: newOptions };
               }
@@ -339,14 +384,20 @@ const CourseCreator = () => {
     setCourseData((prev) => ({
       ...prev,
       content: prev.content.map((item) => {
-        if (item.id === quizId) {
+        if (item.id === quizId || item._id === quizId) {
           return {
             ...item,
             questions: item.questions.map((q) => {
-              if (q.id === questionId && q.type === "mcq-single") {
+              if (
+                (q.id === questionId || q._id === questionId) &&
+                q.type === "mcq-single"
+              ) {
                 return { ...q, correctAnswer: answerIndex };
               }
-              if (q.id === questionId && q.type === "mcq-multiple") {
+              if (
+                (q.id === questionId || q._id === questionId) &&
+                q.type === "mcq-multiple"
+              ) {
                 const currentAnswers = Array.isArray(q.correctAnswer)
                   ? q.correctAnswer
                   : [];
@@ -368,11 +419,11 @@ const CourseCreator = () => {
     setCourseData((prev) => ({
       ...prev,
       content: prev.content.map((item) => {
-        if (item.id === quizId) {
+        if (item.id === quizId || item._id === quizId) {
           return {
             ...item,
             questions: item.questions.map((q) => {
-              if (q.id === questionId) {
+              if (q.id === questionId || q._id === questionId) {
                 return { ...q, answer: value };
               }
               return q;
@@ -398,6 +449,7 @@ const CourseCreator = () => {
         ...prev,
         thumbnail: file,
       }));
+      setExistingThumbnail(null);
     }
   };
 
@@ -416,16 +468,20 @@ const CourseCreator = () => {
     }));
   };
 
+  const removeExistingAttachment = (index) => {
+    setExistingAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const removeOption = (quizId, questionId, optionIndex) => {
     setCourseData((prev) => ({
       ...prev,
       content: prev.content.map((item) => {
-        if (item.id === quizId) {
+        if (item.id === quizId || item._id === quizId) {
           return {
             ...item,
             questions: item.questions.map((q) => {
-              if (q.id === questionId) {
-                const newOptions = q.options.filter(
+              if (q.id === questionId || q._id === questionId) {
+                const newOptions = (q.options || []).filter(
                   (_, i) => i !== optionIndex
                 );
                 let newCorrectAnswer = q.correctAnswer;
@@ -459,64 +515,19 @@ const CourseCreator = () => {
       }),
     }));
   };
-  useEffect(() => {
-    axios
-      .get(`${base_url}/api/auth/categories`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      })
-      .then((res) => setAvailableCategories(res.data))
-      .catch((err) =>
-        toast.error(err.response?.data?.message || "Could not load categories")
-      );
-  }, []);
 
-  const publishCourse = async () => {
+  const updateCourse = async () => {
     try {
-      // Convert HTML descriptions to plain text
-      const plainTextDescription = courseData.description.replace(
-        /<[^>]*>?/gm,
-        ""
-      );
-      const contentWithPlainText = courseData.content.map((item) => {
-        const plainTextItem = {
-          ...item,
-          description: item.description
-            ? item.description.replace(/<[^>]*>?/gm, "")
-            : "",
-        };
-
-        if (item.type === "quiz") {
-          return {
-            ...plainTextItem,
-            questions: item.questions.map((question) => {
-              const plainTextQuestion = {
-                ...question,
-                question: question.question.replace(/<[^>]*>?/gm, ""),
-              };
-
-              if (question.type === "broad-answer") {
-                return {
-                  ...plainTextQuestion,
-                  answer: question.answer
-                    ? question.answer.replace(/<[^>]*>?/gm, "")
-                    : "",
-                };
-              }
-              return plainTextQuestion;
-            }),
-          };
-        }
-        return plainTextItem;
-      });
-
       // Validate required fields
-      if (!courseData.title || !plainTextDescription || !courseData.thumbnail) {
+      if (
+        !courseData.title ||
+        !courseData.description ||
+        (!courseData.thumbnail && !existingThumbnail)
+      ) {
         throw new Error("Please fill all required fields");
       }
-      if (!courseData.category) {
-        throw new Error("Please select a category");
-      }
-      if (contentWithPlainText.length === 0) {
+
+      if (courseData.content.length === 0) {
         throw new Error("Please add at least one content item");
       }
 
@@ -525,7 +536,7 @@ const CourseCreator = () => {
       }
 
       // Validate content items
-      for (const item of contentWithPlainText) {
+      for (const item of courseData.content) {
         if (!item.title) {
           throw new Error(`Please add a title for all content items`);
         }
@@ -592,15 +603,19 @@ const CourseCreator = () => {
       // Prepare form data for upload
       const formData = new FormData();
       formData.append("title", courseData.title);
-      formData.append("description", plainTextDescription);
-      formData.append("categories", JSON.stringify([courseData.category]));
-      formData.append("level", courseData.level);
+      formData.append("description", courseData.description);
+      if (courseData.thumbnail) {
+        formData.append("thumbnail", courseData.thumbnail);
+      }
       formData.append("type", courseType);
       formData.append("price", courseType === "premium" ? courseData.price : 0);
-      formData.append("content", JSON.stringify(contentWithPlainText));
-      formData.append("thumbnail", courseData.thumbnail);
+      formData.append("content", JSON.stringify(courseData.content));
+      formData.append("categories", JSON.stringify(courseData.categories));
+      formData.append("level", courseData.level);
+      formData.append("status", "active");
+      formData.append("category", courseData.category);
 
-      // Add attachments
+      // Add new attachments
       courseData.attachments.forEach((file) => {
         formData.append("attachments", file);
       });
@@ -618,338 +633,292 @@ const CourseCreator = () => {
       }
 
       // Show loading toast
-      const loadingToast = toast.loading("Publishing course...");
+      const loadingToast = toast.loading("Updating course...");
 
       // Make API call
-      const response = await axios.post(
-        `${base_url}/api/admin/courses`,
+      const response = await axios.put(
+        `${base_url}/api/admin/courses/${id}`,
         formData,
         {
           headers: {
             "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
           },
         }
       );
 
       // Success handling
       toast.dismiss(loadingToast);
-      toast.success(`Course "${courseData.title}" published successfully!`);
-
-      // Reset form
-      setCourseData({
-        title: "",
-        description: "",
-        thumbnail: null,
-        attachments: [],
-        content: [],
-        price: "",
-        level: "beginner",
-        category: "",
-      });
-      setCourseType(null);
-      setExpandedSections({});
+      toast.success(`Course "${courseData.title}" updated successfully!`);
+      navigate(-1);
     } catch (error) {
       toast.dismiss();
       toast.error(
         error.response?.data?.message ||
           error.message ||
-          "Failed to publish course"
+          "Failed to update course"
       );
-      console.error("Publish error:", error);
+      console.error("Update error:", error);
     }
   };
 
+  if (loadingCourse) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
-    <DndProvider backend={HTML5Backend}>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="min-h-screen p-6"
-      >
-        <div className="max-w-full mx-auto">
-          {!courseType ? (
-            <div className="flex flex-col items-center justify-center h-[70vh]">
-              <h1 className="text-3xl font-bold text-gray-800 mb-8">
-                Create New Course
-              </h1>
-              <div className="flex gap-6">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setCourseType("free")}
-                  className="bg-white p-8 rounded-xl shadow-md border border-gray-200 hover:border-gray-500 transition-all flex flex-col items-center w-64"
-                >
-                  <div className="bg-gray-100 p-4 rounded-full mb-4">
-                    <FiYoutube className="text-gray-600 text-2xl" />
-                  </div>
-                  <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                    Free Course
-                  </h2>
-                  <p className="text-gray-600 text-center">
-                    Create course with YouTube video links
-                  </p>
-                </motion.button>
+    <div className="bg-gray-50 p-[20px]">
+      <div className="flex w-full h-[94vh] bg-white overflow-hidden">
+        {/* Main Content Section */}
+        <div className="flex-1 h-full overflow-auto">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="min-h-screen p-6"
+          >
+            <div className="max-w-full mx-auto">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h1 className="text-2xl font-bold text-gray-800">
+                    Edit {courseType === "free" ? "Free" : "Premium"} Course
+                  </h1>
+                  <button
+                    onClick={() => navigate(-1)}
+                    className="text-gray-500 cursor-pointer hover:text-gray-700"
+                  >
+                    Back to courses
+                  </button>
+                </div>
 
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setCourseType("premium")}
-                  className="bg-white p-8 rounded-xl shadow-md border border-gray-200 hover:border-gray-500 transition-all flex flex-col items-center w-64"
-                >
-                  <div className="bg-gray-100 p-4 rounded-full mb-4">
-                    <FiDollarSign className="text-gray-600 text-2xl" />
-                  </div>
-                  <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                    Premium Course
-                  </h2>
-                  <p className="text-gray-600 text-center">
-                    Upload videos and charge for access
-                  </p>
-                </motion.button>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-800">
-                  Create {courseType === "free" ? "Free" : "Premium"} Course
-                </h1>
-                <button
-                  onClick={() => {
-                    setCourseType(null);
-                    setCourseData({
-                      title: "",
-                      description: "",
-                      thumbnail: null,
-                      attachments: [],
-                      content: [],
-                      price: "",
-                      level: "beginner",
-                    });
-                  }}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  Back to selection
-                </button>
-              </div>
-
-              {/* Course Basic Info */}
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                  Course Information
-                </h2>
-                <div className="grid grid-cols-1 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Course Title *
-                    </label>
-                    <input
-                      type="text"
-                      name="title"
-                      value={courseData.title}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Course Description *
-                    </label>
-                    <ReactQuill
-                      theme="snow"
-                      value={courseData.description}
-                      onChange={(value) =>
-                        handleInputChange({
-                          target: { name: "description", value },
-                        })
-                      }
-                      modules={quillModules}
-                      formats={quillFormats}
-                      className="mb-4"
-                    />
-                  </div>
-                  {/* ▼ Single‐select dropdown for Categories ▼ */}
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Category *
-                    </label>
-                    <select
-                      value={courseData.category || ""}
-                      onChange={(e) =>
-                        setCourseData((prev) => ({
-                          ...prev,
-                          category: e.target.value,
-                          categories: [e.target.value], // Also update the categories array
-                        }))
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gray-500"
-                      required
-                    >
-                      <option value="" disabled>
-                        — Select a category —
-                      </option>
-                      {availableCategories.map((cat) => (
-                        <option key={cat._id} value={cat.name}>
-                          {cat.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Course Level
-                    </label>
-                    <select
-                      name="level"
-                      value={courseData.level}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-400 rounded-lg focus:border-gray-500 hover:border-gray-600 transition-colors"
-                    >
-                      <option value="beginner">Beginner</option>
-                      <option value="intermediate">Intermediate</option>
-                      <option value="advanced">Advanced</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Course Thumbnail *
-                    </label>
-                    {/* Added flex container for thumbnail and remove button */}
-                    <div className="w-full flex items-center gap-4 bg-gray-100 hover:bg-gray-200 p-3 rounded-lg">
-                      <label className="cursor-pointer flex items-center w-full gap-4">
-                        <FiImage className="text-xl text-gray-600" />
-                        <span className="text-md flex-1 text-gray-700">
-                          {courseData.thumbnail
-                            ? courseData.thumbnail.name
-                            : "Select Thumbnail Image"}
-                        </span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleThumbnailUpload}
-                          className="hidden"
-                        />
+                {/* Course Basic Info */}
+                <div className="mb-8">
+                  <div className="grid grid-cols-1 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Course Title *
                       </label>
-
-                      {/* Remove button, appears only when thumbnail exists */}
+                      <input
+                        type="text"
+                        name="title"
+                        value={courseData.title}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-[6px] focus:outline-blue-600 transition-colors"
+                        required
+                      />
+                    </div>
+                    <div className="h-[300px]">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Course Description *
+                      </label>
+                      <ReactQuill
+                        theme="snow"
+                        value={courseData.description}
+                        onChange={(value) =>
+                          handleInputChange({
+                            target: { name: "description", value },
+                          })
+                        }
+                        modules={quillModules}
+                        formats={quillFormats}
+                        className="rounded-lg h-[250px] "
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Course Thumbnail *
+                      </label>
+                      <div className="w-full flex items-center gap-4 bg-gray-50 hover:bg-gray-100 p-3 rounded-lg border border-gray-300 hover:border-blue-500 transition-colors">
+                        <label className="cursor-pointer flex items-center w-full gap-4">
+                          <FiImage className="text-xl text-gray-600" />
+                          <span className="text-md flex-1 text-gray-700">
+                            {courseData.thumbnail
+                              ? courseData.thumbnail.name
+                              : existingThumbnail
+                              ? existingThumbnail.filename
+                              : "Select Thumbnail Image"}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleThumbnailUpload}
+                            className="hidden"
+                          />
+                        </label>
+                        {(courseData.thumbnail || existingThumbnail) && (
+                          <button
+                            onClick={() => {
+                              setCourseData((prev) => ({
+                                ...prev,
+                                thumbnail: null,
+                              }));
+                              setExistingThumbnail(null);
+                            }}
+                            className="text-gray-400 hover:text-red-500 p-3 rounded-full flex items-center justify-center transition-colors"
+                            type="button"
+                          >
+                            <FiTrash2 size={20} />
+                          </button>
+                        )}
+                      </div>
                       {courseData.thumbnail && (
-                        <button
-                          onClick={() =>
-                            setCourseData((prev) => ({
-                              ...prev,
-                              thumbnail: null,
-                            }))
-                          }
-                          className="text-gray-400 hover:text-red-500 p-3 rounded-full flex items-center justify-center"
-                          type="button"
-                        >
-                          <FiTrash2 size={20} />
-                        </button>
+                        <div className="mt-2 text-sm text-gray-500">
+                          Selected Image: {courseData.thumbnail.name} (
+                          {(courseData.thumbnail.size / (1024 * 1024)).toFixed(
+                            2
+                          )}{" "}
+                          MB)
+                        </div>
+                      )}
+                      {existingThumbnail && !courseData.thumbnail && (
+                        <div className="mt-2 text-sm text-gray-500">
+                          Current Image: {existingThumbnail.filename} (
+                          {(existingThumbnail.size / (1024 * 1024)).toFixed(2)}{" "}
+                          MB)
+                        </div>
                       )}
                     </div>
-
-                    {/* Existing file info display remains unchanged */}
-                    {courseData.thumbnail && (
-                      <div className="mt-2 text-sm text-gray-500">
-                        Selected Image: {courseData.thumbnail.name} (
-                        {(courseData.thumbnail.size / (1024 * 1024)).toFixed(2)}{" "}
-                        MB)
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Attachments (PDFs, Docs, etc.)
-                    </label>
-                    <div className="flex items-center gap-4">
-                      {/* Upload button with fixed size */}
-                      <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors w-56 flex justify-center items-center">
-                        <FiUpload className="inline mr-2" />
-                        Upload Files
-                        <input
-                          type="file"
-                          multiple
-                          onChange={handleAttachmentUpload}
-                          className="hidden"
-                        />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Attachments (PDFs, Docs, etc.)
                       </label>
-
-                      {/* Container for file names with overflow handling */}
-                      <div className="flex flex-wrap gap-2 max-h-36 overflow-auto w-full">
-                        {courseData.attachments.map((file, index) => (
-                          <div
-                            key={index}
-                            className="bg-gray-100 px-3 py-1 rounded-lg text-sm flex items-center max-w-xs"
-                          >
-                            <span className="truncate max-w-xs">
-                              {file.name}
-                            </span>
-                            <button
-                              onClick={() => removeAttachment(index)}
-                              className="ml-2 text-gray-500 hover:text-red-500"
+                      <div className="flex items-center gap-4">
+                        <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors w-56 flex justify-center items-center border border-gray-300 hover:border-blue-500">
+                          <FiUpload className="inline mr-2" />
+                          Upload Files
+                          <input
+                            type="file"
+                            multiple
+                            onChange={handleAttachmentUpload}
+                            className="hidden"
+                          />
+                        </label>
+                        <div className="flex flex-wrap gap-2 max-h-36 overflow-auto w-full">
+                          {existingAttachments.map((file, index) => (
+                            <div
+                              key={index}
+                              className="bg-gray-100 px-3 py-1 rounded-lg text-sm flex items-center max-w-xs border border-gray-200"
                             >
-                              <FiTrash2 size={14} />
-                            </button>
-                          </div>
-                        ))}
+                              <span className="truncate max-w-xs">
+                                {file.filename}
+                              </span>
+                              <button
+                                onClick={() => removeExistingAttachment(index)}
+                                className="ml-2 text-gray-500 hover:text-red-500 transition-colors"
+                              >
+                                <FiTrash2 size={14} />
+                              </button>
+                            </div>
+                          ))}
+                          {courseData.attachments.map((file, index) => (
+                            <div
+                              key={`new-${index}`}
+                              className="bg-gray-100 px-3 py-1 rounded-lg text-sm flex items-center max-w-xs border border-gray-200"
+                            >
+                              <span className="truncate max-w-xs">
+                                {file.name}
+                              </span>
+                              <button
+                                onClick={() => removeAttachment(index)}
+                                className="ml-2 text-gray-500 hover:text-red-500 transition-colors"
+                              >
+                                <FiTrash2 size={14} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Category *
+                      </label>
+                      {loadingCategories ? (
+                        <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 animate-pulse">
+                          Loading categories...
+                        </div>
+                      ) : (
+                        <select
+                          name="category"
+                          value={courseData.category}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                          required
+                        >
+                          <option value="">Select a category</option>
+                          {categories.map((category) => (
+                            <option key={category._id} value={category.name}>
+                              {category.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Course Level
+                      </label>
+                      <select
+                        name="level"
+                        value={courseData.level}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
+                      >
+                        <option value="beginner">Beginner</option>
+                        <option value="intermediate">Intermediate</option>
+                        <option value="advanced">Advanced</option>
+                      </select>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Course Content */}
-              <div className="mb-8">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold text-gray-800">
-                    Course Content
-                  </h2>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => addTutorial(courseType === "premium")}
-                      className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center"
-                    >
-                      <FiPlus className="mr-2" />
-                      Add Tutorial
-                    </button>
-                    <button
-                      onClick={addQuiz}
-                      className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center"
-                    >
-                      <FiPlus className="mr-2" />
-                      Add Quiz
-                    </button>
-                    <button
-                      onClick={addLiveClass}
-                      className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center"
-                    >
-                      <FiPlus className="mr-2" />
-                      Add Live Class
-                    </button>
+                {/* Course Content */}
+                <div className="mb-8">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold text-gray-800">
+                      Course Content
+                    </h2>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => addTutorial(courseType === "premium")}
+                        className="bg-theme_color text-white px-4 py-2 rounded-lg flex items-center transition-colors"
+                      >
+                        <FiPlus className="mr-2" />
+                        Add Tutorial
+                      </button>
+                      <button
+                        onClick={addQuiz}
+                        className="bg-theme_color text-white px-4 py-2 rounded-lg flex items-center transition-colors"
+                      >
+                        <FiPlus className="mr-2" />
+                        Add Quiz
+                      </button>
+                      <button
+                        onClick={addLiveClass}
+                        className="bg-theme_color text-white px-4 py-2 rounded-lg flex items-center transition-colors"
+                      >
+                        <FiPlus className="mr-2" />
+                        Add Live Class
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                <div className="space-y-6">
-                  {courseData.content.map((item, index) => (
-                    <DraggableItem
-                      key={item.id}
-                      id={item.id}
-                      index={index}
-                      moveItem={moveContentItem}
-                    >
+                  <div className="space-y-6">
+                    {courseData.content.map((item, index) => (
                       <motion.div
-                        key={item.id}
+                        key={item.id || item._id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3 }}
-                        className="border border-gray-200 rounded-lg p-6 relative hover:border-gray-500"
+                        className="border border-gray-200 rounded-lg p-0 relative hover:border-blue-500 transition-colors"
                       >
                         <div
-                          className="flex justify-between items-center p-4 bg-gray-50 cursor-pointer"
-                          onClick={() => toggleSection(item.id)}
+                          className="flex justify-between items-center p-4 bg-gray-50 cursor-pointer rounded-t-lg"
+                          onClick={() => toggleSection(item.id || item._id)}
                         >
                           <div className="flex items-center">
                             <h3 className="font-medium text-gray-800">
@@ -965,20 +934,20 @@ const CourseCreator = () => {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                removeContentItem(item.id);
+                                removeContentItem(item.id || item._id);
                               }}
-                              className="text-gray-400 hover:text-red-500"
+                              className="text-gray-400 hover:text-red-500 transition-colors"
                             >
                               <FiTrash2 />
                             </button>
-                            {expandedSections[item.id] ? (
+                            {expandedSections[item.id || item._id] ? (
                               <FiChevronUp className="text-gray-500" />
                             ) : (
                               <FiChevronDown className="text-gray-500" />
                             )}
                           </div>
                         </div>
-                        {expandedSections[item.id] && (
+                        {expandedSections[item.id || item._id] && (
                           <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
@@ -997,12 +966,12 @@ const CourseCreator = () => {
                                     value={item.title}
                                     onChange={(e) =>
                                       handleContentChange(
-                                        item.id,
+                                        item.id || item._id,
                                         "title",
                                         e.target.value
                                       )
                                     }
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
                                     required
                                   />
                                 </div>
@@ -1015,14 +984,14 @@ const CourseCreator = () => {
                                     value={item.description}
                                     onChange={(value) =>
                                       handleContentChange(
-                                        item.id,
+                                        item.id || item._id,
                                         "description",
                                         value
                                       )
                                     }
                                     modules={quillModules}
                                     formats={quillFormats}
-                                    className="mb-4"
+                                    className="border border-gray-300 rounded-lg hover:border-blue-500 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200"
                                   />
                                 </div>
                                 {courseType === "free" ? (
@@ -1037,13 +1006,13 @@ const CourseCreator = () => {
                                         value={item.youtubeLink}
                                         onChange={(e) =>
                                           handleContentChange(
-                                            item.id,
+                                            item.id || item._id,
                                             "youtubeLink",
                                             e.target.value
                                           )
                                         }
                                         placeholder="https://www.youtube.com/watch?v=..."
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
                                         required
                                       />
                                     </div>
@@ -1053,30 +1022,36 @@ const CourseCreator = () => {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                       Upload Video *
                                     </label>
-                                    <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors inline-flex items-center">
+                                    <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors inline-flex items-center border border-gray-300 hover:border-blue-500">
                                       <FiUpload className="mr-2" />
                                       {item.content
-                                        ? item.content.name
+                                        ? typeof item.content === "object"
+                                          ? item.content.name
+                                          : "Video already uploaded"
                                         : "Select Video File"}
                                       <input
                                         type="file"
                                         accept="video/*"
                                         onChange={(e) =>
-                                          handleFileUpload(e, item.id)
+                                          handleFileUpload(
+                                            e,
+                                            item.id || item._id
+                                          )
                                         }
                                         className="hidden"
                                       />
                                     </label>
-                                    {item.content && (
-                                      <div className="mt-2 text-sm text-gray-500">
-                                        Selected: {item.content.name} (
-                                        {(
-                                          item.content.size /
-                                          (1024 * 1024)
-                                        ).toFixed(2)}{" "}
-                                        MB)
-                                      </div>
-                                    )}
+                                    {item.content &&
+                                      typeof item.content === "object" && (
+                                        <div className="mt-2 text-sm text-gray-500">
+                                          Selected: {item.content.name} (
+                                          {(
+                                            item.content.size /
+                                            (1024 * 1024)
+                                          ).toFixed(2)}{" "}
+                                          MB)
+                                        </div>
+                                      )}
                                   </div>
                                 )}
                               </div>
@@ -1091,12 +1066,12 @@ const CourseCreator = () => {
                                     value={item.title}
                                     onChange={(e) =>
                                       handleContentChange(
-                                        item.id,
+                                        item.id || item._id,
                                         "title",
                                         e.target.value
                                       )
                                     }
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
                                     required
                                   />
                                 </div>
@@ -1109,26 +1084,28 @@ const CourseCreator = () => {
                                     value={item.description}
                                     onChange={(value) =>
                                       handleContentChange(
-                                        item.id,
+                                        item.id || item._id,
                                         "description",
                                         value
                                       )
                                     }
                                     modules={quillModules}
                                     formats={quillFormats}
-                                    className="mb-4"
+                                    className="border border-gray-300 rounded-lg hover:border-blue-500 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200"
                                   />
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Thumbnail Image
                                   </label>
-                                  <div className="w-full flex items-center gap-4 bg-gray-100 hover:bg-gray-200 p-3 rounded-lg">
+                                  <div className="w-full flex items-center gap-4 bg-gray-50 hover:bg-gray-100 p-3 rounded-lg border border-gray-300 hover:border-blue-500 transition-colors">
                                     <label className="cursor-pointer flex items-center w-full gap-4">
                                       <FiImage className="text-md text-gray-600" />
                                       <span className="text-md flex-1 text-gray-700">
                                         {item.thumbnail
-                                          ? item.thumbnail.name
+                                          ? typeof item.thumbnail === "object"
+                                            ? item.thumbnail.name
+                                            : "Thumbnail already uploaded"
                                           : "Select Thumbnail Image"}
                                       </span>
                                       <input
@@ -1137,42 +1114,40 @@ const CourseCreator = () => {
                                         onChange={(e) =>
                                           handleFileUpload(
                                             e,
-                                            item.id,
+                                            item.id || item._id,
                                             "thumbnail"
                                           )
                                         }
                                         className="hidden"
                                       />
                                     </label>
-
-                                    {/* Remove button, appears only when thumbnail exists */}
                                     {item.thumbnail && (
                                       <button
                                         onClick={() =>
                                           handleContentChange(
-                                            item.id,
+                                            item.id || item._id,
                                             "thumbnail",
                                             null
                                           )
                                         }
-                                        className="text-gray-400 hover:text-red-500 p-3 rounded-full flex items-center justify-center"
+                                        className="text-gray-400 hover:text-red-500 p-3 rounded-full flex items-center justify-center transition-colors"
                                         type="button"
                                       >
                                         <FiTrash2 size={20} />
                                       </button>
                                     )}
                                   </div>
-
-                                  {item.thumbnail && (
-                                    <div className="mt-2 text-sm text-gray-500">
-                                      Selected Image: {item.thumbnail.name} (
-                                      {(
-                                        item.thumbnail.size /
-                                        (1024 * 1024)
-                                      ).toFixed(2)}{" "}
-                                      MB)
-                                    </div>
-                                  )}
+                                  {item.thumbnail &&
+                                    typeof item.thumbnail === "object" && (
+                                      <div className="mt-2 text-sm text-gray-500">
+                                        Selected Image: {item.thumbnail.name} (
+                                        {(
+                                          item.thumbnail.size /
+                                          (1024 * 1024)
+                                        ).toFixed(2)}{" "}
+                                        MB)
+                                      </div>
+                                    )}
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1183,13 +1158,13 @@ const CourseCreator = () => {
                                     value={item.meetingLink}
                                     onChange={(e) =>
                                       handleContentChange(
-                                        item.id,
+                                        item.id || item._id,
                                         "meetingLink",
                                         e.target.value
                                       )
                                     }
                                     placeholder="https://zoom.us/j/... or https://meet.google.com/..."
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
                                   />
                                 </div>
                                 <div>
@@ -1201,19 +1176,23 @@ const CourseCreator = () => {
                                     value={item.schedule}
                                     onChange={(e) =>
                                       handleContentChange(
-                                        item.id,
+                                        item.id || item._id,
                                         "schedule",
                                         e.target.value
                                       )
                                     }
-                                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
                                     required
                                   />
                                 </div>
                               </div>
                             ) : (
                               <div className="space-y-4">
-                                <div className="flex justify-between items-center"></div>
+                                <div className="flex justify-between items-start mb-2">
+                                  <h4 className="font-medium text-gray-800 mb-2">
+                                    Quiz Title *
+                                  </h4>
+                                </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Quiz Title *
@@ -1223,12 +1202,12 @@ const CourseCreator = () => {
                                     value={item.title}
                                     onChange={(e) =>
                                       handleContentChange(
-                                        item.id,
+                                        item.id || item._id,
                                         "title",
                                         e.target.value
                                       )
                                     }
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
                                     required
                                   />
                                 </div>
@@ -1241,22 +1220,22 @@ const CourseCreator = () => {
                                     value={item.description}
                                     onChange={(value) =>
                                       handleContentChange(
-                                        item.id,
+                                        item.id || item._id,
                                         "description",
                                         value
                                       )
                                     }
                                     modules={quillModules}
                                     formats={quillFormats}
-                                    className="mb-4"
+                                    className="border border-gray-300 rounded-lg hover:border-blue-500 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200"
                                   />
                                 </div>
 
                                 <div className="space-y-6">
                                   {item.questions.map((question, qIndex) => (
                                     <div
-                                      key={question.id}
-                                      className="border-l-4 border-gray-500 pl-4"
+                                      key={question.id || question._id}
+                                      className="border-l-4 border-blue-500 pl-4"
                                     >
                                       <div className="flex justify-between items-start mb-2">
                                         <h4 className="font-medium text-gray-800 mb-2">
@@ -1267,13 +1246,13 @@ const CourseCreator = () => {
                                             value={question.type}
                                             onChange={(e) =>
                                               handleQuestionChange(
-                                                item.id,
-                                                question.id,
+                                                item.id || item._id,
+                                                question.id || question._id,
                                                 "type",
                                                 e.target.value
                                               )
                                             }
-                                            className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                            className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
                                           >
                                             <option value="mcq-single">
                                               Single Choice MCQ
@@ -1295,7 +1274,10 @@ const CourseCreator = () => {
                                                 content: prev.content.map(
                                                   (contentItem) => {
                                                     if (
-                                                      contentItem.id === item.id
+                                                      contentItem.id ===
+                                                        item.id ||
+                                                      contentItem._id ===
+                                                        item._id
                                                     ) {
                                                       return {
                                                         ...contentItem,
@@ -1303,7 +1285,8 @@ const CourseCreator = () => {
                                                           contentItem.questions.filter(
                                                             (q) =>
                                                               q.id !==
-                                                              question.id
+                                                              (question.id ||
+                                                                question._id)
                                                           ),
                                                       };
                                                     }
@@ -1312,7 +1295,7 @@ const CourseCreator = () => {
                                                 ),
                                               }));
                                             }}
-                                            className="text-gray-400 hover:text-red-500"
+                                            className="text-gray-400 hover:text-red-500 transition-colors"
                                           >
                                             <FiTrash2 size={14} />
                                           </button>
@@ -1324,14 +1307,14 @@ const CourseCreator = () => {
                                           value={question.question}
                                           onChange={(e) =>
                                             handleQuestionChange(
-                                              item.id,
-                                              question.id,
+                                              item.id || item._id,
+                                              question.id || question._id,
                                               "question",
                                               e.target.value
                                             )
                                           }
                                           placeholder="Enter question"
-                                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
                                           required
                                         />
                                       </div>
@@ -1368,7 +1351,9 @@ const CourseCreator = () => {
                                                       ? "radio"
                                                       : "checkbox"
                                                   }
-                                                  name={`correct-${question.id}`}
+                                                  name={`correct-${
+                                                    question.id || question._id
+                                                  }`}
                                                   checked={
                                                     question.type ===
                                                     "mcq-single"
@@ -1383,8 +1368,9 @@ const CourseCreator = () => {
                                                   }
                                                   onChange={() =>
                                                     handleCorrectAnswerChange(
-                                                      item.id,
-                                                      question.id,
+                                                      item.id || item._id,
+                                                      question.id ||
+                                                        question._id,
                                                       oIndex
                                                     )
                                                   }
@@ -1400,8 +1386,9 @@ const CourseCreator = () => {
                                                   value={option}
                                                   onChange={(e) =>
                                                     handleOptionChange(
-                                                      item.id,
-                                                      question.id,
+                                                      item.id || item._id,
+                                                      question.id ||
+                                                        question._id,
                                                       oIndex,
                                                       e.target.value
                                                     )
@@ -1417,12 +1404,13 @@ const CourseCreator = () => {
                                                   <button
                                                     onClick={() =>
                                                       removeOption(
-                                                        item.id,
-                                                        question.id,
+                                                        item.id || item._id,
+                                                        question.id ||
+                                                          question._id,
                                                         oIndex
                                                       )
                                                     }
-                                                    className="text-gray-400 hover:text-red-500"
+                                                    className="text-gray-400 hover:text-red-500 transition-colors"
                                                   >
                                                     <FiTrash2 size={14} />
                                                   </button>
@@ -1433,9 +1421,12 @@ const CourseCreator = () => {
                                           <div className="flex justify-end">
                                             <button
                                               onClick={() =>
-                                                addOption(item.id, question.id)
+                                                addOption(
+                                                  item.id || item._id,
+                                                  question.id || question._id
+                                                )
                                               }
-                                              className="text-green-600 hover:text-green-800 flex items-center text-sm mt-2 bg-green-50 hover:bg-green-100 px-3 py-1 rounded"
+                                              className="text-green-600 hover:text-green-800 flex items-center text-sm mt-2 bg-green-50 hover:bg-green-100 px-3 py-1 rounded border border-green-200 transition-colors"
                                             >
                                               <FiPlus className="mr-1" /> Add
                                               Option
@@ -1452,13 +1443,13 @@ const CourseCreator = () => {
                                             value={question.answer}
                                             onChange={(e) =>
                                               handleAnswerChange(
-                                                item.id,
-                                                question.id,
+                                                item.id || item._id,
+                                                question.id || question._id,
                                                 e.target.value
                                               )
                                             }
                                             placeholder="Enter expected short answer"
-                                            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 ${
+                                            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                                               question.answer
                                                 ? "border-green-500 bg-green-50"
                                                 : "border-gray-300"
@@ -1482,14 +1473,13 @@ const CourseCreator = () => {
                                               value={question.answer}
                                               onChange={(value) =>
                                                 handleAnswerChange(
-                                                  item.id,
-                                                  question.id,
+                                                  item.id || item._id,
+                                                  question.id || question._id,
                                                   value
                                                 )
                                               }
                                               modules={quillModules}
                                               formats={quillFormats}
-                                              className="mb-4"
                                             />
                                           </div>
                                         </div>
@@ -1499,34 +1489,46 @@ const CourseCreator = () => {
                                   <div className="flex flex-wrap gap-2">
                                     <button
                                       onClick={() =>
-                                        addQuestion(item.id, "mcq-single")
+                                        addQuestion(
+                                          item.id || item._id,
+                                          "mcq-single"
+                                        )
                                       }
-                                      className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1 rounded text-sm flex items-center border border-green-200"
+                                      className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1 rounded text-sm flex items-center border border-green-200 transition-colors"
                                     >
                                       <FiPlus className="mr-1" /> Single Choice
                                     </button>
                                     <button
                                       onClick={() =>
-                                        addQuestion(item.id, "mcq-multiple")
+                                        addQuestion(
+                                          item.id || item._id,
+                                          "mcq-multiple"
+                                        )
                                       }
-                                      className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1 rounded text-sm flex items-center border border-green-200"
+                                      className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1 rounded text-sm flex items-center border border-green-200 transition-colors"
                                     >
                                       <FiPlus className="mr-1" /> Multiple
                                       Choice
                                     </button>
                                     <button
                                       onClick={() =>
-                                        addQuestion(item.id, "short-answer")
+                                        addQuestion(
+                                          item.id || item._id,
+                                          "short-answer"
+                                        )
                                       }
-                                      className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1 rounded text-sm flex items-center border border-green-200"
+                                      className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1 rounded text-sm flex items-center border border-green-200 transition-colors"
                                     >
                                       <FiPlus className="mr-1" /> Short Answer
                                     </button>
                                     <button
                                       onClick={() =>
-                                        addQuestion(item.id, "broad-answer")
+                                        addQuestion(
+                                          item.id || item._id,
+                                          "broad-answer"
+                                        )
                                       }
-                                      className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1 rounded text-sm flex items-center border border-green-200"
+                                      className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1 rounded text-sm flex items-center border border-green-200 transition-colors"
                                     >
                                       <FiPlus className="mr-1" /> Broad Answer
                                     </button>
@@ -1537,64 +1539,50 @@ const CourseCreator = () => {
                           </motion.div>
                         )}
                       </motion.div>
-                    </DraggableItem>
-                  ))}
-                </div>
-              </div>
-
-              {/* Pricing (for premium courses) */}
-              {courseType === "premium" && (
-                <div className="mb-8">
-                  <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                    Pricing
-                  </h2>
-                  <div className="flex items-center">
-                    <span className="mr-2 text-gray-700">$</span>
-                    <input
-                      type="number"
-                      name="price"
-                      value={courseData.price}
-                      onChange={handleInputChange}
-                      placeholder="Enter course price"
-                      min="0"
-                      step="0.01"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
-                      required
-                    />
+                    ))}
                   </div>
                 </div>
-              )}
 
-              {/* Publish Button */}
-              <div className="flex justify-end">
-                <button
-                  onClick={publishCourse}
-                  disabled={
-                    !courseData.title ||
-                    !courseData.description ||
-                    !courseData.thumbnail ||
-                    courseData.content.length === 0 ||
-                    (courseType === "premium" && !courseData.price)
-                  }
-                  className={`px-6 py-3 rounded-lg font-medium text-white ${
-                    !courseData.title ||
-                    !courseData.description ||
-                    !courseData.thumbnail ||
-                    courseData.content.length === 0 ||
-                    (courseType === "premium" && !courseData.price)
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-gray-600 hover:bg-gray-700"
-                  } transition-colors`}
-                >
-                  Publish Course
-                </button>
+                {/* Pricing (for premium courses) */}
+                {courseType === "premium" && (
+                  <div className="mb-8">
+                    <h2 className="text-xl font-semibold text-gray-800 mb-4">
+                      Pricing
+                    </h2>
+                    <div className="flex items-center">
+                      <span className="mr-2 text-gray-700">$</span>
+                      <input
+                        type="number"
+                        name="price"
+                        value={courseData.price}
+                        onChange={handleInputChange}
+                        placeholder="Enter course price"
+                        min="0"
+                        step="0.01"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Publish Button */}
+                <div className="flex justify-end">
+                  <button
+                    onClick={updateCourse}
+                    className="bg-theme_color text-black px-6 py-3 rounded-lg text-lg font-medium transition-colors shadow-md"
+                  >
+                    Update Course
+                  </button>
+                </div>
               </div>
             </div>
-          )}
+          </motion.div>
         </div>
-      </motion.div>
-    </DndProvider>
+      </div>
+      <Toaster position="top-right" />
+    </div>
   );
 };
 
-export default CourseCreator;
+export default Editcourse;

@@ -74,7 +74,7 @@ const upload = multer({
   fileFilter: fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
-    files: 7, // Max 7 files total (1 cv + 5 certificates + 1 profile photo)
+    files: 12, // Max 7 files total (1 cv + 5 certificates + 1 profile photo)
   },
 });
 
@@ -134,7 +134,7 @@ router.post(
   "/teacher-register",
   upload.fields([
     { name: "cv", maxCount: 1 },
-    { name: "certificates[]", maxCount: 5 }, // Changed from certificates[] to certificates
+    { name: "certificates[]", maxCount: 10 }, // Changed from certificates[] to certificates
     { name: "profile_photo", maxCount: 1 },
   ]),
   handleUploadErrors,

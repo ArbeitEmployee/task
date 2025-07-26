@@ -870,7 +870,6 @@ Adminrouter.post(
         attachments,
         level,
         status: "active",
-        // Add default empty arrays for optional fields
         categories: [],
         categories: categoryList,
       });
@@ -977,8 +976,6 @@ Adminrouter.put(
         price,
         content,
         categories,
-        requirements,
-        whatYouWillLearn,
         level,
         status,
       } = req.body;
@@ -996,7 +993,7 @@ Adminrouter.put(
         const thumbnailFile = req.files.thumbnail[0];
         course.thumbnail = {
           filename: thumbnailFile.originalname,
-          path: thumbnailFile.path,
+          path: thumbnailFile.filename, // Changed from .path to .filename
           size: thumbnailFile.size,
           mimetype: thumbnailFile.mimetype,
         };
@@ -1013,16 +1010,6 @@ Adminrouter.put(
       if (categories)
         course.categories =
           typeof categories === "string" ? JSON.parse(categories) : categories;
-      if (requirements)
-        course.requirements =
-          typeof requirements === "string"
-            ? requirements.split(",")
-            : requirements;
-      if (whatYouWillLearn)
-        course.whatYouWillLearn =
-          typeof whatYouWillLearn === "string"
-            ? whatYouWillLearn.split(",")
-            : whatYouWillLearn;
       if (level) course.level = level;
       if (status) course.status = status;
 
@@ -1052,7 +1039,7 @@ Adminrouter.put(
     try {
       const { status } = req.body;
 
-      if (!["draft", "active", "inactive"].includes(status)) {
+      if (!["active", "inactive"].includes(status)) {
         return res.status(400).json({
           success: false,
           message: "Invalid status value",
@@ -1102,6 +1089,8 @@ Adminrouter.delete(
           message: "Course not found",
         });
       }
+
+      // TODO: Delete associated files from storage
 
       res.json({
         success: true,
@@ -1178,7 +1167,7 @@ Adminrouter.get(
     try {
       const { status } = req.params;
 
-      if (!["draft", "active", "inactive"].includes(status)) {
+      if (!["active", "inactive"].includes(status)) {
         return res.status(400).json({
           success: false,
           message: "Invalid status value",
@@ -1204,7 +1193,7 @@ Adminrouter.get(
   }
 );
 
-// Publish course (change status from draft to active)
+// Publish course (change status from to active)
 Adminrouter.put(
   "/courses/:id/publish",
   authenticateToken,
@@ -1217,13 +1206,6 @@ Adminrouter.put(
         return res.status(404).json({
           success: false,
           message: "Course not found",
-        });
-      }
-
-      if (course.status !== "draft") {
-        return res.status(400).json({
-          success: false,
-          message: "Only draft courses can be published",
         });
       }
 
@@ -1411,128 +1393,22 @@ Adminrouter.put(
   }
 );
 // ------------------------------------courses-routes-------------------------------------------------
-//Course add content in the admin panel
-Adminrouter.post(
-  "/add-content/:courseId",
+
+// ---------------------------all-category----------------------------
+Adminrouter.get(
+  "/all-category",
   authenticateToken,
+  authorizeAdmin,
   async (req, res) => {
     try {
-      const course = await Course.findById(req.params.courseId);
-
-      if (!course) {
-        return res.status(404).send({ error: "Course not found" });
+      const allcategory = await Category.find();
+      if (!allcategory) {
+        return res.send({ success: false, message: "Category did not find!" });
       }
-
-      course.content.push(req.body);
-      await course.save();
-
-      res.send(course);
-    } catch (error) {
-      res.status(400).send({ error: error.message });
-    }
-  }
-);
-// Delete course content item
-Adminrouter.delete(
-  "/delete-content/:courseId",
-  authenticateToken, // or authorizeSubAdmin if needed
-  async (req, res) => {
-    try {
-      const course = await Course.findByIdAndDelete(req.params.courseId);
-
-      if (!course) {
-        return res.status(404).send({ error: "Course not found" });
-      }
-
-      console.log(req.params);
-      res.send({ success: true, message: "Deleted successfully!" });
+      res.send({ success: true, data: allcategory });
     } catch (error) {
       console.log(error);
-      res.status(400).send({ error: error.message });
     }
   }
 );
-// DELETE /api/admin/course/:courseId/content/:contentId
-Adminrouter.delete(
-  "/course/:courseId/content/:contentId",
-  authenticateToken,
-  async (req, res) => {
-    try {
-      const { courseId, contentId } = req.params;
-
-      const course = await Course.findById(courseId);
-      if (!course) {
-        return res.status(404).json({ error: "Course not found" });
-      }
-
-      const prevLength = course.content.length;
-
-      // Remove content item by loose comparison
-      course.content = course.content.filter((item) => item.id != contentId);
-      await course.save();
-
-      if (course.content.length === prevLength) {
-        return res.status(404).json({ error: "Content item not found" });
-      }
-
-      res.json({ success: true, message: "Removed successfully" });
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  }
-);
-// Admin route to update course content
-Adminrouter.put(
-  "/admin/update-content/:courseId/:contentId",
-  authenticateToken,
-  async (req, res) => {
-    try {
-      const course = await Course.findOne({
-        _id: req.params.courseId,
-      });
-
-      if (!course) {
-        return res.status(404).send({ error: "Course not found" });
-      }
-
-      const contentItem = course.content.id(req.params.contentId);
-      if (!contentItem) {
-        return res.status(404).send({ error: "Content item not found" });
-      }
-
-      Object.assign(contentItem, req.body);
-      await course.save();
-      res.send(course);
-    } catch (error) {
-      console.log(error);
-      res.status(400).send({ error: error.message });
-    }
-  }
-);
-
-// Admin route to update course details
-Adminrouter.put("/update-course/:id", authenticateToken, async (req, res) => {
-  try {
-    const updates = Object.keys(req.body);
-    const course = await Course.findById(req.params.id);
-
-    if (!course) {
-      return res.status(404).send({ error: "Course not found" });
-    }
-
-    updates.forEach((update) => {
-      course[update] = req.body[update];
-    });
-
-    await course.save();
-    res.send(course);
-  } catch (error) {
-    console.error("Admin course update error:", error);
-    res.status(400).send({
-      error: "Update failed",
-      details: error.message,
-    });
-  }
-});
-
 module.exports = Adminrouter;
