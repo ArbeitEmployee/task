@@ -31,7 +31,6 @@ function Category() {
       setCategoryName("");
       toast.success("Category added successfully!");
     } catch (error) {
-      console.error("Error adding category:", error);
       const msg =
         error.response?.data?.message ||
         error.message ||

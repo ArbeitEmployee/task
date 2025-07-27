@@ -21,19 +21,6 @@ const SubadminList = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setSubadmins(res.data.subadmins || []);
-    } catch (error) {
-      toast.error("Failed to fetch subadmins", {
-        style: {
-          background: "#fff",
-          color: "#000",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-        },
-        iconTheme: {
-          primary: "#ff0000", // bright red
-          secondary: "#ffffff", // white
-        },
-      });
     } finally {
       setLoading(false);
     }
@@ -49,32 +36,10 @@ const SubadminList = () => {
       await axios.delete(`http://localhost:3500/api/auth/subadmin/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      toast.success("Subadmin deleted successfully", {
-        style: {
-          background: "#fff",
-          color: "#000",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-        },
-        iconTheme: {
-          primary: "#000",
-          secondary: "#fff",
-        },
-      });
+      toast.success("Subadmin deleted successfully");
       fetchSubadmins();
     } catch (error) {
-      toast.error("Delete failed", {
-        style: {
-          background: "#fff",
-          color: "#000",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-        },
-        iconTheme: {
-          primary: "#ff0000", // bright red
-          secondary: "#ffffff", // white
-        },
-      });
+      toast.error("Delete failed");
     } finally {
       setConfirmDelete(null);
     }
@@ -89,34 +54,12 @@ const SubadminList = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      toast.success("Status updated", {
-        style: {
-          background: "#fff",
-          color: "#000",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-        },
-        iconTheme: {
-          primary: "#000",
-          secondary: "#fff",
-        },
-      });
+      toast.success("Status updated");
 
       fetchSubadmins();
       setEditStatusId(null);
     } catch (err) {
-      toast.error("Failed to update status", {
-        style: {
-          background: "#fff",
-          color: "#000",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-        },
-        iconTheme: {
-          primary: "#ff0000",
-          secondary: "#ffffff",
-        },
-      });
+      toast.error("Failed to update status");
     }
   };
 

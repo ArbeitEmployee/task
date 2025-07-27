@@ -59,7 +59,6 @@ const Settings = () => {
           passwordChangedAt: response.data.passwordChangedAt, // <-- Store it
         });
       } catch (err) {
-        console.error("Failed to fetch profile:", err);
         toast.error("Failed to load profile data");
       }
     };
@@ -125,7 +124,6 @@ const Settings = () => {
         } updated successfully!`
       );
     } catch (err) {
-      console.error("Failed to update profile:", err);
       toast.error(`Failed to update ${field}`);
     }
   };

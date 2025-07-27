@@ -7,10 +7,10 @@ import {
   FiUser,
   FiSearch,
   FiFilter,
-  FiX,
   FiPlus,
   FiChevronDown,
   FiChevronUp,
+  FiVideo,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
@@ -45,15 +45,12 @@ const CourseList = () => {
     content: [],
     price: "",
     categories: [],
-    requirements: [],
-    whatYouWillLearn: [],
     level: "beginner",
     category: "",
   });
   const [existingThumbnail, setExistingThumbnail] = useState(null);
   const [existingAttachments, setExistingAttachments] = useState([]);
-  const [newCategory, setNewCategory] = useState("");
-
+  const [removedAttachments, setRemovedAttachments] = useState([]);
   // React Quill modules configuration
   const quillModules = {
     toolbar: [
@@ -140,9 +137,13 @@ const CourseList = () => {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
-      setTeachers(response.data.data);
+
+      setTeachers(response.data.data || response.data || []); // Handle both response structures
     } catch (err) {
-      toast.error("Error fetching teachers:");
+      toast.error(
+        "Error fetching teachers: " +
+          (err.response?.data?.message || err.message)
+      );
     }
   };
 
@@ -225,8 +226,6 @@ const CourseList = () => {
   };
 
   const startEdit = (course) => {
-    console.log("Starting to edit course:", course); // Debug log
-
     setEditingCourse(course._id);
 
     // Set existing thumbnail and attachments
@@ -240,13 +239,10 @@ const CourseList = () => {
     // Determine the initial category value
     let initialCategory = "";
     if (course.category) {
-      // If course has a direct category field
       initialCategory = course.category;
     } else if (course.categories && course.categories.length > 0) {
-      // If course has categories array
       initialCategory = course.categories[0];
     }
-    console.log("Initial category set to:", initialCategory); // Debug log
 
     // Transform the course data to match our form state
     setCourseData({
@@ -255,6 +251,17 @@ const CourseList = () => {
       thumbnail: null,
       attachments: [],
       content: course.content.map((item) => {
+        if (item.type === "tutorial") {
+          return {
+            ...item,
+            // Preserve existing content for premium tutorials
+            ...(course.type === "premium" && item.content
+              ? { content: item.content }
+              : {}),
+            // Initialize contentFile only if we need a new upload
+            contentFile: null,
+          };
+        }
         if (item.type === "quiz") {
           return {
             ...item,
@@ -274,7 +281,6 @@ const CourseList = () => {
       level: course.level || "beginner",
       category: initialCategory,
     });
-
     // Expand all sections by default
     const expanded = {};
     course.content.forEach((item) => {
@@ -292,8 +298,6 @@ const CourseList = () => {
       content: [],
       price: "",
       categories: [],
-      requirements: [],
-      whatYouWillLearn: [],
       level: "beginner",
       category: "",
     });
@@ -320,20 +324,30 @@ const CourseList = () => {
       type: "tutorial",
       title: "",
       description: "",
-      content: isPremium ? null : "",
-      youtubeLink: !isPremium ? "" : null,
       isPremium: isPremium,
       isExpanded: true,
+      // Initialize fields based on course type
+      ...(isPremium
+        ? {
+            contentFile: null, // Will be replaced with file object when uploaded
+            youtubeLink: undefined, // Explicitly remove for premium
+          }
+        : {
+            youtubeLink: "", // Required for free courses
+            contentFile: undefined, // Explicitly remove for free
+          }),
       // Animation properties
       initial: { opacity: 0, y: 20 },
       animate: { opacity: 1, y: 0 },
       exit: { opacity: 0, y: -20 },
       transition: { duration: 0.3 },
     };
+
     setCourseData((prev) => ({
       ...prev,
       content: [...prev.content, newTutorial],
     }));
+
     setExpandedSections((prev) => ({
       ...prev,
       [newTutorial.id]: true,
@@ -471,10 +485,39 @@ const CourseList = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setCourseData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+
+    // When course type changes
+    if (name === "type") {
+      setCourseData((prev) => {
+        // Transform content items based on new type
+        const updatedContent = prev.content.map((item) => {
+          if (item.type === "tutorial") {
+            if (value === "premium") {
+              // Switching to premium - remove youtubeLink and add content field
+              const { youtubeLink, ...rest } = item;
+              return { ...rest, content: null };
+            } else {
+              // Switching to free - remove content and add youtubeLink
+              const { content, ...rest } = item;
+              return { ...rest, youtubeLink: "" };
+            }
+          }
+          return item;
+        });
+
+        return {
+          ...prev,
+          [name]: value,
+          content: updatedContent,
+          price: value === "premium" ? prev.price : "",
+        };
+      });
+    } else {
+      setCourseData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   const handleContentChange = (id, field, value) => {
@@ -586,7 +629,7 @@ const CourseList = () => {
     }));
   };
 
-  const handleFileUpload = (e, id, field = "content") => {
+  const handleFileUpload = (e, id, field = "contentFile") => {
     const file = e.target.files[0];
     if (file) {
       handleContentChange(id, field, file);
@@ -622,6 +665,8 @@ const CourseList = () => {
   };
 
   const removeExistingAttachment = (index) => {
+    const attachmentToRemove = existingAttachments[index];
+    setRemovedAttachments((prev) => [...prev, attachmentToRemove._id]);
     setExistingAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -688,110 +733,159 @@ const CourseList = () => {
         throw new Error("Please set a price for premium courses");
       }
 
-      // Validate content items
-      for (const item of courseData.content) {
-        if (!item.title) {
-          throw new Error(`Please add a title for all content items`);
-        }
+      // Transform and validate content items
+      const processedContent = courseData.content.map((item) => {
+        const contentItem = { ...item };
 
-        if (item.type === "tutorial") {
-          if (courseData.type === "free" && !item.youtubeLink) {
-            throw new Error(
-              `Please add a YouTube link for tutorial "${item.title}"`
-            );
+        // Handle tutorial content based on course type
+        if (contentItem.type === "tutorial") {
+          if (courseData.type === "premium") {
+            delete contentItem.youtubeLink;
+
+            // Check for either existing content or new upload
+            const hasExistingContent =
+              contentItem.content &&
+              contentItem.content.filename &&
+              contentItem.content.path;
+            const hasNewUpload = contentItem.contentFile instanceof File;
+
+            if (!hasExistingContent && !hasNewUpload) {
+              throw new Error(
+                `Please upload a video for tutorial "${contentItem.title}"`
+              );
+            }
+
+            // If new upload, prepare it for submission
+            if (hasNewUpload) {
+              contentItem.content = {
+                filename: contentItem.contentFile.name,
+                // The actual file will be appended to formData separately
+                // The path will be generated by the server
+                size: contentItem.contentFile.size,
+                mimetype: contentItem.contentFile.type,
+              };
+            }
+
+            // Remove temporary field
+            delete contentItem.contentFile;
+          } else {
+            // Free course - handle YouTube link
+            delete contentItem.content;
+            delete contentItem.contentFile;
+            if (!contentItem.youtubeLink) {
+              throw new Error(
+                `Please add a YouTube link for tutorial "${contentItem.title}"`
+              );
+            }
           }
-          // if (courseData.type === "premium" && !item.content) {
-          //   throw new Error(
-          //     `Please upload a video for tutorial "${item.title}"`
-          //   );
-          // }
         }
 
-        if (item.type === "live" && !item.meetingLink) {
+        // Validate live classes
+        if (contentItem.type === "live" && !contentItem.meetingLink) {
           throw new Error(
-            `Please add a meeting link for live class "${item.title}"`
+            `Please add a meeting link for live class "${contentItem.title}"`
           );
         }
 
-        if (item.type === "quiz") {
-          if (item.questions.length === 0) {
+        // Validate quizzes
+        if (contentItem.type === "quiz") {
+          if (contentItem.questions.length === 0) {
             throw new Error(
-              `Please add at least one question to quiz "${item.title}"`
+              `Please add at least one question to quiz "${contentItem.title}"`
             );
           }
-          for (const question of item.questions) {
+
+          contentItem.questions.forEach((question) => {
             if (!question.question) {
               throw new Error(
-                `Please add question text for all questions in quiz "${item.title}"`
+                `Please add question text for all questions in quiz "${contentItem.title}"`
               );
             }
+
             if (["mcq-single", "mcq-multiple"].includes(question.type)) {
               if (question.options.length < 2) {
                 throw new Error(
-                  `Please add at least 2 options for MCQ questions in quiz "${item.title}"`
+                  `Please add at least 2 options for MCQ questions in quiz "${contentItem.title}"`
                 );
               }
+
               if (
                 question.type === "mcq-single" &&
                 question.correctAnswer === undefined
               ) {
                 throw new Error(
-                  `Please select a correct answer for all MCQ questions in quiz "${item.title}"`
+                  `Please select a correct answer for all MCQ questions in quiz "${contentItem.title}"`
                 );
               }
+
               if (
                 question.type === "mcq-multiple" &&
                 (!Array.isArray(question.correctAnswer) ||
                   question.correctAnswer.length === 0)
               ) {
                 throw new Error(
-                  `Please select at least one correct answer for multiple-choice questions in quiz "${item.title}"`
+                  `Please select at least one correct answer for multiple-choice questions in quiz "${contentItem.title}"`
                 );
               }
             }
-          }
+          });
         }
-      }
+
+        return contentItem;
+      });
 
       // Prepare form data for upload
       const formData = new FormData();
       formData.append("title", courseData.title);
       formData.append("description", courseData.description);
+
+      // Handle thumbnail
       if (courseData.thumbnail) {
         formData.append("thumbnail", courseData.thumbnail);
       }
+
       formData.append("type", courseData.type);
       formData.append(
         "price",
         courseData.type === "premium" ? courseData.price : 0
       );
-      formData.append("content", JSON.stringify(courseData.content));
+      formData.append("content", JSON.stringify(processedContent));
       formData.append("categories", JSON.stringify([courseData.category]));
-      formData.append("requirements", JSON.stringify(courseData.requirements));
-      formData.append(
-        "whatYouWillLearn",
-        JSON.stringify(courseData.whatYouWillLearn)
-      );
       formData.append("level", courseData.level);
       formData.append("status", "active");
       formData.append("category", courseData.category);
+
+      // Handle attachments
+      formData.append(
+        "existingAttachments",
+        JSON.stringify(
+          existingAttachments.filter(
+            (attachment) => !removedAttachments.includes(attachment._id)
+          )
+        )
+      );
 
       // Add new attachments
       courseData.attachments.forEach((file) => {
         formData.append("attachments", file);
       });
 
-      // Add content files (videos and thumbnails for premium courses)
-      if (courseData.type === "premium") {
-        courseData.content.forEach((item) => {
-          if (item.type === "tutorial" && item.content) {
-            formData.append("contentVideos", item.content);
+      // Handle content files
+      courseData.content.forEach((item) => {
+        if (item.type === "tutorial" && courseData.type === "premium") {
+          // Only append if it's a new file upload
+          if (item.contentFile instanceof File) {
+            formData.append("contentVideos", item.contentFile);
           }
-          if (item.type === "live" && item.thumbnail) {
+        }
+
+        if (item.type === "live" && item.thumbnail) {
+          // Only append if thumbnail is a File object (new upload)
+          if (item.thumbnail instanceof File) {
             formData.append("contentThumbnails", item.thumbnail);
           }
-        });
-      }
+        }
+      });
 
       // Show loading toast
       const loadingToast = toast.loading("Updating course...");
@@ -811,20 +905,26 @@ const CourseList = () => {
       // Success handling
       toast.dismiss(loadingToast);
       toast.success(`Course "${courseData.title}" updated successfully!`);
+
+      // Update local state with new data
       const updatedCourse = response.data.data;
       if (updatedCourse.thumbnail) {
         setExistingThumbnail(updatedCourse.thumbnail);
       }
+
+      // Refresh course list and reset edit mode
       fetchCourses();
       cancelEdit();
     } catch (error) {
       toast.dismiss();
-      toast.error(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to update course"
-      );
       console.error("Update error:", error);
+
+      // Show appropriate error message
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to update course";
+      toast.error(errorMessage);
     }
   };
   useEffect(() => {
@@ -1111,9 +1211,163 @@ const CourseList = () => {
                           </div>
 
                           {/* Course Basic Info */}
-                          <div className="mb-8">
+                          <div className="my-4">
                             <div className="grid grid-cols-1 gap-6">
-                              {/* Add Course Type Selector */}
+                              {/* Thumbnail Upload - Compact Version */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Course Thumbnail *
+                                </label>
+
+                                <div className="flex items-start gap-4">
+                                  {/* Image Preview Box */}
+                                  <div className="relative flex-shrink-0">
+                                    {courseData.thumbnailPreview ||
+                                    existingThumbnail ? (
+                                      <div className="relative group">
+                                        {/* Compact Image Preview (120x90 - 4:3 ratio) */}
+                                        <div className="w-full md:w-48 h-32 rounded-md overflow-hidden border border-gray-200 bg-gray-100">
+                                          <img
+                                            src={
+                                              courseData.thumbnailPreview ||
+                                              `${base_url}/courses/${existingThumbnail?.path}`
+                                            }
+                                            alt="Thumbnail preview"
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                              e.target.onerror = null;
+                                              e.target.src =
+                                                "/placeholder-image.jpg";
+                                            }}
+                                          />
+
+                                          {/* Edit Button - Bottom Right Corner */}
+                                          <motion.label
+                                            initial={{
+                                              opacity: 0,
+                                              scale: 0.8,
+                                              y: 10,
+                                            }}
+                                            animate={{
+                                              opacity: 1,
+                                              scale: 1,
+                                              y: 0,
+                                            }}
+                                            whileHover={{
+                                              scale: 1.1,
+                                              rotate: -5,
+                                            }}
+                                            whileTap={{ scale: 0.95 }}
+                                            transition={{
+                                              type: "spring",
+                                              stiffness: 300,
+                                              damping: 20,
+                                            }}
+                                            className="absolute -bottom-2 -right-2 bg-white p-1 rounded-full shadow-md border border-gray-300 cursor-pointer hover:bg-gray-100 transition-colors"
+                                          >
+                                            <FiEdit2 className="text-gray-600 text-[16px]" />
+                                            <input
+                                              type="file"
+                                              accept="image/*"
+                                              onChange={handleThumbnailUpload}
+                                              className="hidden"
+                                            />
+                                          </motion.label>
+                                        </div>
+
+                                        {/* Remove Button - Top Right Corner */}
+                                        <motion.button
+                                          onClick={() => {
+                                            setCourseData((prev) => ({
+                                              ...prev,
+                                              thumbnail: null,
+                                              thumbnailPreview: null,
+                                            }));
+                                            setExistingThumbnail(null);
+                                          }}
+                                          initial={{
+                                            opacity: 0,
+                                            scale: 0.8,
+                                            y: -10,
+                                          }}
+                                          animate={{
+                                            opacity: 1,
+                                            scale: 1,
+                                            y: 0,
+                                          }}
+                                          whileHover={{
+                                            scale: 1.1,
+                                            rotate: 10,
+                                          }}
+                                          whileTap={{ scale: 0.9 }}
+                                          transition={{
+                                            type: "spring",
+                                            stiffness: 300,
+                                            damping: 20,
+                                          }}
+                                          className="absolute -right-2 -top-2 bg-white p-1.5 rounded-full shadow-md border border-gray-200 hover:bg-red-50 text-red-500"
+                                          type="button"
+                                        >
+                                          <FiTrash2 className="text-[16px]" />
+                                        </motion.button>
+                                      </div>
+                                    ) : (
+                                      <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors w-56 flex justify-center items-center border border-gray-300 hover:border-gray-500">
+                                        <FiUpload className="inline mr-2" />
+                                        Upload Thumbnail
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          onChange={handleThumbnailUpload}
+                                          className="hidden"
+                                        />
+                                      </label>
+                                    )}
+                                  </div>
+
+                                  {/* File Info */}
+                                  <div className="flex-1">
+                                    <div className="text-xs text-gray-500 mb-1">
+                                      {courseData.thumbnail ? (
+                                        <>
+                                          <span className="font-medium text-gray-700">
+                                            New upload:
+                                          </span>{" "}
+                                          {courseData.thumbnail.name}
+                                          <br />
+                                          {(
+                                            courseData.thumbnail.size / 1024
+                                          ).toFixed(1)}{" "}
+                                          KB •{" "}
+                                          {courseData.type === "premium"
+                                            ? "Premium"
+                                            : "Free"}{" "}
+                                          course
+                                        </>
+                                      ) : existingThumbnail ? (
+                                        <>
+                                          <span className="font-medium text-gray-700">
+                                            Current:
+                                          </span>{" "}
+                                          {existingThumbnail.filename}
+                                          <br />
+                                          {(
+                                            existingThumbnail.size / 1024
+                                          ).toFixed(1)}{" "}
+                                          KB
+                                        </>
+                                      ) : (
+                                        "No thumbnail selected (Recommended: 800×450px)"
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-gray-400">
+                                      JPG, PNG, or WebP. Max 2MB.
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Course Type Selector */}
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                   Course Type *
@@ -1122,16 +1376,13 @@ const CourseList = () => {
                                   name="type"
                                   value={courseData.type}
                                   onChange={handleInputChange}
-                                  className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 transition-colors"
+                                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gray-500 hover:border-gray-500 transition-colors"
                                   required
                                 >
-                                  <option value="">Select course type</option>
                                   <option value="free">Free</option>
                                   <option value="premium">Premium</option>
                                 </select>
                               </div>
-
-                              {/* ... (other form fields remain the same) */}
 
                               {/* Pricing (show only for premium courses) */}
                               {courseData.type === "premium" && (
@@ -1151,71 +1402,13 @@ const CourseList = () => {
                                       placeholder="Enter course price"
                                       min="0"
                                       step="0.01"
-                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 transition-colors"
+                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gray-500 hover:border-gray-500 transition-colors"
                                       required
                                     />
                                   </div>
                                 </div>
                               )}
                             </div>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Course Thumbnail *
-                            </label>
-                            <div className="w-full flex items-center gap-4 bg-gray-50 hover:bg-gray-100 p-3 rounded-lg border border-gray-300 hover:border-gray-500 transition-colors">
-                              <label className="cursor-pointer flex items-center w-full gap-4">
-                                <FiImage className="text-xl text-gray-600" />
-                                <span className="text-md flex-1 text-gray-700">
-                                  {courseData.thumbnail
-                                    ? courseData.thumbnail.name
-                                    : existingThumbnail
-                                    ? existingThumbnail.filename
-                                    : "Select Thumbnail Image"}
-                                </span>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={handleThumbnailUpload}
-                                  className="hidden"
-                                />
-                              </label>
-                              {(courseData.thumbnail || existingThumbnail) && (
-                                <button
-                                  onClick={() => {
-                                    setCourseData((prev) => ({
-                                      ...prev,
-                                      thumbnail: null,
-                                    }));
-                                    setExistingThumbnail(null);
-                                  }}
-                                  className="text-gray-400 hover:text-red-500 p-3 rounded-full flex items-center justify-center transition-colors"
-                                  type="button"
-                                >
-                                  <FiTrash2 size={20} />
-                                </button>
-                              )}
-                            </div>
-                            {courseData.thumbnail && (
-                              <div className="mt-2 text-sm text-gray-500">
-                                Selected Image: {courseData.thumbnail.name} (
-                                {(
-                                  courseData.thumbnail.size /
-                                  (1024 * 1024)
-                                ).toFixed(2)}{" "}
-                                MB)
-                              </div>
-                            )}
-                            {existingThumbnail && !courseData.thumbnail && (
-                              <div className="mt-2 text-sm text-gray-500">
-                                Current Image: {existingThumbnail.filename} (
-                                {(
-                                  existingThumbnail.size /
-                                  (1024 * 1024)
-                                ).toFixed(2)}{" "}
-                                MB)
-                              </div>
-                            )}
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1233,24 +1426,31 @@ const CourseList = () => {
                                 />
                               </label>
                               <div className="flex flex-wrap gap-2 max-h-36 overflow-auto w-full">
-                                {existingAttachments.map((file, index) => (
-                                  <div
-                                    key={index}
-                                    className="bg-gray-100 px-3 py-1 rounded-lg text-sm flex items-center max-w-xs border border-gray-200"
-                                  >
-                                    <span className="truncate max-w-xs">
-                                      {file.filename}
-                                    </span>
-                                    <button
-                                      onClick={() =>
-                                        removeExistingAttachment(index)
-                                      }
-                                      className="ml-2 text-gray-500 hover:text-red-500 transition-colors"
+                                {existingAttachments
+                                  .filter(
+                                    (attachment) =>
+                                      !removedAttachments.includes(
+                                        attachment._id
+                                      )
+                                  )
+                                  .map((file, index) => (
+                                    <div
+                                      key={index}
+                                      className="bg-gray-100 px-3 py-1 rounded-lg text-sm flex items-center max-w-xs border border-gray-200"
                                     >
-                                      <FiTrash2 size={14} />
-                                    </button>
-                                  </div>
-                                ))}
+                                      <span className="truncate max-w-xs">
+                                        {file.filename}
+                                      </span>
+                                      <button
+                                        onClick={() =>
+                                          removeExistingAttachment(index)
+                                        }
+                                        className="ml-2 text-gray-500 hover:text-red-500 transition-colors"
+                                      >
+                                        <FiTrash2 size={14} />
+                                      </button>
+                                    </div>
+                                  ))}
                                 {courseData.attachments.map((file, index) => (
                                   <div
                                     key={`new-${index}`}
@@ -1446,7 +1646,7 @@ const CourseList = () => {
                                             className="border border-gray-300 rounded-lg hover:border-gray-500 focus-within:border-gray-500 focus-within:ring-2 focus-within:ring-blue-200"
                                           />
                                         </div>
-                                        {course.type === "free" ? (
+                                        {courseData.type === "free" ? (
                                           <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                               YouTube Video Link *
@@ -1455,7 +1655,7 @@ const CourseList = () => {
                                               <FiYoutube className="text-red-500 mr-2 text-xl" />
                                               <input
                                                 type="url"
-                                                value={item.youtubeLink}
+                                                value={item.youtubeLink || ""}
                                                 onChange={(e) =>
                                                   handleContentChange(
                                                     item.id || item._id,
@@ -1464,7 +1664,7 @@ const CourseList = () => {
                                                   )
                                                 }
                                                 placeholder="https://www.youtube.com/watch?v=..."
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 transition-colors"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gray-500 hover:border-gray-500 transition-colors"
                                                 required
                                               />
                                             </div>
@@ -1472,36 +1672,97 @@ const CourseList = () => {
                                         ) : (
                                           <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                              Upload Video *
+                                              Video Content *
                                             </label>
-                                            <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors inline-flex items-center border border-gray-300 hover:border-gray-500">
-                                              <FiUpload className="mr-2" />
-                                              {item.content
-                                                ? typeof item.content ===
-                                                  "object"
-                                                  ? item.content.name
-                                                  : "Video already uploaded"
-                                                : "Select Video File"}
-                                              <input
-                                                type="file"
-                                                accept="video/*"
-                                                onChange={(e) =>
-                                                  handleFileUpload(
-                                                    e,
-                                                    item.id || item._id
-                                                  )
-                                                }
-                                                className="hidden"
-                                              />
-                                            </label>
-                                            {item.content &&
-                                              typeof item.content ===
+                                            <div className="flex items-center gap-2">
+                                              {item.contentFile ||
+                                              item.content ? (
+                                                <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg">
+                                                  <FiVideo className="text-gray-600" />
+                                                  <span className="text-sm truncate max-w-xs">
+                                                    {(() => {
+                                                      try {
+                                                        if (
+                                                          item.contentFile instanceof
+                                                          File
+                                                        ) {
+                                                          return item
+                                                            .contentFile.name;
+                                                        }
+                                                        if (
+                                                          item.content?.filename
+                                                        ) {
+                                                          return item.content
+                                                            .filename;
+                                                        }
+                                                        return "Video uploaded";
+                                                      } catch (e) {
+                                                        console.error(
+                                                          "Error displaying video name:",
+                                                          e
+                                                        );
+                                                        return "Video";
+                                                      }
+                                                    })()}
+                                                  </span>
+                                                </div>
+                                              ) : (
+                                                <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors inline-flex items-center border border-gray-300 hover:border-gray-500">
+                                                  <FiUpload className="mr-2" />
+                                                  Select Video File
+                                                  <input
+                                                    type="file"
+                                                    accept="video/*"
+                                                    onChange={(e) => {
+                                                      const file =
+                                                        e.target.files[0];
+                                                      if (file) {
+                                                        handleContentChange(
+                                                          item.id || item._id,
+                                                          "contentFile",
+                                                          file
+                                                        );
+                                                      }
+                                                    }}
+                                                    className="hidden"
+                                                  />
+                                                </label>
+                                              )}
+
+                                              {(item.contentFile ||
+                                                item.content) && (
+                                                <button
+                                                  onClick={() => {
+                                                    handleContentChange(
+                                                      item.id || item._id,
+                                                      "contentFile",
+                                                      null
+                                                    );
+                                                    // Also clear existing content if present
+                                                    if (item.content) {
+                                                      handleContentChange(
+                                                        item.id || item._id,
+                                                        "content",
+                                                        null
+                                                      );
+                                                    }
+                                                  }}
+                                                  className="text-gray-400 hover:text-red-500 p-2 rounded-full"
+                                                  type="button"
+                                                >
+                                                  <FiTrash2 size={20} />
+                                                </button>
+                                              )}
+                                            </div>
+
+                                            {item.contentFile &&
+                                              typeof item.contentFile ===
                                                 "object" && (
                                                 <div className="mt-2 text-sm text-gray-500">
-                                                  Selected: {item.content.name}{" "}
-                                                  (
+                                                  Selected:{" "}
+                                                  {item.contentFile.name} (
                                                   {(
-                                                    item.content.size /
+                                                    item.contentFile.size /
                                                     (1024 * 1024)
                                                   ).toFixed(2)}{" "}
                                                   MB)
@@ -2064,13 +2325,13 @@ const CourseList = () => {
                     <div className="p-6">
                       <div className="flex flex-col md:flex-row gap-6">
                         {/* Course Thumbnail */}
-                        <div className="w-full md:w-48 h-32 rounded-lg overflow-hidden relative group">
+                        <div className="w-full md:w-48 h-32 rounded-lg overflow-hidden relative group cursor-pointer">
                           {/* Thumbnail Image with hover effects */}
-                          <div className="relative w-full h-full">
+                          <div className="relative w-full h-full ">
                             <img
                               src={`${base_url}/courses/${course.thumbnail.path}`}
                               alt={course.title}
-                              className="w-full h-full object-cover transition-all duration-300 group-hover:scale-105"
+                              className="w-full h-full object-cover transition-all duration-300 group-hover:scale-105 r"
                               onError={(e) => {
                                 e.target.onerror = null;
                                 e.target.src = "/placeholder-image.jpg";
@@ -2164,55 +2425,55 @@ const CourseList = () => {
                             <div className="relative">
                               <div className="flex items-center">
                                 <FiUser className="text-gray-500 mr-2" />
-                                {course.instructor ? (
-                                  <button
-                                    onClick={() =>
-                                      toggleInstructorDropdown(course._id)
-                                    }
-                                    className="flex items-center gap-1 border border-gray-300 rounded-lg px-3 py-1 text-sm focus:border-gray-500"
-                                  >
-                                    {getTeacherName(course.instructor)}
-                                    <FiChevronDown
-                                      className={`transition-transform ${
-                                        showInstructorDropdown[course._id]
-                                          ? "transform rotate-180"
-                                          : ""
-                                      }`}
-                                    />
-                                  </button>
-                                ) : (
-                                  <span className="text-sm text-gray-500">
-                                    No teacher available
-                                  </span>
-                                )}
+
+                                <button
+                                  onClick={() =>
+                                    toggleInstructorDropdown(course._id)
+                                  }
+                                  className="flex items-center gap-1 border border-gray-300 rounded-lg px-3 py-1 text-sm focus:border-gray-500"
+                                >
+                                  {getTeacherName(course.instructor)}
+                                  <FiChevronDown
+                                    className={`transition-transform ${
+                                      showInstructorDropdown[course._id]
+                                        ? "transform rotate-180"
+                                        : ""
+                                    }`}
+                                  />
+                                </button>
                               </div>
 
                               {showInstructorDropdown[course._id] && (
                                 <div className="absolute z-10 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 max-h-60 overflow-y-auto">
-                                  {teachers.map((teacher) => (
-                                    <div
-                                      key={teacher._id}
-                                      className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
-                                        course.instructor === teacher._id
-                                          ? "bg-gray-100 font-medium"
-                                          : ""
-                                      }`}
-                                      onClick={() => {
-                                        changeInstructor(
-                                          course._id,
-                                          teacher._id
-                                        );
-                                      }}
-                                    >
-                                      {teacher.full_name}
-                                      {course.instructor?._id ===
-                                        teacher._id && (
-                                        <span className="ml-2 text-green-500">
-                                          ✓
-                                        </span>
-                                      )}
+                                  {teachers.length > 0 ? (
+                                    teachers.map((teacher) => (
+                                      <div
+                                        key={teacher._id}
+                                        className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
+                                          course.instructor === teacher._id
+                                            ? "bg-gray-100 font-medium"
+                                            : ""
+                                        }`}
+                                        onClick={() =>
+                                          changeInstructor(
+                                            course._id,
+                                            teacher._id
+                                          )
+                                        }
+                                      >
+                                        {teacher.full_name}
+                                        {course.instructor === teacher._id && (
+                                          <span className="ml-2 text-green-500">
+                                            ✓
+                                          </span>
+                                        )}
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="px-4 py-2 text-sm text-gray-500">
+                                      No teachers available
                                     </div>
-                                  ))}
+                                  )}
                                 </div>
                               )}
                             </div>

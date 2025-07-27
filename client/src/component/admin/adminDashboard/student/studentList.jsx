@@ -34,27 +34,15 @@ const StudentList = () => {
           },
         });
         setStudents(response.data.data);
-        setLoading(false);
       } catch (err) {
+        toast.error("Failed to load students");
+      } finally {
         setLoading(false);
-        toast.error("Failed to load students", {
-          style: {
-            background: "#fff",
-            color: "#000",
-            border: "1px solid #e5e7eb",
-            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-          },
-          iconTheme: {
-            primary: "#ff0000", // bright red
-            secondary: "#ffffff", // white
-          },
-        });
       }
     };
 
     fetchStudents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [base_url]); // Add base_url to dependencies if it can change
 
   // Filter students based on search term
   const filteredStudents = students.filter(
@@ -90,32 +78,9 @@ const StudentList = () => {
 
       // Update the local state to remove the deleted student
       setStudents(students.filter((student) => student._id !== id));
-      toast.success("Student deleted successfully", {
-        style: {
-          background: "#fff",
-          color: "#000",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-        },
-        iconTheme: {
-          primary: "#000",
-          secondary: "#fff",
-        },
-      });
+      toast.success("Student deleted successfully");
     } catch (error) {
-      console.error(error);
-      toast.error("Failed to delete student", {
-        style: {
-          background: "#fff",
-          color: "#000",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-        },
-        iconTheme: {
-          primary: "#ff0000", // bright red
-          secondary: "#ffffff", // white
-        },
-      });
+      toast.error("Failed to delete student");
     }
   };
 
@@ -231,7 +196,7 @@ const StudentList = () => {
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-16 w-16 rounded-full bg-gray-600 text-white flex items-center justify-center font-bold shadow-md transition-all duration-300 hover:scale-110">
                             <img
-                              src={`${base_url}/students/${student?.profile_photo}`}
+                              src={`${base_url}/students/${student?.profile_picture}`}
                               alt=""
                               className="w-full h-full object-cover rounded-full border-4 border-white"
                             />

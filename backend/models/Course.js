@@ -14,6 +14,7 @@ const questionSchema = new Schema({
   answer: String, // For short/broad answers
 });
 
+// In models/Course.js - update the contentItemSchema
 const contentItemSchema = new Schema(
   {
     type: {
@@ -23,7 +24,12 @@ const contentItemSchema = new Schema(
     },
     title: { type: String, required: true },
     description: String,
-    content: String, // For premium video content path
+    content: {
+      filename: String,
+      path: String,
+      size: Number,
+      mimetype: String,
+    },
     youtubeLink: String, // For free courses
     thumbnail: {
       filename: String,
@@ -31,7 +37,6 @@ const contentItemSchema = new Schema(
       size: Number,
       mimetype: String,
     },
-
     meetingLink: String, // For live classes
     schedule: Date, // For live classes
     questions: [questionSchema], // For quizzes

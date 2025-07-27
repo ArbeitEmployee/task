@@ -15,7 +15,7 @@ import {
   FiDollarSign,
 } from "react-icons/fi";
 
-const TeacherRegistration = () => {
+const TeacherRegistration = ({ setNotificationCount }) => {
   const [customSpecialization, setCustomSpecialization] = useState("");
   const [form, setForm] = useState({
     email: "",
@@ -265,7 +265,7 @@ const TeacherRegistration = () => {
         formData.append("certificates[]", cert);
       });
 
-      await axios.post(
+      const response = await axios.post(
         "http://localhost:3500/api/auth/teacher-register",
         formData,
         {
@@ -274,6 +274,8 @@ const TeacherRegistration = () => {
           },
         }
       );
+
+      setNotificationCount(response.data.data.notifications.pending_count);
 
       toast.success("Registration submitted for approval");
 
@@ -311,18 +313,7 @@ const TeacherRegistration = () => {
         profile_photo: "",
       });
     } catch (err) {
-      toast.error(err.response?.data?.message || "Registration failed", {
-        style: {
-          background: "#fff",
-          color: "#000",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-        },
-        iconTheme: {
-          primary: "#ff0000", // bright red
-          secondary: "#ffffff", // white
-        },
-      });
+      toast.error(err.response?.data?.message || "Registration failed");
     } finally {
       setIsSubmitting(false);
     }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "./sidebar";
 import SubadminCreate from "../adminDashboard/subadmins/SubadminCreate";
-import SubadminList from "../adminDashboard/subadmins/SubadminList";
+import SubadminList from "./subadmins/SubadminList";
 import TeacherRegistration from "./teacher/teacherRegister";
 import TeacherList from "./teacher/teacherList";
 import Notifications from "./notifications";
@@ -15,20 +15,13 @@ import CategoryList from "./courses/categoryList";
 
 const AdminDashboard = () => {
   const [activeView, setActiveView] = useState(() => {
-    return localStorage.getItem("adminActiveView") || "dashboard";
+    const savedView = localStorage.getItem("adminActiveView");
+    return savedView || "dashboard"; // Default to "dashboard" if nothing in storage
   });
 
   const [notificationCount, setNotificationCount] = useState(0);
 
-  // Load view from localStorage on mount
-  useEffect(() => {
-    const storedView = localStorage.getItem("adminActiveView");
-    if (storedView) {
-      setActiveView(storedView);
-    }
-  }, []);
-
-  // Save view to localStorage on change
+  // Save view to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem("adminActiveView", activeView);
   }, [activeView]);
@@ -40,7 +33,9 @@ const AdminDashboard = () => {
       case "subadminList":
         return <SubadminList />;
       case "TeacherRegistration":
-        return <TeacherRegistration />;
+        return (
+          <TeacherRegistration setNotificationCount={setNotificationCount} />
+        );
       case "teacherList":
         return <TeacherList />;
       case "StudentRegistration":
@@ -67,15 +62,12 @@ const AdminDashboard = () => {
   return (
     <div className="bg-gradient-to-br from-gray-100 to-gray-300 min-h-screen flex items-center justify-center p-4">
       <div className="flex w-full max-w-8xl h-[95vh] bg-white rounded-3xl shadow-md overflow-hidden border border-gray-300">
-        {/* Sidebar Section */}
         <Sidebar
           activeView={activeView}
           setActiveView={setActiveView}
           notificationCount={notificationCount}
           setNotificationCount={setNotificationCount}
         />
-
-        {/* Main Content Section */}
         <div className="flex-1 h-full overflow-auto">{renderView()}</div>
       </div>
     </div>

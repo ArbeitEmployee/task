@@ -5,34 +5,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
 const Teacher = require("../models/Teacher");
-// Add WebSocket server setup
-const WebSocket = require("ws");
-const wss = new WebSocket.Server({ port: 8080 });
 
-// Keep track of all connected clients
-const clients = new Set();
-
-wss.on("connection", (ws) => {
-  clients.add(ws);
-
-  ws.on("close", () => {
-    clients.remove(ws);
-  });
-});
-
-// Function to broadcast notification count to all clients
-function broadcastNotificationCount(count) {
-  const message = JSON.stringify({
-    type: "notification_count",
-    count: count
-  });
-
-  clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(message);
-    }
-  });
-}
 // JWT generator
 const generateToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: "30d" });
@@ -49,7 +22,7 @@ exports.adminGet = async (req, res) => {
       email: admin.email,
       role: admin.role,
       notifications: true,
-      passwordChangedAt: admin.passwordChangedAt // <-- Added field
+      passwordChangedAt: admin.passwordChangedAt, // <-- Added field
     });
   } catch {
     res.status(500).json({ message: "Server error" });
@@ -85,7 +58,7 @@ exports.register = async (req, res) => {
       username,
       email,
       password: hashedPassword,
-      role: "admin"
+      role: "admin",
     });
 
     await newAdmin.save();
@@ -111,7 +84,7 @@ exports.login = async (req, res) => {
     if (admin.status !== "active") {
       return res.send({
         success: false,
-        message: "Your account on approval."
+        message: "Your account on approval.",
       });
     }
 
@@ -178,7 +151,7 @@ exports.createSubAdmin = async (req, res) => {
       username,
       email,
       password: hashedPassword,
-      role: "subadmin"
+      role: "subadmin",
     });
 
     await subAdmin.save();
@@ -243,7 +216,7 @@ exports.updateSubadminStatus = async (req, res) => {
     res.json({
       success: true,
       message: "Status updated successfully",
-      subadmin: updated
+      subadmin: updated,
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -254,8 +227,8 @@ const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
+    pass: process.env.EMAIL_PASS,
+  },
 });
 
 exports.forgotPassword = async (req, res) => {
@@ -274,7 +247,7 @@ exports.forgotPassword = async (req, res) => {
       from: process.env.EMAIL_USER,
       to: email,
       subject: "Password Reset OTP",
-      text: `Your OTP is: ${resetCode}`
+      text: `Your OTP is: ${resetCode}`,
     });
 
     res.json({ success: true, message: "OTP sent." });
@@ -290,7 +263,7 @@ exports.verifyOtp = async (req, res) => {
     const admin = await Admin.findOne({
       email,
       resetCode: otp,
-      resetCodeExpires: { $gt: Date.now() }
+      resetCodeExpires: { $gt: Date.now() },
     });
 
     if (!admin)
@@ -308,7 +281,7 @@ exports.resetPassword = async (req, res) => {
     const admin = await Admin.findOne({
       email,
       resetCode: otp,
-      resetCodeExpires: { $gt: Date.now() }
+      resetCodeExpires: { $gt: Date.now() },
     });
 
     if (!admin) return res.send({ success: false, message: "Invalid OTP." });
@@ -331,7 +304,7 @@ exports.teacherregistration = async (req, res, next) => {
     if (!req.files || !req.files.cv || req.files.cv.length === 0) {
       return res.status(400).json({
         status: "error",
-        message: "CV is required"
+        message: "CV is required",
       });
     }
 
@@ -340,11 +313,11 @@ exports.teacherregistration = async (req, res, next) => {
       req.files["certificates[]"].length === 0
     ) {
       return res.status(400).json({
-        message: "At least one certificate is required"
+        message: "At least one certificate is required",
       });
     }
 
-    // Process file paths first
+    // Process file paths
     const cvPath = req.files.cv[0].path
       .replace(/\\/g, "/")
       .replace("public/", "");
@@ -359,7 +332,7 @@ exports.teacherregistration = async (req, res, next) => {
             .replace("public/", "")
         : undefined;
 
-    // Now create the teacher with all fields including file paths
+    // Create the teacher
     const newTeacher = await Teacher.create({
       email: req.body.email,
       password: req.body.password,
@@ -369,29 +342,35 @@ exports.teacherregistration = async (req, res, next) => {
         req.body.specialization === "Other"
           ? req.body.custom_specialization
           : req.body.specialization,
-
       qualifications: req.body.qualifications,
       linkedin_url: req.body.linkedin_url,
       hourly_rate: req.body.hourly_rate,
       status: "pending",
-      cv: cvPath, // Include file path
-      certificates: certificatesPaths, // Include file paths
-      profile_photo: profilePhotoPath // Include if exists
+      cv: cvPath,
+      certificates: certificatesPaths,
+      profile_photo: profilePhotoPath,
     });
 
     // Remove password from response
     newTeacher.password = undefined;
 
+    // Get the updated count of pending teachers
+    const pendingCount = await Teacher.countDocuments({ status: "pending" });
+
     res.status(201).json({
       status: "success",
+      message: "Teacher registered successfully",
       data: {
-        teacher: newTeacher
-      }
+        teacher: newTeacher,
+        notifications: {
+          pending_count: pendingCount, // Include the current count in response
+        },
+      },
     });
   } catch (err) {
     res.status(500).json({
       status: "error",
-      message: err.message || "Something went wrong during registration."
+      message: err.message || "Something went wrong during registration.",
     });
   }
 };
@@ -399,16 +378,13 @@ exports.teacherregistration = async (req, res, next) => {
 // Enhanced notifications controller
 exports.notifications = async (req, res) => {
   try {
-    const pendingTeachers = await Teacher.find({ status: "pending" })
+    const notifications = await Teacher.find({ status: "pending" })
       .select("-password -__v")
       .sort({ createdAt: -1 });
 
-    // Broadcast the new count to all connected clients
-    broadcastNotificationCount(pendingTeachers.length);
-
     res.json({
       success: true,
-      notifications: pendingTeachers.map((teacher) => ({
+      notifications: notifications.map((teacher) => ({
         id: teacher._id,
         name: teacher.full_name,
         email: teacher.email,
@@ -416,15 +392,13 @@ exports.notifications = async (req, res) => {
         createdAt: teacher.createdAt,
         cv: teacher.cv,
         certificates: teacher.certificates,
-        profilePhoto: teacher.profile_photo
-      }))
+        profilePhoto: teacher.profile_photo,
+      })),
     });
   } catch (error) {
-    console.error("Notification error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch notifications",
-      error: error.message
     });
   }
 };
@@ -438,7 +412,7 @@ exports.approveTeacher = async (req, res) => {
     if (!["approved", "rejected"].includes(status)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid status. Must be 'approved' or 'rejected'"
+        message: "Invalid status. Must be 'approved' or 'rejected'",
       });
     }
 
@@ -456,7 +430,7 @@ exports.approveTeacher = async (req, res) => {
     if (!updatedTeacher) {
       return res.status(404).json({
         success: false,
-        message: "Teacher not found"
+        message: "Teacher not found",
       });
     }
 
@@ -464,7 +438,7 @@ exports.approveTeacher = async (req, res) => {
     let mailOptions = {
       from: `"Northern-Lights Admin" <${process.env.EMAIL_USER}>`,
       to: updatedTeacher.email,
-      subject: `Your Teacher Application Status - ${status.toUpperCase()}`
+      subject: `Your Teacher Application Status - ${status.toUpperCase()}`,
     };
 
     if (status === "approved") {
@@ -494,14 +468,14 @@ exports.approveTeacher = async (req, res) => {
     res.json({
       success: true,
       message: `Teacher ${status} successfully and notification email sent`,
-      teacher: updatedTeacher
+      teacher: updatedTeacher,
     });
   } catch (err) {
     console.error("Approval error:", err);
     res.status(500).json({
       success: false,
       message: "Error updating teacher status",
-      error: err.message
+      error: err.message,
     });
   }
 };
@@ -513,7 +487,7 @@ exports.teacherlogin = async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({
         status: "fail",
-        message: "Please provide email and password"
+        message: "Please provide email and password",
       });
     }
 
@@ -526,7 +500,7 @@ exports.teacherlogin = async (req, res) => {
     ) {
       return res.status(401).json({
         status: "fail",
-        message: "Incorrect email or password"
+        message: "Incorrect email or password",
       });
     }
 
@@ -535,7 +509,7 @@ exports.teacherlogin = async (req, res) => {
       return res.status(403).json({
         status: "fail",
         message:
-          "Your account is not yet approved. Please wait for admin approval."
+          "Your account is not yet approved. Please wait for admin approval.",
       });
     }
 
@@ -544,7 +518,7 @@ exports.teacherlogin = async (req, res) => {
       { id: teacher._id, role: "teacher" },
       process.env.JWT_SECRET,
       {
-        expiresIn: "10d"
+        expiresIn: "10d",
       }
     );
 
@@ -554,13 +528,13 @@ exports.teacherlogin = async (req, res) => {
     res.status(200).json({
       status: "success",
       token,
-      data: teacher
+      data: teacher,
     });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({
       status: "error",
-      message: "An error occurred during login"
+      message: "An error occurred during login",
     });
   }
 };
@@ -573,7 +547,7 @@ exports.teacherforgotPassword = async (req, res) => {
     if (!teacher) {
       return res.status(404).json({
         success: false,
-        message: "If this email is registered, you'll receive a reset OTP."
+        message: "If this email is registered, you'll receive a reset OTP.",
       });
     }
 
@@ -594,18 +568,18 @@ exports.teacherforgotPassword = async (req, res) => {
           <p>This code will expire in 10 minutes.</p>
           <p>If you didn't request this, please ignore this email.</p>
         </div>
-      `
+      `,
     });
 
     res.json({
       success: true,
-      message: "OTP sent to registered email."
+      message: "OTP sent to registered email.",
     });
   } catch (error) {
     console.error("Forgot password error:", error);
     res.status(500).json({
       success: false,
-      error: "Could not process request. Please try again."
+      error: "Could not process request. Please try again.",
     });
   }
 };
@@ -617,25 +591,25 @@ exports.teacherverifyOtp = async (req, res) => {
     const teacher = await Teacher.findOne({
       email,
       resetCode: otp,
-      resetCodeExpires: { $gt: Date.now() }
+      resetCodeExpires: { $gt: Date.now() },
     });
 
     if (!teacher) {
       return res.status(400).json({
         success: false,
-        message: "Invalid or expired OTP. Please request a new one."
+        message: "Invalid or expired OTP. Please request a new one.",
       });
     }
 
     res.json({
       success: true,
-      message: "OTP verified successfully."
+      message: "OTP verified successfully.",
     });
   } catch (error) {
     console.error("Verify OTP error:", error);
     res.status(500).json({
       success: false,
-      error: "Could not verify OTP. Please try again."
+      error: "Could not verify OTP. Please try again.",
     });
   }
 };
@@ -648,13 +622,14 @@ exports.teacherresetPassword = async (req, res) => {
     const teacher = await Teacher.findOne({
       email,
       resetCode: otp,
-      resetCodeExpires: { $gt: Date.now() }
+      resetCodeExpires: { $gt: Date.now() },
     });
 
     if (!teacher) {
       return res.status(400).json({
         success: false,
-        message: "Invalid or expired OTP. Please start the reset process again."
+        message:
+          "Invalid or expired OTP. Please start the reset process again.",
       });
     }
 
@@ -662,21 +637,21 @@ exports.teacherresetPassword = async (req, res) => {
     if (newPassword.length < 8) {
       return res.status(400).json({
         success: false,
-        message: "Password must be at least 8 characters"
+        message: "Password must be at least 8 characters",
       });
     }
 
     if (!/\d/.test(newPassword)) {
       return res.status(400).json({
         success: false,
-        message: "Password must contain at least one number"
+        message: "Password must contain at least one number",
       });
     }
 
     if (!/[!@#$%^&*]/.test(newPassword)) {
       return res.status(400).json({
         success: false,
-        message: "Password must contain at least one special character"
+        message: "Password must contain at least one special character",
       });
     }
 
@@ -698,19 +673,19 @@ exports.teacherresetPassword = async (req, res) => {
           <p>Your teacher portal password has been successfully reset.</p>
           <p>If you didn't make this change, please contact support immediately.</p>
         </div>
-      `
+      `,
     });
 
     res.json({
       success: true,
       message:
-        "Password reset successful. You can now login with your new password."
+        "Password reset successful. You can now login with your new password.",
     });
   } catch (error) {
     console.error("Reset password error:", error);
     res.status(500).json({
       success: false,
-      error: "Could not reset password. Please try again."
+      error: "Could not reset password. Please try again.",
     });
   }
 };

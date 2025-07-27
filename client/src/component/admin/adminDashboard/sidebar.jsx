@@ -12,7 +12,7 @@ import {
   FiChevronUp,
   FiLogOut,
   FiUser,
-  FiLayers
+  FiLayers,
 } from "react-icons/fi";
 import axios from "axios";
 import { toast } from "react-hot-toast";
@@ -23,9 +23,10 @@ import { useAdmin } from "../../../context/useAdmin";
 const Sidebar = ({
   activeView,
   setActiveView,
-  notificationCount = 0, // Default value added
-  setNotificationCount
+  notificationCount = 0,
+  setNotificationCount,
 }) => {
+  const base_url = import.meta.env.VITE_API_KEY_Base_URL;
   const [isOpen, setIsOpen] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState({});
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -40,43 +41,40 @@ const Sidebar = ({
       fetchUserProfile();
     }
   }, []);
-  // Add this useEffect hook to your Sidebar component
   useEffect(() => {
-    // Create WebSocket connection
-    const socket = new WebSocket("ws://localhost:3500/ws/notifications");
-
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === "notification_count") {
-        setNotificationCount(data.count);
-      }
+    const fetchNotificationCount = async () => {
+      const response = await axios.get(
+        `${base_url}/api/admin/notifications/count`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setNotificationCount(response.data.count);
     };
+    // Initial fetch
+    fetchNotificationCount();
+    // Set up polling every 15 seconds
+    const intervalId = setInterval(fetchNotificationCount, 15000);
+    return () => clearInterval(intervalId);
+  }, [token, setNotificationCount]);
 
-    socket.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
-
-    return () => {
-      socket.close();
-    };
-  }, [setNotificationCount]);
   const baseNavItems = [
     { name: "dashboard", icon: <FiHome />, component: "dashboard" },
     {
       name: "Teachers",
-      icon: <FiUser />,
+      icon: <FiUsers />,
       children: [
         { name: "Create Teacher", component: "TeacherRegistration" },
-        { name: "Teachers List ", component: "teacherList" }
-      ]
+        { name: "Teachers List ", component: "teacherList" },
+      ],
     },
     {
       name: "Students",
-      icon: <FiUser />,
+      icon: <FiUsers />,
       children: [
         { name: "Create Student", component: "StudentRegistration" },
-        { name: "Students List", component: "studentList" }
-      ]
+        { name: "Students List", component: "studentList" },
+      ],
     },
     {
       name: "Courses",
@@ -85,8 +83,8 @@ const Sidebar = ({
         { name: "Create Category ", component: "createCategory" },
         { name: "Modify & list Categories ", component: "modifyCategory" },
         { name: "Create Courses", component: "createCourse" },
-        { name: "Course List", component: "courseList" }
-      ]
+        { name: "Course List", component: "courseList" },
+      ],
     },
     {
       name: "notifications",
@@ -99,14 +97,14 @@ const Sidebar = ({
               animate={{ scale: 1 }}
               className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs text-white"
             >
-              {Math.min(notificationCount, 99)} {/* Limit to 99+ */}
+              {Math.min(notificationCount, 99)}
             </motion.span>
           )}
         </div>
       ),
-      component: "notifications"
+      component: "notifications",
     },
-    { name: "settings", icon: <FiSettings />, component: "settings" }
+    { name: "settings", icon: <FiSettings />, component: "settings" },
   ];
 
   // Safely add Subadmin menu only for Admins
@@ -116,14 +114,14 @@ const Sidebar = ({
       icon: <FiUsers />,
       children: [
         { name: "create subadmin", component: "subadminCreate" },
-        { name: "list subadmin", component: "subadminList" }
-      ]
+        { name: "list subadmin", component: "subadminList" },
+      ],
     });
   }
   const toggleMenu = (menuName) => {
     setExpandedMenus((prev) => ({
       ...prev,
-      [menuName]: !prev[menuName]
+      [menuName]: !prev[menuName],
     }));
   };
 
@@ -139,9 +137,13 @@ const Sidebar = ({
   };
 
   const confirmLogout = () => {
+    // Remove all authentication-related items
     localStorage.removeItem("token");
     localStorage.removeItem("admin");
     localStorage.removeItem("role");
+    // Add this line to remove the active view
+    localStorage.removeItem("adminActiveView");
+
     toast.success("Logout successful!");
     setTimeout(() => {
       navigate("/admin", { replace: true });
@@ -169,7 +171,7 @@ const Sidebar = ({
           <div
             className={`w-8 h-8 rounded-full ${
               userData?.avatarColor ||
-              (role === "admin" ? "bg-indigo-500" : "bg-purple-500")
+              (role === "admin" ? "bg-gray-800" : "bg-gray-900")
             } text-white flex items-center justify-center font-bold shadow-md`}
           >
             {userData?.username?.charAt(0)?.toUpperCase() ||
@@ -283,7 +285,7 @@ const Sidebar = ({
           <div
             className={`w-10 h-10 rounded-full text-white flex items-center justify-center font-bold shadow-md flex-shrink-0 ${
               userData?.avatarColor ||
-              (role === "admin" ? "bg-indigo-500" : "bg-purple-500")
+              (role === "admin" ? "bg-gray-800" : "bg-gray-900")
             }`}
           >
             {userData?.username?.charAt(0)?.toUpperCase() ||
@@ -325,24 +327,24 @@ const Sidebar = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50 bg-[rgba(0,0,0,0.4)] bg-opacity-70 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-transparent bg-opacity-70 flex items-center justify-center p-4"
         >
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -20, opacity: 0 }}
             transition={{ type: "spring", damping: 25 }}
-            className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden w-full max-w-md border border-gray-200 dark:border-gray-700"
+            className="bg-white rounded-2xl shadow-2xl overflow-hidden w-full max-w-md"
           >
             <div className="p-8 text-center">
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-500 dark:bg-gray-800 mb-4">
-                <FiLogOut className="h-5 w-5 text-gray-100 dark:text-gray-300" />
+                <FiLogOut className="h-5 w-5 text-gray-100" />
               </div>
 
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
                 Ready to leave?
               </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              <p className="text-sm text-gray-700 mb-6">
                 Are you sure you want to sign out of your account?
               </p>
 
@@ -351,7 +353,7 @@ const Sidebar = ({
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setShowLogoutConfirm(false)}
-                  className="px-5 py-2.5 text-sm font-medium rounded-lg cursor-pointer bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 transition-all shadow-sm"
+                  className="px-5 py-2.5 text-sm font-medium rounded-lg cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-all shadow-sm"
                 >
                   Cancel
                 </motion.button>
@@ -360,15 +362,11 @@ const Sidebar = ({
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={confirmLogout}
-                  className="px-5 py-2.5 text-sm font-medium rounded-lg bg-black cursor-pointer text-white hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 transition-all shadow-sm"
+                  className="px-5 py-2.5 text-sm font-medium rounded-lg bg-black cursor-pointer text-white hover:bg-gray-800 transition-all shadow-sm"
                 >
                   Logout
                 </motion.button>
               </div>
-            </div>
-
-            <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 text-xs text-gray-500 dark:text-gray-400 text-center border-t border-gray-200 dark:border-gray-700">
-              Session will be securely terminated
             </div>
           </motion.div>
         </motion.div>

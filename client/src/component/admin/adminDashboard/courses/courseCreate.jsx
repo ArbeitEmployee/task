@@ -140,9 +140,10 @@ const CourseCreator = () => {
       type: "tutorial",
       title: "",
       description: "",
-      content: isPremium ? null : "",
-      youtubeLink: !isPremium ? "" : null,
-      isExpanded: true, // New tutorials are expanded by default
+      isPremium: isPremium,
+      // For premium courses, we'll track the file separately
+      ...(isPremium ? { contentFile: null, content: "" } : { youtubeLink: "" }),
+      isExpanded: true,
     };
     setCourseData((prev) => ({
       ...prev,
@@ -530,13 +531,15 @@ const CourseCreator = () => {
           throw new Error(`Please add a title for all content items`);
         }
 
+        // In the validation section of publishCourse:
         if (item.type === "tutorial") {
           if (courseType === "free" && !item.youtubeLink) {
             throw new Error(
               `Please add a YouTube link for tutorial "${item.title}"`
             );
           }
-          if (courseType === "premium" && !item.content) {
+          if (courseType === "premium" && !item.contentFile) {
+            // Changed from !item.content to !item.contentFile
             throw new Error(
               `Please upload a video for tutorial "${item.title}"`
             );
@@ -597,9 +600,21 @@ const CourseCreator = () => {
       formData.append("level", courseData.level);
       formData.append("type", courseType);
       formData.append("price", courseType === "premium" ? courseData.price : 0);
-      formData.append("content", JSON.stringify(contentWithPlainText));
       formData.append("thumbnail", courseData.thumbnail);
+      const processedContent = courseData.content.map((item) => {
+        const contentItem = {
+          ...item,
+          // Remove the file object from the content
+          ...(item.type === "tutorial" && courseType === "premium"
+            ? { content: item.contentFile?.name || "" }
+            : {}),
+        };
 
+        // Remove the file object before stringifying
+        delete contentItem.contentFile;
+        return contentItem;
+      });
+      formData.append("content", JSON.stringify(processedContent));
       // Add attachments
       courseData.attachments.forEach((file) => {
         formData.append("attachments", file);
@@ -608,8 +623,8 @@ const CourseCreator = () => {
       // Add content files (videos and thumbnails for premium courses)
       if (courseType === "premium") {
         courseData.content.forEach((item) => {
-          if (item.type === "tutorial" && item.content) {
-            formData.append("contentVideos", item.content);
+          if (item.type === "tutorial" && item.contentFile) {
+            formData.append("contentVideos", item.contentFile);
           }
           if (item.type === "live" && item.thumbnail) {
             formData.append("contentThumbnails", item.thumbnail);
@@ -634,7 +649,7 @@ const CourseCreator = () => {
 
       // Success handling
       toast.dismiss(loadingToast);
-      toast.success(`Course "${courseData.title}" published successfully!`);
+      toast.success("Course published successfully!");
 
       // Reset form
       setCourseData({
@@ -656,7 +671,6 @@ const CourseCreator = () => {
           error.message ||
           "Failed to publish course"
       );
-      console.error("Publish error:", error);
     }
   };
 
@@ -1034,7 +1048,7 @@ const CourseCreator = () => {
                                       <FiYoutube className="text-red-500 mr-2 text-xl" />
                                       <input
                                         type="url"
-                                        value={item.youtubeLink}
+                                        value={item.youtubeLink || ""}
                                         onChange={(e) =>
                                           handleContentChange(
                                             item.id,
@@ -1053,25 +1067,46 @@ const CourseCreator = () => {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                       Upload Video *
                                     </label>
-                                    <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors inline-flex items-center">
-                                      <FiUpload className="mr-2" />
-                                      {item.content
-                                        ? item.content.name
-                                        : "Select Video File"}
-                                      <input
-                                        type="file"
-                                        accept="video/*"
-                                        onChange={(e) =>
-                                          handleFileUpload(e, item.id)
-                                        }
-                                        className="hidden"
-                                      />
-                                    </label>
-                                    {item.content && (
+                                    <div className="flex items-center gap-2">
+                                      <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors inline-flex items-center flex-1">
+                                        <FiUpload className="mr-2" />
+                                        {item.contentFile
+                                          ? item.contentFile.name
+                                          : "Select Video File"}
+                                        <input
+                                          type="file"
+                                          accept="video/*"
+                                          onChange={(e) =>
+                                            handleFileUpload(
+                                              e,
+                                              item.id,
+                                              "contentFile"
+                                            )
+                                          }
+                                          className="hidden"
+                                        />
+                                      </label>
+                                      {item.contentFile && (
+                                        <button
+                                          onClick={() =>
+                                            handleContentChange(
+                                              item.id,
+                                              "contentFile",
+                                              null
+                                            )
+                                          }
+                                          className="text-gray-400 hover:text-red-500 p-2 rounded-full"
+                                          type="button"
+                                        >
+                                          <FiTrash2 size={20} />
+                                        </button>
+                                      )}
+                                    </div>
+                                    {item.contentFile && (
                                       <div className="mt-2 text-sm text-gray-500">
-                                        Selected: {item.content.name} (
+                                        Selected: {item.contentFile.name} (
                                         {(
-                                          item.content.size /
+                                          item.contentFile.size /
                                           (1024 * 1024)
                                         ).toFixed(2)}{" "}
                                         MB)

@@ -49,7 +49,7 @@ const App = () => {
         position="top-center"
         containerStyle={{
           position: "fixed",
-          zIndex: 9999 // Higher than your modal's z-index
+          zIndex: 9999, // Higher than your modal's z-index
         }}
         toastOptions={{
           className:
@@ -61,20 +61,20 @@ const App = () => {
             boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
             borderRadius: "1rem",
             fontSize: "1rem",
-            padding: "1.2rem 1.5rem"
+            padding: "1.2rem 1.5rem",
           },
           success: {
             iconTheme: {
               primary: "#000",
-              secondary: "#ecfdf5"
-            }
+              secondary: "#ecfdf5",
+            },
           },
           error: {
             iconTheme: {
               primary: "#ef4444",
-              secondary: "#fef2f2"
-            }
-          }
+              secondary: "#fef2f2",
+            },
+          },
         }}
       />
       <Routes>

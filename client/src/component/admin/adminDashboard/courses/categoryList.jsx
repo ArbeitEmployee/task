@@ -24,7 +24,6 @@ function CategoryList() {
         );
         setCategories(data);
       } catch (err) {
-        console.error(err);
         toast.error(
           err.response?.data?.message ||
             err.message ||
@@ -58,7 +57,6 @@ function CategoryList() {
       setCategories(data);
       setLoading(false);
     } catch (err) {
-      console.error(err);
       toast.error(
         err.response?.data?.message || err.message || "Failed to delete",
         { id: toastId }
@@ -108,7 +106,6 @@ function CategoryList() {
       setCategories(data);
       setLoading(false);
     } catch (err) {
-      console.error(err);
       toast.error(
         err.response?.data?.message || err.message || "Failed to update",
         { id: toastId }
