@@ -10,7 +10,7 @@ import {
   FiFileText,
   FiDownload,
   FiClock,
-  FiChevronDown,
+  FiChevronDown
 } from "react-icons/fi";
 
 const Notifications = ({ setNotificationCount }) => {
@@ -33,35 +33,24 @@ const Notifications = ({ setNotificationCount }) => {
       const { data } = await axios.get(
         "http://localhost:3500/api/auth/notifications",
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token}` }
         }
       );
 
-      setNotifications(data.notifications || []); // Ensure it's always an array
+      setNotifications(data.notifications || []);
+      setNotificationCount(data.notifications?.length || 0); // Update count from response
     } catch (error) {
       toast.error(
-        error.response?.data?.message || "Failed to load notifications",
-        {
-          style: {
-            background: "#fff",
-            color: "#000",
-            border: "1px solid #e5e7eb",
-            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-          },
-          iconTheme: {
-            primary: "#ff0000", // bright red
-            secondary: "#ffffff", // white
-          },
-        }
+        error.response?.data?.message || "Failed to load notifications"
       );
     } finally {
-      // Always stop loading
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
     fetchNotifications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleApproval = async (teacherId) => {
@@ -71,45 +60,21 @@ const Notifications = ({ setNotificationCount }) => {
         `http://localhost:3500/api/auth/teacher-status/${teacherId}`,
         { status: "approved" },
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token}` }
         }
       );
 
       if (data.success) {
-        toast.success("Teacher approved successfully!", {
-          style: {
-            background: "#fff",
-            color: "#000",
-            border: "1px solid #e5e7eb",
-            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-          },
-          iconTheme: {
-            primary: "#000",
-            secondary: "#fff",
-          },
-        });
-
-        // Optimistically update notifications instead of refetching
+        toast.success("Teacher approved successfully!");
         setNotifications((prev) =>
           prev.filter((teacher) => teacher.id !== teacherId)
         );
-
-        // Update notification count
         setNotificationCount((prev) => (prev > 0 ? prev - 1 : 0));
+
+        // No need to manually broadcast - the next notifications fetch will trigger it
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Error approving teacher", {
-        style: {
-          background: "#fff",
-          color: "#000",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-        },
-        iconTheme: {
-          primary: "#ff0000", // bright red
-          secondary: "#ffffff", // white
-        },
-      });
+      toast.error(error.response?.data?.message || "Error approving teacher");
     }
   };
 
@@ -122,50 +87,25 @@ const Notifications = ({ setNotificationCount }) => {
         `http://localhost:3500/api/auth/teacher-status/${selectedTeacher.id}`,
         {
           status: "rejected",
-          rejectionReason: rejectionReason || "Not specified",
+          rejectionReason: rejectionReason || "Not specified"
         },
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token}` }
         }
       );
 
       if (data.success) {
-        toast.success("Teacher rejected successfully!", {
-          style: {
-            background: "#fff",
-            color: "#000",
-            border: "1px solid #e5e7eb",
-            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-          },
-          iconTheme: {
-            primary: "#000",
-            secondary: "#fff",
-          },
-        });
-
-        // Remove the rejected teacher from notifications
+        toast.success("Teacher rejected successfully!");
         setNotifications((prev) =>
           prev.filter((teacher) => teacher.id !== selectedTeacher.id)
         );
-
+        setNotificationCount((prev) => (prev > 0 ? prev - 1 : 0));
         setRejectionReason("");
         setSelectedTeacher(null);
         setIsModalOpen(false);
-        setNotificationCount((prev) => (prev > 0 ? prev - 1 : 0));
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Error rejecting teacher", {
-        style: {
-          background: "#fff",
-          color: "#000",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-        },
-        iconTheme: {
-          primary: "#ff0000", // bright red
-          secondary: "#ffffff", // white
-        },
-      });
+      toast.error(error.response?.data?.message || "Error rejecting teacher");
     }
   };
 

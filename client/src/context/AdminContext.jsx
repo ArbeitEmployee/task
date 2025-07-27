@@ -2,46 +2,48 @@
 import React, { createContext, useState, useEffect } from "react";
 import axios from "axios";
 
-const AdminContext = createContext(); // <-- Export here
+const AdminContext = createContext();
 
 export const AdminProvider = ({ children }) => {
   const base_url = import.meta.env.VITE_API_KEY_Base_URL;
-  const [adminData, setAdminData] = useState(null);
+  const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const token = localStorage.getItem("token");
-  const admin_info = JSON.parse(localStorage.getItem("admin"));
+  const userInfo = JSON.parse(localStorage.getItem("admin"));
 
-  const fetchAdminProfile = async (id = admin_info?._id, authToken = token) => {
+  const fetchUserProfile = async () => {
     try {
       setLoading(true);
       setError(null);
+
       const response = await axios.get(
-        `${base_url}/api/admin/admin-profile/${id}`,
+        `${base_url}/api/admin/profile/${userInfo._id}`,
         {
           headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
+            Authorization: `Bearer ${token}`
+          }
         }
       );
-      setAdminData(response.data.admin);
+
+      setUserData(response.data.profile);
     } catch (err) {
-      setError(err.response?.data?.message || "Server error");
+      setError(err.response?.data?.message || "Failed to fetch profile");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (token && admin_info?._id) {
-      fetchAdminProfile();
+    if (token && userInfo?._id) {
+      fetchUserProfile();
     } else {
-      setLoading(false); // Stop showing loading when not logged in
+      setLoading(false);
     }
   }, []);
 
-  const clearAdminData = () => {
-    setAdminData(null);
+  const clearUserData = () => {
+    setUserData(null);
     setError(null);
     setLoading(false);
   };
@@ -49,11 +51,12 @@ export const AdminProvider = ({ children }) => {
   return (
     <AdminContext.Provider
       value={{
-        adminData,
+        userData,
         loading,
         error,
-        fetchAdminProfile,
-        clearAdminData,
+        fetchUserProfile,
+        clearUserData,
+        role: userData?.role || localStorage.getItem("role")
       }}
     >
       {children}

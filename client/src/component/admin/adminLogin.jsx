@@ -4,7 +4,7 @@ import {
   AiOutlineEye,
   AiOutlineEyeInvisible,
   AiOutlineLock,
-  AiOutlineMail,
+  AiOutlineMail
 } from "react-icons/ai";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom"; // Import Link for routing
@@ -20,7 +20,7 @@ const AdminLogin = () => {
   const [errors, setErrors] = useState({
     email: "",
     password: "",
-    username: "",
+    username: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false); // To check if registration is already done
@@ -82,7 +82,7 @@ const AdminLogin = () => {
           "http://localhost:3500/api/auth/login",
           {
             email: email.toLowerCase(),
-            password,
+            password
           }
         );
 
@@ -102,9 +102,9 @@ const AdminLogin = () => {
             localStorage.removeItem("email");
             localStorage.removeItem("password");
           }
-          setTimeout(() => {
-            navigate("/admin/dashboard", { replace: true });
-          }, 500);
+
+          navigate("/admin/dashboard");
+
           toast.success("Login successful!");
           setEmail("");
           setPassword("");
@@ -117,12 +117,12 @@ const AdminLogin = () => {
             background: "#fff",
             color: "#000",
             border: "1px solid #e5e7eb",
-            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
           },
           iconTheme: {
             primary: "#ff0000", // bright red
-            secondary: "#ffffff", // white
-          },
+            secondary: "#ffffff" // white
+          }
         }); // Show error toast
       }
       setIsSubmitting(false);
@@ -168,12 +168,12 @@ const AdminLogin = () => {
           {
             email: email.toLowerCase(),
             password: password,
-            username: username,
+            username: username
           },
           {
             headers: {
-              "Content-Type": "application/json",
-            },
+              "Content-Type": "application/json"
+            }
           }
         );
 
@@ -187,12 +187,12 @@ const AdminLogin = () => {
                 background: "#fff",
                 color: "#000",
                 border: "1px solid #e5e7eb",
-                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
               },
               iconTheme: {
                 primary: "#000",
-                secondary: "#fff",
-              },
+                secondary: "#fff"
+              }
             }
           ); // Show success toast
           setUsername("");
@@ -499,8 +499,8 @@ const AdminLogin = () => {
                         transition: {
                           type: "spring",
                           stiffness: 700,
-                          damping: 30,
-                        },
+                          damping: 30
+                        }
                       }}
                     />
                   </div>

@@ -12,20 +12,34 @@ const authenticateToken = async (req, res, next) => {
 
     const decoded = jwt.verify(token, "435345sdfsfd");
 
-    // Check if admin still exists and is active
-    const admin = await Admin.findById(decoded.id);
-    if (!admin) {
-      return res.status(403).json({ message: "Admin account not found" });
+    // Find user regardless of role
+    const user = await Admin.findById(decoded.id);
+    if (!user) {
+      return res.status(403).json({ message: "User account not found" });
     }
 
-    if (admin.status !== "active") {
-      return res.status(403).json({ message: "Admin account is not active" });
+    if (user.status !== "active") {
+      return res.status(403).json({
+        message: `Account is ${user.status}. Please contact admin.`
+      });
     }
 
-    req.admin = admin; // Attach the full admin document to the request
+    // Check if password was changed after token was issued
+    if (user.passwordChangedAt) {
+      const changedTimestamp = parseInt(
+        user.passwordChangedAt.getTime() / 1000,
+        10
+      );
+      if (decoded.iat < changedTimestamp) {
+        return res.status(403).json({
+          message: "Password was changed. Please login again."
+        });
+      }
+    }
+
+    req.user = user;
     req.id = decoded.id;
-    req.role = decoded.role;
-
+    req.role = user.role;
     next();
   } catch (err) {
     if (err.name === "TokenExpiredError") {
@@ -44,7 +58,7 @@ const authenticateToken = async (req, res, next) => {
 const authorizeAdmin = (req, res, next) => {
   if (req.role !== "admin") {
     return res.status(403).json({
-      message: "Access denied. Requires admin privileges.",
+      message: "Access denied. Requires admin privileges."
     });
   }
   next();
@@ -53,7 +67,7 @@ const authorizeAdmin = (req, res, next) => {
 const authorizeSubAdmin = (req, res, next) => {
   if (!["admin", "subadmin"].includes(req.role)) {
     return res.status(403).json({
-      message: "Access denied. Requires at least subadmin privileges.",
+      message: "Access denied. Requires at least subadmin privileges."
     });
   }
   next();
@@ -63,7 +77,7 @@ const checkAccountStatus = (requiredStatus) => {
   return (req, res, next) => {
     if (req.admin.status !== requiredStatus) {
       return res.status(403).json({
-        message: `Access denied. Account must be ${requiredStatus}.`,
+        message: `Access denied. Account must be ${requiredStatus}.`
       });
     }
     next();
@@ -74,5 +88,5 @@ module.exports = {
   authenticateToken,
   authorizeAdmin,
   authorizeSubAdmin,
-  checkAccountStatus,
+  checkAccountStatus
 };

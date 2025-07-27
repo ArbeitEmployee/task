@@ -12,7 +12,7 @@ import {
   FiChevronUp,
   FiLogOut,
   FiUser,
-  FiLayers,
+  FiLayers
 } from "react-icons/fi";
 import axios from "axios";
 import { toast } from "react-hot-toast";
@@ -23,43 +23,60 @@ import { useAdmin } from "../../../context/useAdmin";
 const Sidebar = ({
   activeView,
   setActiveView,
-  notificationCount,
-  setNotificationCount,
+  notificationCount = 0, // Default value added
+  setNotificationCount
 }) => {
   const [isOpen, setIsOpen] = useState(true);
-  const [loading, setLoading] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState({});
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const role = localStorage.getItem("role");
+  const role = localStorage.getItem("role") || ""; // Default empty string
   const navigate = useNavigate();
-  const admin_info = JSON.parse(localStorage.getItem("admin"));
-  const { adminData, error, fetchAdminProfile } = useAdmin();
-  const token = localStorage.getItem("token"); // or from your auth context
+  const admin_info = JSON.parse(localStorage.getItem("admin") || "null"); // Safe parsing
+  const { userData = {}, loading, error, fetchUserProfile } = useAdmin();
+  const token = localStorage.getItem("token");
 
   useEffect(() => {
-    if (admin_info && token) {
-      fetchAdminProfile(admin_info._id, token);
+    if (admin_info?._id && token) {
+      fetchUserProfile();
     }
   }, []);
+  // Add this useEffect hook to your Sidebar component
+  useEffect(() => {
+    // Create WebSocket connection
+    const socket = new WebSocket("ws://localhost:3500/ws/notifications");
 
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === "notification_count") {
+        setNotificationCount(data.count);
+      }
+    };
+
+    socket.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    return () => {
+      socket.close();
+    };
+  }, [setNotificationCount]);
   const baseNavItems = [
     { name: "dashboard", icon: <FiHome />, component: "dashboard" },
-
     {
       name: "Teachers",
       icon: <FiUser />,
       children: [
         { name: "Create Teacher", component: "TeacherRegistration" },
-        { name: "Teachers List ", component: "teacherList" },
-      ],
+        { name: "Teachers List ", component: "teacherList" }
+      ]
     },
     {
       name: "Students",
       icon: <FiUser />,
       children: [
         { name: "Create Student", component: "StudentRegistration" },
-        { name: "Students List", component: "studentList" },
-      ],
+        { name: "Students List", component: "studentList" }
+      ]
     },
     {
       name: "Courses",
@@ -68,8 +85,8 @@ const Sidebar = ({
         { name: "Create Category ", component: "createCategory" },
         { name: "Modify & list Categories ", component: "modifyCategory" },
         { name: "Create Courses", component: "createCourse" },
-        { name: "Course List", component: "courseList" },
-      ],
+        { name: "Course List", component: "courseList" }
+      ]
     },
     {
       name: "notifications",
@@ -82,32 +99,31 @@ const Sidebar = ({
               animate={{ scale: 1 }}
               className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs text-white"
             >
-              {notificationCount}
+              {Math.min(notificationCount, 99)} {/* Limit to 99+ */}
             </motion.span>
           )}
         </div>
       ),
-      component: "notifications",
+      component: "notifications"
     },
-    { name: "settings", icon: <FiSettings />, component: "settings" },
+    { name: "settings", icon: <FiSettings />, component: "settings" }
   ];
 
-  // Add Subadmin menu only for Admins
+  // Safely add Subadmin menu only for Admins
   if (role === "admin") {
     baseNavItems.splice(1, 0, {
       name: "subadmin",
       icon: <FiUsers />,
       children: [
         { name: "create subadmin", component: "subadminCreate" },
-        { name: "list subadmin", component: "subadminList" },
-      ],
+        { name: "list subadmin", component: "subadminList" }
+      ]
     });
   }
-
   const toggleMenu = (menuName) => {
     setExpandedMenus((prev) => ({
       ...prev,
-      [menuName]: !prev[menuName],
+      [menuName]: !prev[menuName]
     }));
   };
 
@@ -151,12 +167,15 @@ const Sidebar = ({
           </motion.h1>
         ) : (
           <div
-            className={`w-8 h-8 rounded-full ${adminData.avatarColor} text-white bg-black flex items-center justify-center font-bold shadow-md`}
+            className={`w-8 h-8 rounded-full ${
+              userData?.avatarColor ||
+              (role === "admin" ? "bg-indigo-500" : "bg-purple-500")
+            } text-white flex items-center justify-center font-bold shadow-md`}
           >
-            {role === "admin" ? "A" : "S"}
+            {userData?.username?.charAt(0)?.toUpperCase() ||
+              (role === "admin" ? "A" : "S")}
           </div>
         )}
-
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
@@ -263,23 +282,12 @@ const Sidebar = ({
         >
           <div
             className={`w-10 h-10 rounded-full text-white flex items-center justify-center font-bold shadow-md flex-shrink-0 ${
-              // Different background colors based on first character
-              !adminData?.username
-                ? "bg-gray-500"
-                : adminData.username.charAt(0).toLowerCase() < "e"
-                ? "bg-blue-500"
-                : adminData.username.charAt(0).toLowerCase() < "j"
-                ? "bg-green-500"
-                : adminData.username.charAt(0).toLowerCase() < "p"
-                ? "bg-yellow-500"
-                : adminData.username.charAt(0).toLowerCase() < "u"
-                ? "bg-purple-500"
-                : "bg-pink-500"
+              userData?.avatarColor ||
+              (role === "admin" ? "bg-indigo-500" : "bg-purple-500")
             }`}
           >
-            {adminData?.username
-              ? adminData.username.charAt(0).toUpperCase()
-              : "A"}
+            {userData?.username?.charAt(0)?.toUpperCase() ||
+              (role === "admin" ? "A" : "S")}
           </div>
 
           {isOpen && (
@@ -290,7 +298,8 @@ const Sidebar = ({
             >
               <div className="flex items-center justify-between">
                 <p className="text-sm font-[700] text-gray-900 truncate">
-                  {adminData?.username}
+                  {userData?.username ||
+                    (role === "admin" ? "Admin" : "Subadmin")}
                 </p>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -302,9 +311,8 @@ const Sidebar = ({
                   <FiLogOut className="w-4 h-4 text-gray-500 hover:text-red-500" />
                 </motion.button>
               </div>
-
               <p className="text-xs text-gray-600 font-[600] truncate mt-0.5">
-                {adminData?.email}
+                {userData?.email || "No email found"}
               </p>
             </motion.div>
           )}
