@@ -7,11 +7,11 @@ const questionSchema = new Schema({
   type: {
     type: String,
     required: true,
-    enum: ["mcq-single", "mcq-multiple", "short-answer", "broad-answer"],
+    enum: ["mcq-single", "mcq-multiple", "short-answer", "broad-answer"]
   },
   options: [String],
   correctAnswer: Schema.Types.Mixed, // Can be number, array of numbers, or string
-  answer: String, // For short/broad answers
+  answer: String // For short/broad answers
 });
 
 // In models/Course.js - update the contentItemSchema
@@ -20,7 +20,7 @@ const contentItemSchema = new Schema(
     type: {
       type: String,
       required: true,
-      enum: ["tutorial", "quiz", "live"],
+      enum: ["tutorial", "quiz", "live"]
     },
     title: { type: String, required: true },
     description: String,
@@ -28,19 +28,24 @@ const contentItemSchema = new Schema(
       filename: String,
       path: String,
       size: Number,
-      mimetype: String,
+      mimetype: String
     },
     youtubeLink: String, // For free courses
     thumbnail: {
       filename: String,
       path: String,
       size: Number,
-      mimetype: String,
+      mimetype: String
     },
     meetingLink: String, // For live classes
-    schedule: Date, // For live classes
+    schedule: {
+      type: String,
+      required: function () {
+        return this.type === "live";
+      }
+    },
     questions: [questionSchema], // For quizzes
-    isPremium: { type: Boolean, default: false },
+    isPremium: { type: Boolean, default: false }
   },
   { timestamps: true }
 );
@@ -49,7 +54,7 @@ const attachmentSchema = new Schema({
   filename: { type: String, required: true },
   path: { type: String, required: true },
   size: { type: Number, required: true },
-  mimetype: { type: String, required: true },
+  mimetype: { type: String, required: true }
 });
 
 const courseSchema = new Schema(
@@ -58,13 +63,13 @@ const courseSchema = new Schema(
     description: { type: String, required: true },
     instructor: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: "User"
     },
     thumbnail: {
       filename: String,
       path: String,
       size: Number,
-      mimetype: String,
+      mimetype: String
     },
     attachments: [attachmentSchema],
     content: [contentItemSchema],
@@ -73,42 +78,42 @@ const courseSchema = new Schema(
       type: String,
       required: true,
       enum: ["free", "premium"],
-      default: "free",
+      default: "free"
     },
     status: {
       type: String,
       enum: ["active", "inactive"],
-      default: "active",
+      default: "active"
     },
     categories: [{ type: String }],
     level: {
       type: [String],
       enum: ["beginner", "intermediate", "advanced"],
-      default: ["beginner"],
+      default: ["beginner"]
     },
     duration: Number, // in minutes
     studentsEnrolled: [
       {
         type: Schema.Types.ObjectId,
-        ref: "User",
-      },
+        ref: "User"
+      }
     ],
     ratings: [
       {
         user: { type: Schema.Types.ObjectId, ref: "User" },
         rating: { type: Number, min: 1, max: 5 },
-        review: String,
-      },
+        review: String
+      }
     ],
     averageRating: { type: Number, default: 0 },
     previousInstructors: [
       {
         instructor: { type: Schema.Types.ObjectId, ref: "User" },
         changedAt: { type: Date, default: Date.now },
-        changedBy: { type: Schema.Types.ObjectId, ref: "User" },
-      },
+        changedBy: { type: Schema.Types.ObjectId, ref: "User" }
+      }
     ],
-    createbyid: String,
+    createbyid: String
   },
   { timestamps: true }
 );

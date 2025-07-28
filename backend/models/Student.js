@@ -12,156 +12,156 @@ const studentSchema = new mongoose.Schema(
       lowercase: true,
       match: [
         /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-        "Please enter a valid email",
-      ],
+        "Please enter a valid email"
+      ]
     },
     password: {
       type: String,
       required: true,
-      minlength: [6, "Password must be at least 6 characters"],
+      minlength: [6, "Password must be at least 6 characters"]
     },
     full_name: {
       type: String,
       required: [true, "Please enter your full name"],
       trim: true,
-      maxlength: [50, "Name cannot exceed 50 characters"],
+      maxlength: [50, "Name cannot exceed 50 characters"]
     },
     phone: {
       type: String,
-      required: [true, "Please enter your phone number"],
+      required: [true, "Please enter your phone number"]
     },
     date_of_birth: {
       type: String,
       match: [
-        /^\d{2}\/\d{2}\/\d{4}$/,
-        "Date of birth must be in DD/MM/YYYY format",
-      ],
+        /^\d{4}-\d{2}-\d{2}$/,
+        "Date of birth must be in YYYY-MM-DD format"
+      ]
     },
     address: {
       type: String,
       trim: true,
-      maxlength: [200, "Address cannot exceed 200 characters"],
+      maxlength: [200, "Address cannot exceed 200 characters"]
     },
     profile_picture: {
-      type: String,
+      type: String
     },
     isVerified: {
       type: Boolean,
-      default: false,
+      default: false
     },
     role: {
       type: String,
       default: "student",
-      enum: ["student", "admin"],
+      enum: ["student", "admin"]
     },
     otp: {
       type: String,
-      select: false,
+      select: false
     },
     otpExpires: {
       type: Date,
-      select: false,
+      select: false
     },
     resetPasswordToken: {
       type: String,
-      select: false,
+      select: false
     },
     resetPasswordExpire: {
       type: Date,
-      select: false,
+      select: false
     },
     loginAttempts: {
       type: Number,
       default: 0,
-      select: false,
+      select: false
     },
     lockUntil: {
       type: Date,
-      select: false,
+      select: false
     },
     enrolledCourses: [
       {
         course: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Course",
-          required: true,
+          required: true
         },
         enrolledAt: {
           type: Date,
-          default: Date.now,
+          default: Date.now
         },
         progress: {
           type: Number,
           default: 0,
           min: 0,
-          max: 100,
+          max: 100
         },
         completed: {
           type: Boolean,
-          default: false,
+          default: false
         },
         lastAccessed: {
-          type: Date,
+          type: Date
         },
         // Track quiz attempts
         quizAttempts: [
           {
             contentItemId: {
               type: mongoose.Schema.Types.ObjectId,
-              required: true,
+              required: true
             },
             attemptDate: {
               type: Date,
-              default: Date.now,
+              default: Date.now
             },
             score: {
               type: Number,
               min: 0,
-              max: 100,
+              max: 100
             },
             answers: [
               {
                 questionId: mongoose.Schema.Types.ObjectId,
                 answer: mongoose.Schema.Types.Mixed,
-                isCorrect: Boolean,
-              },
+                isCorrect: Boolean
+              }
             ],
-            passed: Boolean,
-          },
+            passed: Boolean
+          }
         ],
         // Track completion of individual content items
         contentProgress: [
           {
             contentItemId: {
               type: mongoose.Schema.Types.ObjectId,
-              required: true,
+              required: true
             },
             completed: {
               type: Boolean,
-              default: false,
+              default: false
             },
             lastAccessed: Date,
-            completedAt: Date,
-          },
+            completedAt: Date
+          }
         ],
         certificates: [
           {
             url: String,
             issuedAt: Date,
-            expiresAt: Date,
-          },
-        ],
-      },
+            expiresAt: Date
+          }
+        ]
+      }
     ],
     wishlist: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Course",
-      },
+        ref: "Course"
+      }
     ],
     learningGoals: {
       type: String,
-      maxlength: [500, "Learning goals cannot exceed 500 characters"],
+      maxlength: [500, "Learning goals cannot exceed 500 characters"]
     },
     education: [
       {
@@ -169,29 +169,29 @@ const studentSchema = new mongoose.Schema(
         degree: String,
         fieldOfStudy: String,
         startYear: Number,
-        endYear: Number,
-      },
+        endYear: Number
+      }
     ],
     skills: [String],
     preferences: {
       notificationEnabled: {
         type: Boolean,
-        default: true,
+        default: true
       },
       darkMode: {
         type: Boolean,
-        default: false,
+        default: false
       },
       language: {
         type: String,
-        default: "english",
-      },
-    },
+        default: "english"
+      }
+    }
   },
   {
     timestamps: true,
     toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    toObject: { virtuals: true }
   }
 );
 
@@ -249,7 +249,7 @@ studentSchema.methods.incrementLoginAttempts = function () {
   if (this.lockUntil && this.lockUntil < Date.now()) {
     return this.updateOne({
       $set: { loginAttempts: 1 },
-      $unset: { lockUntil: 1 },
+      $unset: { lockUntil: 1 }
     });
   }
 
@@ -275,7 +275,7 @@ studentSchema.methods.enrollCourse = async function (courseId) {
   this.enrolledCourses.push({
     course: courseId,
     progress: 0,
-    completed: false,
+    completed: false
   });
 
   await this.save();
@@ -326,7 +326,7 @@ studentSchema.methods.recordQuizAttempt = async function (
     contentItemId,
     score,
     answers,
-    passed,
+    passed
   });
 
   // Update content progress
@@ -338,7 +338,7 @@ studentSchema.methods.recordQuizAttempt = async function (
     contentProgress = {
       contentItemId,
       completed: passed,
-      lastAccessed: new Date(),
+      lastAccessed: new Date()
     };
     if (passed) {
       contentProgress.completedAt = new Date();

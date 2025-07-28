@@ -9,7 +9,7 @@ import {
   FiLock,
   FiPhone,
   FiCalendar,
-  FiMapPin,
+  FiMapPin
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
@@ -25,18 +25,18 @@ const StudentAuth = () => {
     full_name: "",
     phone: "",
     date_of_birth: "",
-    address: "",
+    address: ""
   });
 
   const [files, setFiles] = useState({
-    profile_picture: null,
+    profile_picture: null
   });
 
   const [errors, setErrors] = useState({
     email: "",
     password: "",
     full_name: "",
-    phone: "",
+    phone: ""
   });
 
   // UI states
@@ -71,9 +71,10 @@ const StudentAuth = () => {
           error = "Include country code (e.g., +880)";
         break;
       case "date_of_birth":
-        if (value && !/^\d{2}\/\d{2}\/\d{4}$/.test(value))
-          error = "Use DD/MM/YYYY format";
+        if (value && !/^\d{4}-\d{2}-\d{2}$/.test(value))
+          error = "Use YYYY-MM-DD format";
         break;
+
       default:
         break;
     }
@@ -153,8 +154,8 @@ const StudentAuth = () => {
         {
           headers: {
             "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+            Authorization: `Bearer ${localStorage.getItem("token")}`
+          }
         }
       );
 
@@ -171,11 +172,11 @@ const StudentAuth = () => {
         full_name: "",
         phone: "",
         date_of_birth: "",
-        address: "",
+        address: ""
       });
       // Keep the uploaded filename if available
       setFiles({
-        profile_picture: null,
+        profile_picture: null
       });
     } catch (err) {
       let errorMessage = "Registration failed";
@@ -364,6 +365,7 @@ const StudentAuth = () => {
                   <FiCalendar className="mr-2 text-gray-500" /> Date of Birth
                 </label>
                 <input
+                  type="date"
                   name="date_of_birth"
                   value={form.date_of_birth}
                   onChange={handleChange}
@@ -417,7 +419,7 @@ const StudentAuth = () => {
                       onClick={() =>
                         setFiles((prev) => ({
                           ...prev,
-                          profile_picture: null,
+                          profile_picture: null
                         }))
                       }
                       className="text-gray-400 hover:text-red-500 ml-2 transition-colors duration-200"
