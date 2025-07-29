@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -9,7 +10,7 @@ import {
   FiBarChart2,
   FiChevronDown,
   FiChevronUp,
-  FiArrowLeft,
+  FiArrowLeft
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
@@ -38,8 +39,8 @@ const CourseLearningPage = () => {
           `${base_url}/api/student/courses/${courseId}/content`,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
-            },
+              Authorization: `Bearer ${localStorage.getItem("studentToken")}`
+            }
           }
         );
 
@@ -71,7 +72,7 @@ const CourseLearningPage = () => {
   const handleAnswerChange = (questionIndex, answer) => {
     setQuizAnswers((prev) => ({
       ...prev,
-      [questionIndex]: answer,
+      [questionIndex]: answer
     }));
   };
 
@@ -91,8 +92,8 @@ const CourseLearningPage = () => {
         { answers },
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
-          },
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`
+          }
         }
       );
 
@@ -115,7 +116,7 @@ const CourseLearningPage = () => {
   const toggleSection = (index) => {
     setExpandedSections((prev) => ({
       ...prev,
-      [index]: !prev[index],
+      [index]: !prev[index]
     }));
   };
 
@@ -127,8 +128,8 @@ const CourseLearningPage = () => {
         { progress: 100 }, // Mark as 100% completed
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
-          },
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`
+          }
         }
       );
 
@@ -139,17 +140,15 @@ const CourseLearningPage = () => {
           `${base_url}/api/student/courses/${courseId}/content`,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
-            },
+              Authorization: `Bearer ${localStorage.getItem("studentToken")}`
+            }
           }
         );
         setCourse(updatedResponse.data.course);
       }
     } catch (error) {
       console.error("Error marking as completed:", error);
-      toast.error(
-        error.response?.data?.message || "Failed to update progress"
-      );
+      toast.error(error.response?.data?.message || "Failed to update progress");
     }
   };
 
@@ -199,7 +198,7 @@ const CourseLearningPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
       <Toaster position="top-right" />
-      
+
       <div className="max-w-7xl mx-auto">
         {/* Course Header */}
         <div className="mb-6 flex items-center justify-between">
@@ -256,7 +255,7 @@ const CourseLearningPage = () => {
                     <div
                       className="prose max-w-none"
                       dangerouslySetInnerHTML={{
-                        __html: activeContent.content,
+                        __html: activeContent.content
                       }}
                     ></div>
                   )}
@@ -264,10 +263,7 @@ const CourseLearningPage = () => {
                   {activeContent.type === "quiz" && (
                     <div className="space-y-6">
                       {activeContent.questions.map((question, qIndex) => (
-                        <div
-                          key={qIndex}
-                          className="p-4 bg-gray-50 rounded-lg"
-                        >
+                        <div key={qIndex} className="p-4 bg-gray-50 rounded-lg">
                           <h3 className="font-medium text-gray-800 mb-3">
                             {qIndex + 1}. {question.question}
                           </h3>
@@ -311,13 +307,12 @@ const CourseLearningPage = () => {
                                     onChange={() => {
                                       const currentAnswers =
                                         quizAnswers[qIndex] || [];
-                                      const newAnswers = currentAnswers.includes(
-                                        option
-                                      )
-                                        ? currentAnswers.filter(
-                                            (a) => a !== option
-                                          )
-                                        : [...currentAnswers, option];
+                                      const newAnswers =
+                                        currentAnswers.includes(option)
+                                          ? currentAnswers.filter(
+                                              (a) => a !== option
+                                            )
+                                          : [...currentAnswers, option];
                                       handleAnswerChange(qIndex, newAnswers);
                                     }}
                                     disabled={quizSubmitted}
@@ -355,14 +350,11 @@ const CourseLearningPage = () => {
                               }`}
                             >
                               <p className="font-medium">
-                                {quizAnswers[qIndex] ===
-                                question.correctAnswer
+                                {quizAnswers[qIndex] === question.correctAnswer
                                   ? "Correct!"
                                   : "Incorrect"}
                               </p>
-                              <p>
-                                Correct answer: {question.correctAnswer}
-                              </p>
+                              <p>Correct answer: {question.correctAnswer}</p>
                             </div>
                           )}
                         </div>
@@ -558,7 +550,10 @@ const CourseLearningPage = () => {
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
                     <img
-                      src={course.instructor?.avatar || "https://randomuser.me/api/portraits/men/1.jpg"}
+                      src={
+                        course.instructor?.avatar ||
+                        "https://randomuser.me/api/portraits/men/1.jpg"
+                      }
                       alt={course.instructor?.name}
                       className="w-full h-full object-cover"
                     />

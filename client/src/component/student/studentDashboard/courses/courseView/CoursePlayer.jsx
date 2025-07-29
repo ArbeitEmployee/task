@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,13 +15,21 @@ import {
   FiAward,
   FiBook,
   FiBarChart2,
-  FiSettings,
+  FiCopy,
+  FiLink,
+  FiUser,
+  FiUsers,
+  FiCalendar,
+  FiAlertCircle
 } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
+import axios from "axios";
+import toast from "react-hot-toast";
+import ReactPlayer from "react-player";
 
 const CoursePlayer = () => {
   const navigate = useNavigate();
-  const { courseId } = useParams();
+  const { id } = useParams();
   const [currentContent, setCurrentContent] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
@@ -33,139 +40,224 @@ const CoursePlayer = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [progress, setProgress] = useState({});
   const [playbackRate, setPlaybackRate] = useState(1);
-  const [showSpeedOptions, setShowSpeedOptions] = useState(false);
   const [videoQuality, setVideoQuality] = useState("Auto");
   const [currentTime, setCurrentTime] = useState(0);
-  const [showPiP, setShowPiP] = useState(false);
-  const [showBroadQuestions, setShowBroadQuestions] = useState(false);
+  const [course, setCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [certificateUrl, setCertificateUrl] = useState(null);
+  const [courseCompleted, setCourseCompleted] = useState(false);
+  const [showCopyLink, setShowCopyLink] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [awaitingGrading, setAwaitingGrading] = useState(false);
+  const [timeWatched, setTimeWatched] = useState(0); // Track time watched in seconds
+  const [lastTrackedTime, setLastTrackedTime] = useState(0); // Last time we sent to backend
   const videoRef = useRef(null);
   const videoContainerRef = useRef(null);
+  const timeTrackingInterval = useRef(null);
+  const base_url = import.meta.env.VITE_API_KEY_Base_URL;
+  const sudentdata = JSON.parse(localStorage.getItem("studentData"));
 
-  // Dummy course data matching the overview page
-  const course = {
-    _id: "1",
-    title: "Advanced React Patterns",
-    subtitle: "Mastering React for real-world applications",
-    content: [
-      {
-        _id: "tutorial1",
-        type: "tutorial",
-        title: "Introduction to Advanced Patterns",
-        description: "Overview of advanced React patterns and their use cases",
-        duration: 72,
-        isPremium: false,
-        youtubeLink: "https://www.youtube.com/embed/5xlVP04905w",
-        locked: false,
-        thumbnail: "https://i.ytimg.com/vi/abc123/hqdefault.jpg",
-      },
-      {
-        _id: "tutorial2",
-        type: "tutorial",
-        title: "Compound Components",
-        description: "Learn how to build flexible component APIs",
-        duration: 85,
-        isPremium: true,
-        youtubeLink: "https://www.youtube.com/embed/F3JuuYuOUK4",
-        locked: false,
-        thumbnail:
-          "https://via.placeholder.com/800x450?text=Compound+Components",
-      },
-      {
-        _id: "tutorial3",
-        type: "tutorial",
-        title: "Render Props Pattern",
-        description: "Sharing code between components using render props",
-        duration: 68,
-        isPremium: false,
-        youtubeLink: "https://www.youtube.com/embed/5F-6v_8G0Ac",
-        locked: false,
-        thumbnail: "https://i.ytimg.com/vi/def456/hqdefault.jpg",
-      },
-      {
-        _id: "quiz1",
-        type: "quiz",
-        title: "Patterns Fundamentals Quiz",
-        description: "Test your understanding of React patterns",
-        duration: 15,
-        questions: [
-          {
-            _id: "q1",
-            question: "What problem do Compound Components solve?",
-            type: "mcq-single",
-            options: [
-              "State management",
-              "Component communication",
-              "Flexible component composition",
-              "Performance optimization",
-            ],
-            correctAnswer: 2,
-          },
-          {
-            _id: "q2",
-            question:
-              "Which patterns help with code reuse? (Select all that apply)",
-            type: "mcq-multiple",
-            options: [
-              "Higher-Order Components",
-              "Render Props",
-              "Context API",
-              "Compound Components",
-            ],
-            correctAnswer: [0, 1, 3],
-          },
-          {
-            _id: "q3",
-            question:
-              "Explain the main benefit of the Render Props pattern in your own words",
-            type: "short-answer",
-            correctAnswer: "Sharing logic between components",
-          },
-        ],
-        locked: false,
-      },
-      {
-        _id: "tutorial4",
-        type: "tutorial",
-        title: "Performance Optimization",
-        description: "Techniques to make your React apps blazing fast",
-        duration: 92,
-        isPremium: true,
-        youtubeLink: "https://www.youtube.com/embed/5xlVP04905w",
-        locked: false,
-        thumbnail: "https://via.placeholder.com/800x450?text=Performance",
-      },
-    ],
+  // Get auth headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("authToken");
+    return {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    };
   };
 
-  // Initialize progress
+  // Fetch course data
   useEffect(() => {
-    const initialProgress = {};
-    course.content.forEach((item) => {
-      initialProgress[item._id] = {
-        completed: false,
-        progress: 0,
-      };
-    });
-    setProgress(initialProgress);
-  }, []);
+    const fetchCourse = async () => {
+      try {
+        const response = await axios.get(
+          `${base_url}/api/course-player/single-courses/${id}?user_id=${sudentdata.id}`,
+          getAuthHeaders()
+        );
+        setCourse(response.data);
 
+        // Initialize progress and quiz answers
+        const initialProgress = {};
+        const initialQuizAnswers = {};
+
+        response.data.content.forEach((item) => {
+          initialProgress[item._id] = {
+            completed: item.completed || false,
+            progress: item.progress || 0,
+            timeSpent: item.timeSpent || 0
+          };
+
+          if (item.type === "quiz" && item.answers) {
+            item.answers.forEach((answer) => {
+              initialQuizAnswers[answer.questionId] = answer.answer;
+            });
+          }
+        });
+
+        setProgress(initialProgress);
+        setQuizAnswers(initialQuizAnswers);
+
+        if (
+          response.data.content[currentContent]?.type === "quiz" &&
+          response.data.content[currentContent]?.completed
+        ) {
+          setQuizSubmitted(true);
+          setQuizScore(response.data.content[currentContent].percentage);
+          setAwaitingGrading(
+            response.data.content[currentContent].gradingStatus ===
+              "partially-graded"
+          );
+        }
+      } catch (err) {
+        console.error("Error fetching course:", err);
+        setError("Failed to load course data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourse();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, base_url]);
+
+  // Record course access
   useEffect(() => {
-    // Check if current content is a quiz and show quiz modal
-    if (course.content[currentContent].type === "quiz") {
+    if (course) {
+      const recordAccess = async () => {
+        try {
+          await axios.post(
+            `${base_url}/api/course-player/${id}/access`,
+            {},
+            getAuthHeaders()
+          );
+        } catch (error) {
+          console.error("Error recording access:", error);
+        }
+      };
+      recordAccess();
+    }
+  }, [course, id, base_url]);
+
+  // Handle quiz content
+  useEffect(() => {
+    if (!course) return;
+
+    if (course.content[currentContent]?.type === "quiz") {
       setShowQuiz(true);
       setIsPlaying(false);
+
+      if (course.content[currentContent]?.completed) {
+        setQuizSubmitted(true);
+        setQuizScore(course.content[currentContent].percentage);
+        setAwaitingGrading(
+          course.content[currentContent].gradingStatus === "partially-graded"
+        );
+      }
     } else {
       setShowQuiz(false);
       setIsPlaying(true);
     }
+  }, [currentContent, course]);
+
+  // Start/stop time tracking when playing/pausing
+  useEffect(() => {
+    if (!course) return;
+
+    const currentItem = course.content[currentContent];
+    if (!currentItem || currentItem.type === "quiz") return;
+
+    if (isPlaying) {
+      // Start tracking time
+      timeTrackingInterval.current = setInterval(() => {
+        setTimeWatched((prev) => prev + 1);
+      }, 1000);
+    } else {
+      // Pause tracking
+      clearInterval(timeTrackingInterval.current);
+    }
+
+    return () => {
+      clearInterval(timeTrackingInterval.current);
+    };
+  }, [isPlaying, currentContent, course]);
+
+  // Send time updates to backend periodically
+  useEffect(() => {
+    if (!course || timeWatched <= lastTrackedTime) return;
+
+    const currentItem = course.content[currentContent];
+    if (!currentItem || currentItem.type === "quiz") return;
+
+    // Only send updates every 10 seconds or when component unmounts
+    const shouldSendUpdate =
+      timeWatched - lastTrackedTime >= 10 ||
+      (timeWatched > 0 && timeWatched !== lastTrackedTime);
+
+    if (shouldSendUpdate) {
+      const trackTime = async () => {
+        try {
+          await axios.post(
+            `${base_url}/api/course-player/${id}/track-video-time`,
+            {
+              contentItemId: currentItem._id,
+              secondsWatched: timeWatched,
+              totalDuration: currentItem.duration || 0,
+              user_id: sudentdata.id
+            },
+            getAuthHeaders()
+          );
+          setLastTrackedTime(timeWatched);
+        } catch (error) {
+          console.error("Error tracking watch time:", error);
+        }
+      };
+
+      trackTime();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeWatched, lastTrackedTime, currentContent, course, id, base_url]);
+
+  // Reset time tracking when content changes
+  useEffect(() => {
+    return () => {
+      // When component unmounts or content changes, ensure we send final time
+      if (timeWatched > lastTrackedTime) {
+        const currentItem = course?.content[currentContent];
+        if (currentItem && currentItem.type !== "quiz") {
+          axios
+            .post(
+              `${base_url}/api/course-player/${id}/track-video-time`,
+              {
+                contentItemId: currentItem._id,
+                secondsWatched: timeWatched,
+                totalDuration: currentItem.duration || 0,
+                user_id: sudentdata.id
+              },
+              getAuthHeaders()
+            )
+            .catch((error) => {
+              console.error("Error tracking final watch time:", error);
+            });
+        }
+      }
+      clearInterval(timeTrackingInterval.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentContent]);
 
+  // Fullscreen handling
   useEffect(() => {
-    // Update playback rate when changed
-    if (videoRef.current) {
-      videoRef.current.playbackRate = playbackRate;
-    }
-  }, [playbackRate]);
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -179,38 +271,6 @@ const CoursePlayer = () => {
     }
   };
 
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-    };
-  }, []);
-
-  const handleNext = () => {
-    if (currentContent < course.content.length - 1) {
-      setCurrentContent(currentContent + 1);
-      // Update progress
-      setProgress((prev) => ({
-        ...prev,
-        [course.content[currentContent]._id]: {
-          ...prev[course.content[currentContent]._id],
-          completed: true,
-          progress: 100,
-        },
-      }));
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentContent > 0) {
-      setCurrentContent(currentContent - 1);
-    }
-  };
-
   const togglePlay = () => {
     setIsPlaying(!isPlaying);
   };
@@ -219,76 +279,139 @@ const CoursePlayer = () => {
     setIsMuted(!isMuted);
   };
 
-  const changePlaybackRate = (rate) => {
-    setPlaybackRate(rate);
-    setShowSpeedOptions(false);
+  const copyMeetingLink = () => {
+    const currentItem = course.content[currentContent];
+    if (currentItem?.meetingLink) {
+      navigator.clipboard.writeText(currentItem.meetingLink);
+      setCopied(true);
+      toast.success("Meeting link copied!");
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleNext = async () => {
+    if (!course) return;
+
+    if (currentContent < course.content.length - 1) {
+      const currentItem = course.content[currentContent];
+      try {
+        // Send final time update before moving to next content
+        await axios.post(
+          `${base_url}/api/course-player/${id}/track-video-time`,
+          {
+            contentItemId: currentItem._id,
+            secondsWatched: timeWatched,
+            totalDuration: currentItem.duration || 0,
+            user_id: sudentdata.id
+          },
+          getAuthHeaders()
+        );
+      } catch (error) {
+        console.error("Error tracking progress:", error);
+      }
+
+      setCurrentContent(currentContent + 1);
+      setCurrentTime(0);
+      setTimeWatched(0);
+      setLastTrackedTime(0);
+      setProgress((prev) => ({
+        ...prev,
+        [currentItem._id]: {
+          ...prev[currentItem._id],
+          completed: true,
+          progress: 100
+        }
+      }));
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentContent > 0) {
+      setCurrentContent(currentContent - 1);
+      setCurrentTime(0);
+      setTimeWatched(0);
+      setLastTrackedTime(0);
+    }
   };
 
   const handleAnswerChange = (questionId, answer) => {
     setQuizAnswers((prev) => ({
       ...prev,
-      [questionId]: answer,
+      [questionId]: answer
     }));
   };
 
-  const submitQuiz = () => {
-    // Calculate score
-    let score = 0;
-    const quiz = course.content[currentContent];
+  const submitQuiz = async () => {
+    if (!course) return;
 
-    quiz.questions.forEach((question) => {
-      if (question.type === "mcq-single") {
-        if (quizAnswers[question._id] === question.correctAnswer) {
-          score++;
-        }
-      } else if (question.type === "mcq-multiple") {
-        const userAnswers = quizAnswers[question._id] || [];
-        const correctAnswers = question.correctAnswer;
+    try {
+      const quiz = course.content[currentContent];
+      const response = await axios.post(
+        `${base_url}/api/course-player/submit-quiz`,
+        {
+          courseId: course._id,
+          contentItemId: quiz._id,
+          contentItemType: quiz.type,
+          answers: quizAnswers,
+          user_id: sudentdata.id
+        },
+        getAuthHeaders()
+      );
 
-        if (
-          userAnswers.length === correctAnswers.length &&
-          userAnswers.every((val) => correctAnswers.includes(val))
-        ) {
-          score++;
-        }
-      } else if (question.type === "short-answer") {
-        // Simple check for demo purposes
-        if (
-          quizAnswers[question._id]
-            ?.toLowerCase()
-            .includes(question.correctAnswer.toLowerCase())
-        ) {
-          score++;
-        }
+      if (response.data.alreadySubmitted) {
+        setQuizScore(response.data.percentage);
+        setQuizSubmitted(true);
+        setQuizAnswers(
+          response.data.answers.reduce((acc, answer) => {
+            acc[answer.questionId] = answer.answer;
+            return acc;
+          }, {})
+        );
+        setCertificateUrl(response.data.certificateUrl || null);
+        setCourseCompleted(response.data.courseCompleted || false);
+        setAwaitingGrading(response.data.gradingStatus === "partially-graded");
+        return;
       }
-    });
 
-    setQuizScore(score);
-    setQuizSubmitted(true);
+      setQuizScore(response.data.percentage);
+      setQuizSubmitted(true);
+      setCertificateUrl(response.data.certificateUrl || null);
+      setCourseCompleted(response.data.courseCompleted || false);
+      setAwaitingGrading(response.data.gradingStatus === "partially-graded");
 
-    // Update progress
-    setProgress((prev) => ({
-      ...prev,
-      [quiz._id]: {
-        ...prev[quiz._id],
-        completed: true,
-        progress: 100,
-      },
-    }));
+      setProgress((prev) => ({
+        ...prev,
+        [quiz._id]: {
+          ...prev[quiz._id],
+          completed: true,
+          progress: 100
+        }
+      }));
+
+      toast.success(
+        response.data.passed
+          ? "Quiz submitted successfully!"
+          : response.data.gradingStatus === "partially-graded"
+          ? "Quiz submitted - awaiting teacher grading for some questions"
+          : "Quiz submitted - review your answers"
+      );
+    } catch (error) {
+      console.error("Error submitting quiz:", error);
+      toast.error("Failed to submit quiz");
+    }
   };
 
   const closeQuiz = () => {
     setShowQuiz(false);
-    setQuizAnswers({});
-    setQuizSubmitted(false);
-    setQuizScore(null);
-    if (currentContent < course.content.length - 1) {
+    if (course && currentContent < course.content.length - 1) {
       setCurrentContent(currentContent + 1);
     }
     setIsPlaying(true);
   };
 
   const calculateOverallProgress = () => {
+    if (!course) return 0;
+
     const totalItems = course.content.length;
     const completedItems = Object.values(progress).filter(
       (item) => item?.completed
@@ -296,14 +419,12 @@ const CoursePlayer = () => {
     return Math.round((completedItems / totalItems) * 100);
   };
 
-  const currentItem = course.content[currentContent];
-  const overallProgress = calculateOverallProgress();
-
   const formatDuration = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
+
   const handleVideoClick = () => {
     setIsPlaying(!isPlaying);
   };
@@ -314,15 +435,66 @@ const CoursePlayer = () => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Add this useEffect for time updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (isPlaying && currentTime < currentItem.duration) {
-        setCurrentTime((prev) => prev + 1);
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isPlaying, currentTime, currentItem]);
+  const getYouTubeEmbedUrl = (url) => {
+    if (!url) return "";
+    const regExp =
+      /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    const videoId = match && match[2].length === 11 ? match[2] : null;
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : "";
+  };
+
+  const downloadCertificate = () => {
+    if (certificateUrl) {
+      window.open(`${base_url}${certificateUrl}`, "_blank");
+    } else {
+      toast.error("Certificate not available yet");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading course content...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center p-6 bg-white rounded-lg shadow-md max-w-md">
+          <div className="text-red-500 mb-4">
+            <FiX size={48} className="mx-auto" />
+          </div>
+          <h2 className="text-xl font-bold mb-2">Error Loading Course</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => navigate(-1)}
+            className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!course) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">No course data available</p>
+        </div>
+      </div>
+    );
+  }
+
+  const currentItem = course.content[currentContent];
+  const overallProgress = calculateOverallProgress();
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
@@ -330,7 +502,7 @@ const CoursePlayer = () => {
       <header className="bg-white shadow-sm">
         <div className="max-w-full mx-auto px-6 py-4 flex justify-between items-center">
           <button
-            onClick={() => navigate(`/course/${courseId}`)}
+            onClick={() => navigate(`/course/${id}`)}
             className="flex items-center text-indigo-600 hover:text-indigo-800 font-medium"
           >
             <FiChevronLeft className="mr-1" /> Back to course
@@ -338,7 +510,9 @@ const CoursePlayer = () => {
           <div className="flex items-center space-x-4">
             <div className="hidden md:block">
               <h1 className="text-xl font-bold">{course.title}</h1>
-              <p className="text-sm text-gray-600">{course.subtitle}</p>
+              <p className="text-sm text-gray-600">
+                {course.description.replace(/<[^>]+>/g, "")}
+              </p>
             </div>
             <div className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-medium">
               {overallProgress}% Complete
@@ -350,7 +524,7 @@ const CoursePlayer = () => {
       {/* Main content */}
       <div className="flex-1 flex flex-col lg:flex-row">
         {/* Video/content area - Left side */}
-        <div className="lg:w-2/3 ">
+        <div className="lg:w-2/3">
           <div
             ref={videoContainerRef}
             className="relative max-w-full max-h-full flex items-center justify-center"
@@ -359,9 +533,11 @@ const CoursePlayer = () => {
               <div className="w-full max-h-full max-w-full aspect-video bg-black relative">
                 <iframe
                   ref={videoRef}
-                  src={`${currentItem.youtubeLink}?autoplay=${
-                    isPlaying ? 1 : 0
-                  }&mute=${isMuted ? 1 : 0}&controls=0&modestbranding=1&rel=0`}
+                  src={`${getYouTubeEmbedUrl(
+                    currentItem.youtubeLink
+                  )}?autoplay=${isPlaying ? 1 : 0}&mute=${
+                    isMuted ? 1 : 0
+                  }&controls=0&modestbranding=1&rel=0`}
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
@@ -369,15 +545,21 @@ const CoursePlayer = () => {
                   onClick={handleVideoClick}
                 ></iframe>
 
-                {/* Overlay controls - updated design */}
+                {/* Overlay controls */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end">
                   <div className="p-6">
                     <h2 className="text-2xl font-bold text-white mb-2">
                       {currentItem.title}
                     </h2>
                     <p className="text-gray-300 mb-4">
-                      {currentItem.description}
+                      {currentItem.description.replace(/<[^>]+>/g, "")}
                     </p>
+
+                    {/* Time watched indicator */}
+                    <div className="text-white text-sm bg-black/30 px-3 py-1 rounded-full mb-2 inline-block">
+                      Watched: {formatTime(timeWatched)} /{" "}
+                      {formatTime(currentItem.duration || 0)}
+                    </div>
 
                     {/* Progress bar */}
                     <div className="w-full bg-gray-600 h-1 rounded-full mb-4">
@@ -385,8 +567,8 @@ const CoursePlayer = () => {
                         className="bg-indigo-500 h-1 rounded-full"
                         style={{
                           width: `${
-                            (currentTime / currentItem.duration) * 100
-                          }%`,
+                            (timeWatched / (currentItem.duration || 1)) * 100
+                          }%`
                         }}
                       ></div>
                     </div>
@@ -414,12 +596,13 @@ const CoursePlayer = () => {
                           )}
                         </button>
                         <div className="text-white text-sm bg-black/30 px-3 py-1 rounded-full">
-                          {formatTime(currentTime)} /{" "}
-                          {formatDuration(currentItem.duration)}
+                          {formatTime(timeWatched)} /{" "}
+                          {currentItem.duration
+                            ? formatDuration(currentItem.duration)
+                            : "0:00"}
                         </div>
                       </div>
                       <div className="flex items-center space-x-4">
-                        {/* Updated Quality/Speed controls */}
                         <div className="flex items-center space-x-2">
                           <button
                             className="text-white text-sm bg-black/30 px-3 py-1 rounded"
@@ -441,8 +624,6 @@ const CoursePlayer = () => {
                           </button>
                         </div>
 
-                        {/* PiP Button */}
-
                         <button
                           onClick={toggleFullscreen}
                           className="text-white hover:text-gray-300 bg-black/30 rounded-full p-3"
@@ -456,6 +637,60 @@ const CoursePlayer = () => {
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {currentItem.type === "live" && (
+              <div className="w-full max-h-full max-w-full aspect-video bg-gray-900 relative flex flex-col items-center justify-center p-6">
+                <div className="text-center max-w-2xl">
+                  <div className="bg-indigo-100 text-indigo-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FiUsers size={24} />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-2">
+                    {currentItem.title}
+                  </h2>
+                  <p className="text-gray-300 mb-6">
+                    {currentItem.description.replace(/<[^>]+>/g, "")}
+                  </p>
+
+                  <div className="bg-white rounded-lg p-4 mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center">
+                        <FiCalendar className="text-indigo-600 mr-2" />
+                        <span className="font-medium">
+                          Scheduled:{" "}
+                          {new Date(currentItem.schedule).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        readOnly
+                        value={currentItem.meetingLink}
+                        className="w-full p-3 pr-10 border border-gray-300 rounded-lg bg-gray-50"
+                      />
+                      <button
+                        onClick={copyMeetingLink}
+                        className="absolute right-2 top-2 p-2 text-indigo-600 hover:text-indigo-800"
+                        title="Copy meeting link"
+                      >
+                        {copied ? <FiCheck /> : <FiCopy />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <a
+                    href={currentItem.meetingLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium inline-flex items-center"
+                  >
+                    <FiLink className="mr-2" />
+                    Join Live Session
+                  </a>
                 </div>
               </div>
             )}
@@ -517,10 +752,10 @@ const CoursePlayer = () => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => {
-                    if (item.type === "quiz") {
-                      setCurrentContent(index);
-                    } else {
-                      setCurrentContent(index);
+                    setCurrentContent(index);
+                    setTimeWatched(0);
+                    setLastTrackedTime(0);
+                    if (item.type !== "quiz") {
                       setIsPlaying(true);
                     }
                   }}
@@ -550,6 +785,8 @@ const CoursePlayer = () => {
                         >
                           {item.type === "quiz" ? (
                             <FiBarChart2 />
+                          ) : item.type === "live" ? (
+                            <FiUsers />
                           ) : (
                             <FiPlay className="ml-1" />
                           )}
@@ -571,16 +808,30 @@ const CoursePlayer = () => {
                         <span className="text-xs text-gray-500 flex items-center">
                           <FiClock className="mr-1" />
                           {item.type === "quiz"
-                            ? `${item.questions.length} questions`
-                            : formatDuration(item.duration)}
+                            ? `${item.questions?.length || 0} questions`
+                            : item.type === "live"
+                            ? "Live Session"
+                            : item.duration
+                            ? formatDuration(item.duration)
+                            : "0:00"}
+                          {item.timeSpent > 0 && item.type !== "quiz" && (
+                            <span className="ml-2">
+                              • {Math.floor(item.timeSpent / 60)} min watched
+                            </span>
+                          )}
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 mt-1">
-                        {item.description}
+                        {item.description.replace(/<[^>]+>/g, "")}
                       </p>
                       {item.type === "quiz" && (
                         <span className="inline-block mt-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
                           Quiz
+                        </span>
+                      )}
+                      {item.type === "live" && (
+                        <span className="inline-block mt-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
+                          Live Class
                         </span>
                       )}
                     </div>
@@ -589,8 +840,7 @@ const CoursePlayer = () => {
               ))}
             </div>
 
-            {/* Course completion card */}
-            {overallProgress === 100 && (
+            {(overallProgress === 100 || courseCompleted) && (
               <div className="mt-8 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-6 text-white">
                 <div className="flex items-center">
                   <div className="bg-white/20 p-3 rounded-full mr-4">
@@ -603,7 +853,10 @@ const CoursePlayer = () => {
                     </p>
                   </div>
                 </div>
-                <button className="mt-4 w-full bg-white text-indigo-600 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
+                <button
+                  onClick={downloadCertificate}
+                  className="mt-4 w-full bg-white text-indigo-600 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors"
+                >
                   Download Certificate
                 </button>
               </div>
@@ -614,7 +867,7 @@ const CoursePlayer = () => {
 
       {/* Quiz Modal */}
       <AnimatePresence>
-        {showQuiz && currentItem.type === "quiz" && (
+        {showQuiz && currentItem?.type === "quiz" && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -631,7 +884,9 @@ const CoursePlayer = () => {
                 <div className="flex justify-between items-center mb-6">
                   <div>
                     <h2 className="text-2xl font-bold">{currentItem.title}</h2>
-                    <p className="text-gray-600">{currentItem.description}</p>
+                    <p className="text-gray-600">
+                      {currentItem.description.replace(/<[^>]+>/g, "")}
+                    </p>
                   </div>
                   <button
                     onClick={closeQuiz}
@@ -643,142 +898,327 @@ const CoursePlayer = () => {
 
                 {!quizSubmitted ? (
                   <div className="space-y-8">
-                    {currentItem.questions.map((question, qIndex) => (
-                      <div key={question._id} className="mb-6">
-                        <div className="flex items-start mb-4">
-                          <div className="bg-indigo-100 text-indigo-800 w-8 h-8 rounded-full flex items-center justify-center font-medium mr-3 flex-shrink-0">
-                            {qIndex + 1}
-                          </div>
-                          <h3 className="text-lg font-medium mt-1">
-                            {question.question}
-                          </h3>
-                        </div>
+                    {currentItem.questions?.map((question, qIndex) => {
+                      const previousAnswer = currentItem.answers?.find(
+                        (a) => a.questionId === question._id
+                      );
+                      const isSubmitted = quizSubmitted || previousAnswer;
 
-                        {question.type === "mcq-single" && (
-                          <div className="space-y-3 ml-11">
-                            {question.options.map((option, oIndex) => (
-                              <label
-                                key={oIndex}
-                                className={`flex items-center space-x-3 p-4 border rounded-xl cursor-pointer transition-colors ${
-                                  quizAnswers[question._id] === oIndex
-                                    ? "border-indigo-500 bg-indigo-50"
-                                    : "border-gray-200 hover:border-gray-400"
-                                }`}
-                              >
-                                <input
-                                  type="radio"
-                                  name={`question-${question._id}`}
-                                  checked={quizAnswers[question._id] === oIndex}
-                                  onChange={() =>
-                                    handleAnswerChange(question._id, oIndex)
-                                  }
-                                  className="h-5 w-5 text-indigo-600 focus:ring-indigo-500"
-                                />
-                                <span>{option}</span>
-                              </label>
-                            ))}
+                      return (
+                        <div key={question._id} className="mb-6">
+                          <div className="flex items-start mb-4">
+                            <div className="bg-indigo-100 text-indigo-800 w-8 h-8 rounded-full flex items-center justify-center font-medium mr-3 flex-shrink-0">
+                              {qIndex + 1}
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-medium mt-1">
+                                {question.question}
+                              </h3>
+                              <p className="text-sm text-gray-500 mt-1">
+                                {question.marks} mark
+                                {question.marks !== 1 ? "s" : ""}
+                              </p>
+                              {previousAnswer && (
+                                <div
+                                  className={`mt-2 text-sm p-2 rounded ${
+                                    previousAnswer.isCorrect
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-red-100 text-red-800"
+                                  }`}
+                                >
+                                  Your previous answer:{" "}
+                                  {Array.isArray(previousAnswer.answer)
+                                    ? previousAnswer.answer
+                                        .map((a) => question.options[a])
+                                        .join(", ")
+                                    : question.type === "mcq-single"
+                                    ? question.options[previousAnswer.answer]
+                                    : previousAnswer.answer}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        )}
 
-                        {question.type === "mcq-multiple" && (
-                          <div className="space-y-3 ml-11">
-                            {question.options.map((option, oIndex) => (
-                              <label
-                                key={oIndex}
-                                className={`flex items-center space-x-3 p-4 border rounded-xl cursor-pointer transition-colors ${
+                          {question.type === "mcq-single" && (
+                            <div className="space-y-3 ml-11">
+                              {question.options?.map((option, oIndex) => {
+                                const isChecked =
+                                  quizAnswers[question._id] === oIndex ||
+                                  previousAnswer?.answer === oIndex;
+                                const isCorrectAnswer =
+                                  question.correctAnswer === oIndex;
+
+                                return (
+                                  <label
+                                    key={oIndex}
+                                    className={`flex items-center space-x-3 p-4 border rounded-xl cursor-pointer transition-colors ${
+                                      isChecked
+                                        ? previousAnswer?.isCorrect
+                                          ? "border-green-500 bg-green-50"
+                                          : "border-red-500 bg-red-50"
+                                        : isCorrectAnswer && previousAnswer
+                                        ? "border-green-500 bg-green-50"
+                                        : "border-gray-200 hover:border-gray-400"
+                                    } ${previousAnswer ? "opacity-70" : ""}`}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name={`question-${question._id}`}
+                                      checked={isChecked}
+                                      onChange={() =>
+                                        !previousAnswer &&
+                                        handleAnswerChange(question._id, oIndex)
+                                      }
+                                      disabled={!!previousAnswer}
+                                      className="h-5 w-5 text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <span>{option}</span>
+                                    {previousAnswer && isCorrectAnswer && (
+                                      <span className="ml-auto text-green-600">
+                                        <FiCheck />
+                                      </span>
+                                    )}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {question.type === "mcq-multiple" && (
+                            <div className="space-y-3 ml-11">
+                              {question.options?.map((option, oIndex) => {
+                                const isChecked =
                                   (quizAnswers[question._id] || []).includes(
                                     oIndex
+                                  ) || previousAnswer?.answer?.includes(oIndex);
+                                const isCorrectAnswer =
+                                  question.correctAnswer?.includes(oIndex);
+
+                                return (
+                                  <label
+                                    key={oIndex}
+                                    className={`flex items-center space-x-3 p-4 border rounded-xl cursor-pointer transition-colors ${
+                                      isChecked
+                                        ? previousAnswer?.isCorrect
+                                          ? "border-green-500 bg-green-50"
+                                          : "border-red-500 bg-red-50"
+                                        : isCorrectAnswer && previousAnswer
+                                        ? "border-green-500 bg-green-50"
+                                        : "border-gray-200 hover:border-gray-400"
+                                    } ${previousAnswer ? "opacity-70" : ""}`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={() => {
+                                        if (!previousAnswer) {
+                                          const currentAnswers =
+                                            quizAnswers[question._id] || [];
+                                          const newAnswers =
+                                            currentAnswers.includes(oIndex)
+                                              ? currentAnswers.filter(
+                                                  (a) => a !== oIndex
+                                                )
+                                              : [...currentAnswers, oIndex];
+                                          handleAnswerChange(
+                                            question._id,
+                                            newAnswers
+                                          );
+                                        }
+                                      }}
+                                      disabled={!!previousAnswer}
+                                      className="h-5 w-5 text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <span>{option}</span>
+                                    {previousAnswer && isCorrectAnswer && (
+                                      <span className="ml-auto text-green-600">
+                                        <FiCheck />
+                                      </span>
+                                    )}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {(question.type === "short-answer" ||
+                            question.type === "broad-answer") && (
+                            <div className="ml-11">
+                              <textarea
+                                value={
+                                  quizAnswers[question._id] ||
+                                  previousAnswer?.answer ||
+                                  ""
+                                }
+                                onChange={(e) =>
+                                  !previousAnswer &&
+                                  handleAnswerChange(
+                                    question._id,
+                                    e.target.value
                                   )
-                                    ? "border-indigo-500 bg-indigo-50"
-                                    : "border-gray-200 hover:border-gray-400"
+                                }
+                                disabled={!!previousAnswer}
+                                className={`w-full p-4 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                                  previousAnswer
+                                    ? previousAnswer.isCorrect
+                                      ? "border-green-500 bg-green-50"
+                                      : "border-red-500 bg-red-50"
+                                    : "border-gray-300"
                                 }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={(
-                                    quizAnswers[question._id] || []
-                                  ).includes(oIndex)}
-                                  onChange={() => {
-                                    const currentAnswers =
-                                      quizAnswers[question._id] || [];
-                                    const newAnswers = currentAnswers.includes(
-                                      oIndex
-                                    )
-                                      ? currentAnswers.filter(
-                                          (a) => a !== oIndex
-                                        )
-                                      : [...currentAnswers, oIndex];
-                                    handleAnswerChange(
-                                      question._id,
-                                      newAnswers
-                                    );
-                                  }}
-                                  className="h-5 w-5 text-indigo-600 focus:ring-indigo-500"
-                                />
-                                <span>{option}</span>
-                              </label>
-                            ))}
-                          </div>
-                        )}
+                                rows={question.type === "short-answer" ? 4 : 6}
+                                placeholder={
+                                  previousAnswer
+                                    ? "Your previous answer is shown above"
+                                    : question.type === "short-answer"
+                                    ? "Type your answer here..."
+                                    : "Type your detailed answer here..."
+                                }
+                              />
+                              {previousAnswer && (
+                                <div className="mt-2 p-2 bg-blue-50 rounded-lg text-sm text-blue-800">
+                                  <span className="font-medium">
+                                    Correct answer:
+                                  </span>{" "}
+                                  {question.correctAnswer}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
 
-                        {question.type === "short-answer" && (
-                          <div className="ml-11">
-                            <textarea
-                              value={quizAnswers[question._id] || ""}
-                              onChange={(e) =>
-                                handleAnswerChange(question._id, e.target.value)
-                              }
-                              className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                              rows={4}
-                              placeholder="Type your answer here..."
-                            />
-                          </div>
-                        )}
+                    {!currentItem.completed && (
+                      <div className="flex justify-end mt-8">
+                        <button
+                          onClick={submitQuiz}
+                          className="px-8 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors"
+                        >
+                          Submit Quiz
+                        </button>
                       </div>
-                    ))}
-
-                    <div className="flex justify-end mt-8">
-                      <button
-                        onClick={submitQuiz}
-                        className="px-8 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors"
-                      >
-                        Submit Quiz
-                      </button>
-                    </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <div className="inline-flex items-center justify-center w-24 h-24 bg-green-100 rounded-full mb-6">
-                      <FiCheck className="text-green-600 text-4xl" />
+                    {awaitingGrading ? (
+                      <>
+                        <div className="inline-flex items-center justify-center w-24 h-24 bg-yellow-100 rounded-full mb-6">
+                          <FiAlertCircle className="text-yellow-600 text-4xl" />
+                        </div>
+                        <h3 className="text-2xl font-bold mb-4">
+                          Quiz Submitted for Grading
+                        </h3>
+                        <p className="text-gray-600 mb-6">
+                          Some of your answers require teacher review. Your
+                          current score is {quizScore}/
+                          {currentItem.questions?.length || 0}. We'll notify you
+                          when grading is complete.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="inline-flex items-center justify-center w-24 h-24 bg-green-100 rounded-full mb-6">
+                          <FiCheck className="text-green-600 text-4xl" />
+                        </div>
+                        <div className="text-4xl font-bold mb-2">
+                          {quizScore}/{currentItem.questions?.length || 0}
+                        </div>
+                        <p className="text-xl mb-6">
+                          {quizScore === (currentItem.questions?.length || 0)
+                            ? "Perfect score! You're amazing!"
+                            : quizScore >=
+                              (currentItem.questions?.length || 0) / 2
+                            ? "Well done! You passed the quiz."
+                            : "Keep practicing! Review the material and try again."}
+                        </p>
+                      </>
+                    )}
+
+                    {/* Show correct answers for learning */}
+                    <div className="text-left space-y-6 mb-8">
+                      {currentItem.questions?.map((question, qIndex) => {
+                        const userAnswer = quizAnswers[question._id];
+                        const answerRecord = currentItem.answers?.find(
+                          (a) => a.questionId === question._id
+                        );
+                        const isCorrect = answerRecord?.isCorrect;
+                        const needsGrading = answerRecord?.needsManualGrading;
+
+                        return (
+                          <div
+                            key={question._id}
+                            className="border-b border-gray-200 pb-4"
+                          >
+                            <div className="flex items-start">
+                              <div
+                                className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
+                                  isCorrect
+                                    ? "bg-green-100 text-green-600"
+                                    : needsGrading
+                                    ? "bg-yellow-100 text-yellow-600"
+                                    : "bg-red-100 text-red-600"
+                                }`}
+                              >
+                                {isCorrect ? (
+                                  <FiCheck />
+                                ) : needsGrading ? (
+                                  <FiAlertCircle />
+                                ) : (
+                                  <FiX />
+                                )}
+                              </div>
+                              <div>
+                                <h4 className="font-medium">
+                                  {question.question}
+                                </h4>
+                                <p className="text-sm text-gray-600 mt-1">
+                                  <span className="font-medium">
+                                    Your answer:
+                                  </span>{" "}
+                                  {Array.isArray(userAnswer)
+                                    ? userAnswer
+                                        .map((a) => question.options[a])
+                                        .join(", ")
+                                    : question.type === "mcq-single"
+                                    ? question.options[userAnswer]
+                                    : userAnswer}
+                                </p>
+                                {!needsGrading && (
+                                  <p className="text-sm text-gray-600">
+                                    <span className="font-medium">
+                                      Correct answer:
+                                    </span>{" "}
+                                    {Array.isArray(question.correctAnswer)
+                                      ? question.correctAnswer
+                                          .map((a) => question.options[a])
+                                          .join(", ")
+                                      : question.type === "mcq-single"
+                                      ? question.options[question.correctAnswer]
+                                      : question.correctAnswer}
+                                  </p>
+                                )}
+                                {needsGrading && (
+                                  <div className="mt-2 p-3 bg-yellow-50 rounded-lg text-sm text-yellow-800">
+                                    <span className="font-medium">Status:</span>{" "}
+                                    Awaiting teacher grading
+                                  </div>
+                                )}
+                                {question.explanation && (
+                                  <div className="mt-2 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+                                    <span className="font-medium">
+                                      Explanation:
+                                    </span>{" "}
+                                    {question.explanation}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="text-4xl font-bold mb-2">
-                      {quizScore}/{currentItem.questions.length}
-                    </div>
-                    <p className="text-xl mb-6">
-                      {quizScore === currentItem.questions.length
-                        ? "Perfect score! You're amazing!"
-                        : quizScore >= currentItem.questions.length / 2
-                        ? "Well done! You passed the quiz."
-                        : "Keep practicing! Review the material and try again."}
-                    </p>
-                    <div className="mb-8">
-                      <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div
-                          className="bg-indigo-600 h-2.5 rounded-full"
-                          style={{
-                            width: `${
-                              (quizScore / currentItem.questions.length) * 100
-                            }%`,
-                          }}
-                        ></div>
-                      </div>
-                      <div className="text-sm text-gray-600 mt-2">
-                        {Math.round(
-                          (quizScore / currentItem.questions.length) * 100
-                        )}
-                        % correct
-                      </div>
-                    </div>
+
                     <button
                       onClick={closeQuiz}
                       className="px-8 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors"

@@ -10,7 +10,7 @@ import {
   FiChevronDown,
   FiChevronUp,
   FiLogOut,
-  FiLayers,
+  FiLayers
 } from "react-icons/fi";
 import axios from "axios";
 import { toast } from "react-hot-toast";
@@ -26,6 +26,7 @@ const Sidebar = ({ activeView, setActiveView }) => {
     name: "",
     email: "",
     avatarColor: "bg-gradient-to-r from-purple-500 to-pink-500",
+    profile_picture: null
   });
   const [loading, setLoading] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState({});
@@ -40,8 +41,8 @@ const Sidebar = ({ activeView, setActiveView }) => {
           `${base_url}/api/student/profile/${studentdata.id}`, // Use your actual backend URL
           {
             headers: {
-              Authorization: `Bearer ${studentToken}`,
-            },
+              Authorization: `Bearer ${studentToken}`
+            }
           }
         );
         console.log(response.data);
@@ -50,7 +51,7 @@ const Sidebar = ({ activeView, setActiveView }) => {
           "bg-gradient-to-r from-blue-500 to-teal-400",
           "bg-gradient-to-r from-amber-500 to-pink-500",
           "bg-gradient-to-r from-emerald-500 to-blue-500",
-          "bg-gradient-to-r from-violet-500 to-fuchsia-500",
+          "bg-gradient-to-r from-violet-500 to-fuchsia-500"
         ];
         const randomGradient =
           gradients[Math.floor(Math.random() * gradients.length)];
@@ -59,8 +60,9 @@ const Sidebar = ({ activeView, setActiveView }) => {
           name: response.data.student.full_name,
           email: response.data.student.email,
           avatarColor: randomGradient,
+          profile_picture: response.data.student.profile_picture, // Add this line
           // Add additional student data you want to display
-          ...response.data.student,
+          ...response.data.student
         });
 
         setLoading(false);
@@ -84,33 +86,16 @@ const Sidebar = ({ activeView, setActiveView }) => {
       children: [
         { name: "Course List", component: "courseList" },
         { name: "Course Cart", component: "cart" },
-        { name: "My Courses", component: "myCourses" },
-      ],
+        { name: "My Courses", component: "myCourses" }
+      ]
     },
-    {
-      name: "notifications",
-      icon: (
-        <div className="relative">
-          <FiBell />
-
-          <motion.span
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs text-white"
-          >
-            0
-          </motion.span>
-        </div>
-      ),
-      component: "notifications",
-    },
-    { name: "settings", icon: <FiSettings />, component: "settings" },
+    { name: "settings", icon: <FiSettings />, component: "settings" }
   ];
 
   const toggleMenu = (menuName) => {
     setExpandedMenus((prev) => ({
       ...prev,
-      [menuName]: !prev[menuName],
+      [menuName]: !prev[menuName]
     }));
   };
 
@@ -126,8 +111,8 @@ const Sidebar = ({ activeView, setActiveView }) => {
   };
 
   const confirmLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("student");
+    localStorage.removeItem("studentToken");
+    localStorage.removeItem("studentData");
     toast.success("Logout successful!");
     setTimeout(() => {
       navigate("/", { replace: true });
@@ -258,35 +243,51 @@ const Sidebar = ({ activeView, setActiveView }) => {
       </nav>
 
       {/* Footer Profile */}
+      {/* Footer Profile */}
       <div className="p-4 border-t border-gray-200">
         <motion.div
           className="flex items-center"
-          whileHover={isOpen ? { scale: 1.01 } : {}}
+          whileHover={isOpen ? { scale: 1.005 } : {}}
         >
-          <div
-            className={`w-10 h-10 rounded-full ${studentData.avatarColor} text-white flex items-center justify-center font-bold shadow-md`}
-          >
-            {studentInitial}
-          </div>
+          {studentData.profile_picture ? (
+            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-md">
+              <img
+                src={`${base_url}/students/${studentData.profile_picture}`}
+                alt="Profile"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <div
+              className={`w-10 h-10 rounded-full ${studentData.avatarColor} text-white flex items-center justify-center font-bold shadow-md`}
+            >
+              {studentInitial}
+            </div>
+          )}
+
           {isOpen && (
             <motion.div
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="ml-3"
+              className="flex-1 min-w-0 ml-3"
             >
-              <p className="text-sm font-medium text-gray-900 truncate max-w-[160px]">
-                {studentData.name}
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-[700] text-gray-900 truncate">
+                  {studentData.name}
+                </p>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleLogout}
+                  className="p-1 rounded-md hover:bg-gray-100 cursor-pointer transition-colors"
+                  title="Logout"
+                >
+                  <FiLogOut className="w-4 h-4 text-gray-500 hover:text-red-500" />
+                </motion.button>
+              </div>
+              <p className="text-xs text-gray-600 font-[600] truncate mt-0.5">
+                {studentData?.email || "No email found"}
               </p>
-              <p className="text-xs text-gray-500 truncate max-w-[160px]">
-                {studentData.email}
-              </p>
-              <motion.button
-                whileHover={{ x: 2 }}
-                onClick={handleLogout}
-                className="flex items-center text-xs text-red-500 hover:text-red-700 mt-1 transition-colors"
-              >
-                <FiLogOut className="mr-1" /> Logout
-              </motion.button>
             </motion.div>
           )}
         </motion.div>
@@ -299,24 +300,24 @@ const Sidebar = ({ activeView, setActiveView }) => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50 bg-black bg-opacity-70 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-transparent bg-opacity-70 flex items-center justify-center p-4"
         >
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -20, opacity: 0 }}
             transition={{ type: "spring", damping: 25 }}
-            className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden w-full max-w-md border border-gray-200 dark:border-gray-700"
+            className="bg-white rounded-2xl shadow-2xl overflow-hidden w-full max-w-md"
           >
             <div className="p-8 text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
-                <FiLogOut className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-500 dark:bg-gray-800 mb-4">
+                <FiLogOut className="h-5 w-5 text-gray-100" />
               </div>
 
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
                 Ready to leave?
               </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              <p className="text-sm text-gray-700 mb-6">
                 Are you sure you want to sign out of your account?
               </p>
 
@@ -325,7 +326,7 @@ const Sidebar = ({ activeView, setActiveView }) => {
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setShowLogoutConfirm(false)}
-                  className="px-5 py-2.5 text-sm font-medium rounded-lg bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 transition-all shadow-sm"
+                  className="px-5 py-2.5 text-sm font-medium rounded-lg cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-all shadow-sm"
                 >
                   Cancel
                 </motion.button>
@@ -334,15 +335,11 @@ const Sidebar = ({ activeView, setActiveView }) => {
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={confirmLogout}
-                  className="px-5 py-2.5 text-sm font-medium rounded-lg bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 transition-all shadow-sm"
+                  className="px-5 py-2.5 text-sm font-medium rounded-lg bg-black cursor-pointer text-white hover:bg-gray-800 transition-all shadow-sm"
                 >
                   Logout
                 </motion.button>
               </div>
-            </div>
-
-            <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 text-xs text-gray-500 dark:text-gray-400 text-center border-t border-gray-200 dark:border-gray-700">
-              Session will be securely terminated
             </div>
           </motion.div>
         </motion.div>

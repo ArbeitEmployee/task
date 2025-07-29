@@ -13,8 +13,8 @@ const teacherSchema = new mongoose.Schema(
           // Basic email regex pattern
           return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
         },
-        message: "Invalid email format",
-      },
+        message: "Invalid email format"
+      }
     },
     password: {
       type: String,
@@ -25,9 +25,9 @@ const teacherSchema = new mongoose.Schema(
           // Requires at least one number and one special character
           return /\d/.test(value) && /[!@#$%^&*]/.test(value);
         },
-        message: "Password must contain a number and a special character",
+        message: "Password must contain a number and a special character"
       },
-      select: false,
+      select: false
     },
     full_name: {
       type: String,
@@ -37,19 +37,12 @@ const teacherSchema = new mongoose.Schema(
           // At least two words (first and last name)
           return value.trim().split(/\s+/).length >= 2;
         },
-        message: "Must include first and last name",
-      },
+        message: "Must include first and last name"
+      }
     },
     phone: {
       type: String,
-      required: [true, "Phone is required"],
-      validate: {
-        validator: function (value) {
-          // E.164 phone number format with country code
-          return /^\+[1-9]\d{1,14}$/.test(value);
-        },
-        message: "Include country code (e.g., +880)",
-      },
+      required: [true, "Phone is required"]
     },
     specialization: {
       type: String,
@@ -60,14 +53,14 @@ const teacherSchema = new mongoose.Schema(
           // Allow predefined or custom if "Other" is selected
           return allowed.includes(value) || value.trim().length > 0;
         },
-        message: "Invalid specialization",
-      },
+        message: "Invalid specialization"
+      }
     },
 
     qualifications: {
       type: String,
       required: [true, "Qualifications are required"],
-      minlength: [20, "Minimum 20 characters required"],
+      minlength: [20, "Minimum 20 characters required"]
     },
     linkedin_url: {
       type: String,
@@ -76,8 +69,8 @@ const teacherSchema = new mongoose.Schema(
           if (!value) return true; // Optional field
           return /^(https?:\/\/)?(www\.)?linkedin\.com\/in\/.+/.test(value);
         },
-        message: "Invalid LinkedIn URL",
-      },
+        message: "Invalid LinkedIn URL"
+      }
     },
     hourly_rate: {
       type: Number,
@@ -86,8 +79,8 @@ const teacherSchema = new mongoose.Schema(
           if (!value) return true; // Optional field
           return value >= 10;
         },
-        message: "Minimum $10/hour",
-      },
+        message: "Minimum $10/hour"
+      }
     },
     cv: { type: String, required: true },
     certificates: [{ type: String, required: true }],
@@ -95,18 +88,18 @@ const teacherSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],
-      default: "pending",
+      default: "pending"
     },
     rejection_reason: String,
     last_updated: {
       type: Date,
-      default: Date.now,
-    },
+      default: Date.now
+    }
   },
   {
     timestamps: true,
     toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    toObject: { virtuals: true }
   }
 );
 

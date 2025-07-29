@@ -7,7 +7,7 @@ import {
   FiArrowLeft,
   FiCreditCard,
   FiStar,
-  FiCheckCircle,
+  FiCheckCircle
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import Checkout from "./Checkout";
@@ -31,14 +31,14 @@ const Cart = ({ setActiveView }) => {
     loadCart();
 
     // Optional: Add event listener to sync cart across tabs
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'courseCart') {
+    window.addEventListener("storage", (e) => {
+      if (e.key === "courseCart") {
         loadCart();
       }
     });
 
     return () => {
-      window.removeEventListener('storage', loadCart);
+      window.removeEventListener("storage", loadCart);
     };
   }, []);
 
@@ -75,8 +75,11 @@ const Cart = ({ setActiveView }) => {
     try {
       // Add purchased courses to myCourses in localStorage
       const myCourses = JSON.parse(localStorage.getItem("myCourses")) || [];
-      const newCourses = cart.map(course => course.id);
-      localStorage.setItem("myCourses", JSON.stringify([...myCourses, ...newCourses]));
+      const newCourses = cart.map((course) => course.id);
+      localStorage.setItem(
+        "myCourses",
+        JSON.stringify([...myCourses, ...newCourses])
+      );
 
       // Clear cart
       setCart([]);
@@ -120,7 +123,8 @@ const Cart = ({ setActiveView }) => {
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-purple-50">
                   <h2 className="text-xl font-bold text-gray-900">
-                    {cart.length} {cart.length === 1 ? "Course" : "Courses"} in Cart
+                    {cart.length} {cart.length === 1 ? "Course" : "Courses"} in
+                    Cart
                   </h2>
                   <p className="text-gray-600 mt-1">
                     Review your selections before checkout
@@ -141,7 +145,10 @@ const Cart = ({ setActiveView }) => {
                         <div className="flex flex-col sm:flex-row">
                           <div className="flex-shrink-0 mb-4 sm:mb-0 sm:mr-6">
                             <img
-                              src={course.thumbnail || 'https://via.placeholder.com/150'}
+                              src={
+                                course.thumbnail ||
+                                "https://via.placeholder.com/150"
+                              }
                               alt={course.title}
                               className="w-full sm:w-40 h-24 object-cover rounded-lg shadow-sm"
                             />
@@ -211,7 +218,10 @@ const Cart = ({ setActiveView }) => {
                     >
                       <div className="flex items-start">
                         <img
-                          src={course.thumbnail || 'https://via.placeholder.com/150'}
+                          src={
+                            course.thumbnail ||
+                            "https://via.placeholder.com/150"
+                          }
                           alt={course.title}
                           className="w-12 h-9 object-cover rounded mr-3"
                         />

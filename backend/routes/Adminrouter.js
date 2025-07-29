@@ -417,7 +417,7 @@ const studentstorage = multer.diskStorage({
 
 const studentupload = multer({
   storage: studentstorage,
-  limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit
+  limits: { fileSize: 2 * 1024 * 1024 } // 100MB limit
 });
 // Get all students
 Adminrouter.get(

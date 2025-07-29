@@ -16,7 +16,7 @@ import CategoryList from "./courses/categoryList";
 const AdminDashboard = () => {
   const [activeView, setActiveView] = useState(() => {
     const savedView = localStorage.getItem("adminActiveView");
-    return savedView || "dashboard"; // Default to "dashboard" if nothing in storage
+    return savedView || "dashboard";
   });
 
   const [notificationCount, setNotificationCount] = useState(0);

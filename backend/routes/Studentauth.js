@@ -10,41 +10,28 @@ const path = require("path");
 const fs = require("fs");
 // Configuration
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key_here";
-const OTP_EXPIRY_MINUTES = 10;
+const OTP_EXPIRY_MINUTES = 2;
 const RESET_TOKEN_EXPIRY_MINUTES = 30;
 // Configure multer for file uploads
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = "uploads/students";
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, "../public/students");
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
     }
-    cb(null, uploadDir);
+    cb(null, uploadPath);
   },
-  filename: function (req, file, cb) {
+  filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, "student-" + uniqueSuffix + path.extname(file.originalname));
-  },
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
 });
 
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 2 * 1024 * 1024, // 2MB limit
-  },
-  fileFilter: function (req, file, cb) {
-    const filetypes = /jpeg|jpg|png|gif/;
-    const mimetype = filetypes.test(file.mimetype);
-    const extname = filetypes.test(
-      path.extname(file.originalname).toLowerCase()
-    );
-
-    if (mimetype && extname) {
-      return cb(null, true);
-    }
-    cb(new Error("Only image files (jpeg, jpg, png, gif) are allowed!"));
-  },
+    fileSize: 2 * 1024 * 1024 // 2MB limit
+  }
 });
 
 // Email transporter
@@ -52,124 +39,76 @@ const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.EMAIL_USER || "tausifrahman02@gmail.com",
-    pass: process.env.EMAIL_PASS || "uxcc zkkr etre uipd",
-  },
+    pass: process.env.EMAIL_PASS || "uxcc zkkr etre uipd"
+  }
 });
 
 // Helper functions
 const generateOTP = () => crypto.randomInt(100000, 999999).toString();
 const generateToken = (payload, expiresIn) =>
   jwt.sign(payload, JWT_SECRET, { expiresIn });
-// Image Upload Route
-Studnetauth.post("/upload", upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" });
-    }
 
-    // Construct the URL to the uploaded file
-    const fileUrl = `${req.protocol}://${req.get(
-      "host"
-    )}/${req.file.path.replace(/\\/g, "/")}`;
-
-    res.status(200).json({
-      message: "File uploaded successfully",
-      url: fileUrl,
-    });
-  } catch (error) {
-    console.error("Upload error:", error);
-    res.status(500).json({
-      message: "File upload failed",
-      error: error.message,
-    });
-  }
-});
-
-// Error handling for file uploads
-Studnetauth.use((err, req, res, next) => {
-  if (err instanceof multer.MulterError) {
-    // A Multer error occurred when uploading
-    return res.status(400).json({
-      message: "File upload error",
-      error: err.message,
-    });
-  } else if (err) {
-    // An unknown error occurred
-    return res.status(500).json({
-      message: "Server error",
-      error: err.message,
-    });
-  }
-  next();
-});
 // Student Registration with OTP
-Studnetauth.post("/register", async (req, res) => {
-  try {
-    const {
-      email,
-      password,
-      full_name,
-      phone,
-      date_of_birth,
-      address,
-      profile_pic, // Added profile_pic field
-    } = req.body;
-    console.log(req.body);
-    // Validate required fields
-    if (!email || !password || !full_name || !phone) {
-      return res.status(400).json({ message: "Missing required fields" });
-    }
+Studnetauth.post(
+  "/register",
+  upload.single("profile_picture"),
+  async (req, res) => {
+    try {
+      const { email, password, full_name, phone, date_of_birth, address } =
+        req.body;
+      const profilePhoto = req.file;
 
-    // Check if student exists
-    const existingStudent = await Student.findOne({
-      $or: [{ email }, { phone }],
-    });
-    if (existingStudent) {
-      const field = existingStudent.email === email ? "email" : "phone";
-      return res.status(400).json({ message: `${field} already in use` });
-    }
+      const existingStudent = await Student.findOne({ email });
+      if (existingStudent) {
+        return res.status(400).json({
+          success: false,
+          message: "Student with this email already exists"
+        });
+      }
 
-    // Create and save student
-    const student = new Student({
-      email,
-      password,
-      full_name,
-      phone,
-      date_of_birth: date_of_birth || null,
-      address: address || null,
-      profile_picture: profile_pic || null, // Add profile picture URL if provided
-    });
+      // Create and save student
+      const student = new Student({
+        email,
+        password,
+        full_name,
+        phone,
+        date_of_birth: date_of_birth || null,
+        address: address || null
+      });
+      if (profilePhoto) {
+        student.profile_picture = req.file.filename; // Make sure this matches what frontend expects
+      }
+      // Generate and save OTP
+      const otp = student.generateOTP();
+      await student.save();
 
-    // Generate and save OTP
-    const otp = student.generateOTP();
-    await student.save();
+      // Send OTP email
+      await transporter.sendMail({
+        from: `"Education App" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: "Verify Your Account",
+        html: `Your verification OTP is: <strong>${otp}</strong>. It expires in ${OTP_EXPIRY_MINUTES} minutes.`
+      });
 
-    // Send OTP email
-    await transporter.sendMail({
-      from: `"Education App" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: "Verify Your Account",
-      html: `Your verification OTP is: <strong>${otp}</strong>. It expires in ${OTP_EXPIRY_MINUTES} minutes.`,
-    });
-
-    res.status(201).json({
-      message:
-        "Registration successful. Please verify your account with the OTP sent to your email.",
-      email: student.email,
-      student: {
-        id: student._id,
+      res.status(201).json({
+        message:
+          "Registration successful. Please verify your account with the OTP sent to your email.",
         email: student.email,
-        full_name: student.full_name,
-        profile_pic: student.profile_pic,
-      },
-    });
-  } catch (error) {
-    console.error("Registration error:", error);
-    res
-      .status(500)
-      .json({ message: "Registration failed", error: error.message });
+        student: {
+          id: student._id,
+          email: student.email,
+          full_name: student.full_name,
+          profile_picture: student.profile_picture
+        }
+      });
+    } catch (error) {
+      console.error("Registration error:", error);
+      res
+        .status(500)
+        .json({ message: "Registration failed", error: error.message });
+    }
   }
-});
+);
 // Verify OTP
 Studnetauth.post("/verify-otp", async (req, res) => {
   try {
@@ -221,8 +160,8 @@ Studnetauth.post("/verify-otp", async (req, res) => {
         id: student._id,
         email: student.email,
         full_name: student.full_name,
-        role: student.role,
-      },
+        role: student.role
+      }
     });
   } catch (error) {
     console.error("OTP verification error:", error);
@@ -255,7 +194,7 @@ Studnetauth.post("/resend-otp", async (req, res) => {
       from: `"Education App" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "New Verification OTP",
-      html: `Your new verification OTP is: <strong>${otp}</strong>. It expires in ${OTP_EXPIRY_MINUTES} minutes.`,
+      html: `Your new verification OTP is: <strong>${otp}</strong>. It expires in ${OTP_EXPIRY_MINUTES} minutes.`
     });
 
     res.status(200).json({ message: "New OTP sent successfully" });
@@ -273,8 +212,8 @@ Studnetauth.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
     // Find student with password
-    const student = await Student.findOne({ email });
-    console.log(student);
+    const student = await Student.findOne({ email }).select("+password");
+
     if (!student) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
@@ -285,7 +224,7 @@ Studnetauth.post("/login", async (req, res) => {
         (student.lockUntil - Date.now()) / (60 * 1000)
       );
       return res.status(403).json({
-        message: `Account locked. Try again in ${remainingTime} minutes.`,
+        message: `Account locked. Try again in ${remainingTime} minutes.`
       });
     }
 
@@ -300,7 +239,7 @@ Studnetauth.post("/login", async (req, res) => {
     // Check if email is verified
     if (!student.isVerified) {
       return res.status(403).json({
-        message: "Account not verified. Please verify your email first.",
+        message: "Account not verified. Please verify your email first."
       });
     }
 
@@ -321,8 +260,8 @@ Studnetauth.post("/login", async (req, res) => {
         id: student._id,
         email: student.email,
         full_name: student.full_name,
-        role: student.role,
-      },
+        role: student.role
+      }
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -352,12 +291,12 @@ Studnetauth.post("/forgot-password", async (req, res) => {
       from: `"Education App" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Password Reset OTP",
-      html: `Your password reset OTP is: <strong>${otp}</strong>. It expires in ${OTP_EXPIRY_MINUTES} minutes.`,
+      html: `Your password reset OTP is: <strong>${otp}</strong>. It expires in ${OTP_EXPIRY_MINUTES} minutes.`
     });
 
     res.status(200).json({
       message: "If an account exists, a reset OTP has been sent",
-      email: student.email,
+      email: student.email
     });
   } catch (error) {
     console.error("Forgot password error:", error);
@@ -441,8 +380,8 @@ Studnetauth.get("/profile", authenticateStudent, async (req, res) => {
         phone: req.student.phone,
         date_of_birth: req.student.date_of_birth,
         address: req.student.address,
-        role: req.student.role,
-      },
+        role: req.student.role
+      }
     });
   } catch (error) {
     console.error("Profile error:", error);

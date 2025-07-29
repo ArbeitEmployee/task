@@ -6,7 +6,11 @@ import Cart from "./courses/cart";
 import MyCourses from "./courses/myCourses";
 
 const StudentDashboard = () => {
-  const [activeView, setActiveView] = useState("dashboard");
+  const [activeView, setActiveView] = useState(() => {
+    const savedView = localStorage.getItem("studentActiveView");
+    return savedView || "dashboard";
+  });
+
   const [cart, setCart] = useState([]);
 
   // Load cart from localStorage on initial render
@@ -15,6 +19,9 @@ const StudentDashboard = () => {
     setCart(savedCart);
   }, []);
 
+  useEffect(() => {
+    localStorage.setItem("studentActiveView", activeView);
+  }, [activeView]);
   const renderView = () => {
     switch (activeView) {
       case "settings":

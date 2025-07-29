@@ -15,7 +15,7 @@ const Checkout = ({ cart, onSuccess }) => {
     expiry: "",
     cvc: "",
     name: "",
-    focused: "",
+    focused: ""
   });
   const [billingDetails, setBillingDetails] = useState({
     firstName: "",
@@ -24,7 +24,7 @@ const Checkout = ({ cart, onSuccess }) => {
     address: "",
     city: "",
     country: "BN",
-    zipCode: "",
+    zipCode: ""
   });
 
   // Calculate total
@@ -45,8 +45,8 @@ const Checkout = ({ cart, onSuccess }) => {
         items: cart.map((item) => ({
           id: item.id,
           title: item.title,
-          price: item.price,
-        })),
+          price: item.price
+        }))
       };
 
       /* 
@@ -249,13 +249,13 @@ const Checkout = ({ cart, onSuccess }) => {
                           onChange={(e) =>
                             setCardDetails({
                               ...cardDetails,
-                              number: e.target.value,
+                              number: e.target.value
                             })
                           }
                           onFocus={() =>
                             setCardDetails({
                               ...cardDetails,
-                              focused: "number",
+                              focused: "number"
                             })
                           }
                           maxLength={19}
@@ -292,13 +292,13 @@ const Checkout = ({ cart, onSuccess }) => {
                           onChange={(e) =>
                             setCardDetails({
                               ...cardDetails,
-                              expiry: e.target.value,
+                              expiry: e.target.value
                             })
                           }
                           onFocus={() =>
                             setCardDetails({
                               ...cardDetails,
-                              focused: "expiry",
+                              focused: "expiry"
                             })
                           }
                           maxLength={5}
@@ -317,9 +317,7 @@ const Checkout = ({ cart, onSuccess }) => {
                           onChange={(e) =>
                             setCardDetails({
                               ...cardDetails,
-                              cvc: e.target.value
-                                .replace(/\D/g, "")
-                                .slice(0, 4),
+                              cvc: e.target.value.replace(/\D/g, "").slice(0, 4)
                             })
                           }
                           onFocus={() =>
@@ -343,7 +341,7 @@ const Checkout = ({ cart, onSuccess }) => {
                         onChange={(e) =>
                           setCardDetails({
                             ...cardDetails,
-                            name: e.target.value,
+                            name: e.target.value
                           })
                         }
                         onFocus={() =>
@@ -381,7 +379,7 @@ const Checkout = ({ cart, onSuccess }) => {
                     onChange={(e) =>
                       setBillingDetails({
                         ...billingDetails,
-                        firstName: e.target.value,
+                        firstName: e.target.value
                       })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-400 transition-all"
@@ -398,7 +396,7 @@ const Checkout = ({ cart, onSuccess }) => {
                     onChange={(e) =>
                       setBillingDetails({
                         ...billingDetails,
-                        lastName: e.target.value,
+                        lastName: e.target.value
                       })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-400 transition-all"
@@ -415,7 +413,7 @@ const Checkout = ({ cart, onSuccess }) => {
                     onChange={(e) =>
                       setBillingDetails({
                         ...billingDetails,
-                        email: e.target.value,
+                        email: e.target.value
                       })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-400 transition-all"
@@ -432,7 +430,7 @@ const Checkout = ({ cart, onSuccess }) => {
                     onChange={(e) =>
                       setBillingDetails({
                         ...billingDetails,
-                        address: e.target.value,
+                        address: e.target.value
                       })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-400 transition-all"
@@ -449,7 +447,7 @@ const Checkout = ({ cart, onSuccess }) => {
                     onChange={(e) =>
                       setBillingDetails({
                         ...billingDetails,
-                        city: e.target.value,
+                        city: e.target.value
                       })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-400 transition-all"
@@ -465,7 +463,7 @@ const Checkout = ({ cart, onSuccess }) => {
                     onChange={(e) =>
                       setBillingDetails({
                         ...billingDetails,
-                        country: e.target.value,
+                        country: e.target.value
                       })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-gray-500 hover:border-gray-400 transition-all appearance-none bg-white bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tZG93biI+PHBhdGggZD0ibTYgOSA2IDYgNi02Ii8+PC9zdmc+')] bg-no-repeat bg-[center_right_1rem]"
@@ -489,7 +487,7 @@ const Checkout = ({ cart, onSuccess }) => {
                     onChange={(e) =>
                       setBillingDetails({
                         ...billingDetails,
-                        zipCode: e.target.value,
+                        zipCode: e.target.value
                       })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-400 transition-all"

@@ -177,12 +177,12 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
 
     try {
       const formData = new FormData();
-      
+
       // Append all form fields
       Object.entries(form).forEach(([key, value]) => {
         if (value) formData.append(key, value);
       });
-      
+
       // Append files
       formData.append("cv", files.cv);
       files.certificates.forEach((cert, index) => {
@@ -192,11 +192,15 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
         formData.append("profile_photo", files.profile_photo);
       }
 
-      const response = await axios.post(`${base_url}/api/auth/teacher-register`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data"
+      const response = await axios.post(
+        `${base_url}/api/auth/teacher-register`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data"
+          }
         }
-      });
+      );
 
       toast.success("Registration submitted for approval", {
         style: {
@@ -287,33 +291,29 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
         password: loginForm.password
       });
 
-      // Store the token (you might want to use cookies or more secure storage)
+      // Store the token and teacher data
       localStorage.setItem("teacherToken", response.data.token);
-      localStorage.setItem("teacherData",JSON.stringify(response.data.data));
-      
-      toast.success("Login successful", {
-        style: {
-          background: "#fff",
-          color: "#000",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
-        }
-      });
+      localStorage.setItem("teacherData", JSON.stringify(response.data.data));
 
-      // Navigate to dashboard
-      navigate("/teacher/dashboard");
+      toast.success("Login successful");
+
+      // Add a slight delay before navigation to ensure toast is visible
+      setTimeout(() => {
+        navigate("/teacher/dashboard", { replace: true });
+      }, 500);
     } catch (err) {
       let errorMessage = "Login failed";
       if (err.response) {
         if (err.response.status === 401) {
           errorMessage = "Invalid email or password";
         } else if (err.response.status === 403) {
-          errorMessage = err.response.data.message || "Account not approved yet";
+          errorMessage =
+            err.response.data.message || "Account not approved yet";
         } else {
           errorMessage = err.response.data.message || errorMessage;
         }
       }
-      
+
       toast.error(errorMessage, {
         style: {
           background: "#fff",

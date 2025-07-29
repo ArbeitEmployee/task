@@ -24,7 +24,6 @@ import CourseList from "./component/teacher/teacherDashboard/course/CourseList";
 import CreateCourse from "./component/teacher/teacherDashboard/course/CreateCourse";
 import Notification from "./component/teacher/teacherDashboard/notification/Notification";
 import TeacherSettings from "./component/teacher/teacherDashboard/settings/TeacherSettings";
-import CourseLearningPage from "./component/student/studentDashboard/courses/CourseLearningPage";
 import CourseOverview from "./component/student/studentDashboard/courses/courseView/CourseOverview";
 import CoursePlayer from "./component/student/studentDashboard/courses/courseView/CoursePlayer";
 import Editcourse from "./component/admin/adminDashboard/courses/Editcourse";
@@ -49,7 +48,7 @@ const App = () => {
         position="top-center"
         containerStyle={{
           position: "fixed",
-          zIndex: 9999, // Higher than your modal's z-index
+          zIndex: 9999 // Higher than your modal's z-index
         }}
         toastOptions={{
           className:
@@ -61,20 +60,20 @@ const App = () => {
             boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
             borderRadius: "1rem",
             fontSize: "1rem",
-            padding: "1.2rem 1.5rem",
+            padding: "1.2rem 1.5rem"
           },
           success: {
             iconTheme: {
               primary: "#000",
-              secondary: "#ecfdf5",
-            },
+              secondary: "#ecfdf5"
+            }
           },
           error: {
             iconTheme: {
               primary: "#ef4444",
-              secondary: "#fef2f2",
-            },
-          },
+              secondary: "#fef2f2"
+            }
+          }
         }}
       />
       <Routes>
@@ -109,16 +108,7 @@ const App = () => {
           path="/teacher/reset-password"
           element={<ResetPasswordTeacher />}
         />
-        <Route
-          path="/teacher/dashboard"
-          element={
-            isAuthenticated() ? (
-              <TeacherDashboard />
-            ) : (
-              <Navigate to="/teacher" replace />
-            )
-          }
-        />
+        <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
         {/* Student route */}
         <Route
           path="/student"
@@ -134,16 +124,7 @@ const App = () => {
           path="/student/reset-password"
           element={<ResetPasswordStudent />}
         />
-        <Route
-          path="/student/dashboard"
-          element={
-            isAuthenticated() ? (
-              <StudentDashboard />
-            ) : (
-              <Navigate to="/student" replace />
-            )
-          }
-        />
+        <Route path="/student/dashboard" element={<StudentDashboard />} />
         <Route path="/admin/courses/edit/:id" element={<Editcourse />} />
         {/* ------------------------------teacher-all-route---------------------------------------- */}
         <Route path="/teacher/courses/create" element={<CreateCourse />} />

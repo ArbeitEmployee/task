@@ -25,14 +25,14 @@ const storage = multer.diskStorage({
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + "-" + uuidv4();
     cb(null, uniqueSuffix + path.extname(file.originalname));
-  },
+  }
 });
 
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB limit
-  },
+    fileSize: 100 * 1024 * 1024 // 100MB limit
+  }
 });
 
 // Middleware to handle multiple file uploads
@@ -40,7 +40,7 @@ const uploadMultiple = upload.fields([
   { name: "thumbnail", maxCount: 1 },
   { name: "attachments", maxCount: 10 },
   { name: "contentVideos", maxCount: 20 },
-  { name: "contentThumbnails", maxCount: 20 },
+  { name: "contentThumbnails", maxCount: 20 }
 ]);
 
 // --------------------------teacher-profile---------------------------------
@@ -57,20 +57,20 @@ Teaceherrouter.get(
       if (!teacher) {
         return res.status(404).json({
           success: false,
-          message: "Teacher not found",
+          message: "Teacher not found"
         });
       }
 
       res.status(200).json({
         success: true,
-        data: teacher,
+        data: teacher
       });
     } catch (error) {
       console.error("Error fetching teacher profile:", error);
       res.status(500).json({
         success: false,
         message: "Failed to fetch teacher profile",
-        error: error.message,
+        error: error.message
       });
     }
   }
@@ -80,7 +80,7 @@ Teaceherrouter.put(
   "/update-course/:id",
   upload.fields([
     { name: "thumbnail", maxCount: 1 },
-    { name: "attachments", maxCount: 10 },
+    { name: "attachments", maxCount: 10 }
   ]),
   async (req, res) => {
     try {
@@ -102,7 +102,7 @@ Teaceherrouter.put(
         }
         return res.status(404).json({
           success: false,
-          message: "Course not found",
+          message: "Course not found"
         });
       }
 
@@ -122,7 +122,7 @@ Teaceherrouter.put(
           filename: files.thumbnail[0].originalname,
           path: files.thumbnail[0].path,
           size: files.thumbnail[0].size,
-          mimetype: files.thumbnail[0].mimetype,
+          mimetype: files.thumbnail[0].mimetype
         };
       }
 
@@ -145,7 +145,7 @@ Teaceherrouter.put(
           filename: file.originalname,
           path: file.path,
           size: file.size,
-          mimetype: file.mimetype,
+          mimetype: file.mimetype
         }));
       }
 
@@ -160,7 +160,7 @@ Teaceherrouter.put(
         "requirements",
         "whatYouWillLearn",
         "level",
-        "content",
+        "content"
       ];
 
       // Validate and apply updates
@@ -188,7 +188,7 @@ Teaceherrouter.put(
       res.status(200).json({
         success: true,
         message: "Course updated successfully",
-        data: course,
+        data: course
       });
     } catch (error) {
       console.error("Error updating course:", error);
@@ -205,7 +205,7 @@ Teaceherrouter.put(
       res.status(500).json({
         success: false,
         message: "Failed to update course",
-        error: error.message,
+        error: error.message
       });
     }
   }
@@ -222,7 +222,7 @@ Teaceherrouter.delete(
       if (!course) {
         return res.status(404).json({
           success: false,
-          message: "Course not found",
+          message: "Course not found"
         });
       }
 
@@ -234,7 +234,7 @@ Teaceherrouter.delete(
       if (attachmentIndex === -1) {
         return res.status(404).json({
           success: false,
-          message: "Attachment not found",
+          message: "Attachment not found"
         });
       }
 
@@ -252,14 +252,14 @@ Teaceherrouter.delete(
 
       res.status(200).json({
         success: true,
-        message: "Attachment deleted successfully",
+        message: "Attachment deleted successfully"
       });
     } catch (error) {
       console.error("Error deleting attachment:", error);
       res.status(500).json({
         success: false,
         message: "Failed to delete attachment",
-        error: error.message,
+        error: error.message
       });
     }
   }
@@ -278,7 +278,7 @@ Teaceherrouter.put(
       if (!currentPassword || !newPassword) {
         return res.status(400).json({
           success: false,
-          message: "Current password and new password are required",
+          message: "Current password and new password are required"
         });
       }
 
@@ -288,7 +288,7 @@ Teaceherrouter.put(
       if (!teacher) {
         return res.status(404).json({
           success: false,
-          message: "Teacher not found",
+          message: "Teacher not found"
         });
       }
 
@@ -300,7 +300,7 @@ Teaceherrouter.put(
       if (!isMatch) {
         return res.status(401).json({
           success: false,
-          message: "Current password is incorrect",
+          message: "Current password is incorrect"
         });
       }
 
@@ -308,14 +308,14 @@ Teaceherrouter.put(
       if (newPassword.length < 8) {
         return res.status(400).json({
           success: false,
-          message: "Password must be at least 8 characters",
+          message: "Password must be at least 8 characters"
         });
       }
 
       if (!/\d/.test(newPassword) || !/[!@#$%^&*]/.test(newPassword)) {
         return res.status(400).json({
           success: false,
-          message: "Password must contain a number and a special character",
+          message: "Password must contain a number and a special character"
         });
       }
 
@@ -325,14 +325,14 @@ Teaceherrouter.put(
 
       res.status(200).json({
         success: true,
-        message: "Password updated successfully",
+        message: "Password updated successfully"
       });
     } catch (error) {
       console.error("Error updating password:", error);
       res.status(500).json({
         success: false,
         message: "Failed to update password",
-        error: error.message,
+        error: error.message
       });
     }
   }
@@ -353,7 +353,7 @@ Teaceherrouter.put(
       if (!teacher) {
         return res.status(404).json({
           success: false,
-          message: "Teacher not found",
+          message: "Teacher not found"
         });
       }
 
@@ -365,7 +365,7 @@ Teaceherrouter.put(
         "qualifications",
         "linkedin_url",
         "hourly_rate",
-        "profile_photo",
+        "profile_photo"
       ];
 
       // Validate updates
@@ -376,7 +376,7 @@ Teaceherrouter.put(
       if (!isValidOperation) {
         return res.status(400).json({
           success: false,
-          message: "Invalid updates!",
+          message: "Invalid updates!"
         });
       }
 
@@ -384,7 +384,7 @@ Teaceherrouter.put(
       if (updates.phone && !/^\+[1-9]\d{1,14}$/.test(updates.phone)) {
         return res.status(400).json({
           success: false,
-          message: "Include country code (e.g., +880)",
+          message: "Include country code (e.g., +880)"
         });
       }
 
@@ -395,7 +395,7 @@ Teaceherrouter.put(
       ) {
         return res.status(400).json({
           success: false,
-          message: "Must include first and last name",
+          message: "Must include first and last name"
         });
       }
 
@@ -403,7 +403,7 @@ Teaceherrouter.put(
       if (updates.hourly_rate !== undefined && updates.hourly_rate < 10) {
         return res.status(400).json({
           success: false,
-          message: "Minimum $10/hour",
+          message: "Minimum $10/hour"
         });
       }
 
@@ -420,14 +420,14 @@ Teaceherrouter.put(
       res.status(200).json({
         success: true,
         message: "Profile updated successfully",
-        data: teacher,
+        data: teacher
       });
     } catch (error) {
       console.error("Error updating profile:", error);
       res.status(500).json({
         success: false,
         message: "Failed to update profile",
-        error: error.message,
+        error: error.message
       });
     }
   }
@@ -444,7 +444,7 @@ Teaceherrouter.get(
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while fetching teacher courses",
+        message: "Server error while fetching teacher courses"
       });
     }
   }
@@ -462,7 +462,7 @@ Teaceherrouter.get(
       if (!course) {
         return res.status(404).json({
           success: false,
-          message: "Course not found",
+          message: "Course not found"
         });
       }
 
@@ -470,7 +470,7 @@ Teaceherrouter.get(
       if (course.instructor._id.toString() !== req.teacher._id.toString()) {
         return res.status(403).json({
           success: false,
-          message: "Unauthorized access to this course",
+          message: "Unauthorized access to this course"
         });
       }
 
@@ -479,7 +479,7 @@ Teaceherrouter.get(
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while fetching course",
+        message: "Server error while fetching course"
       });
     }
   }
@@ -493,8 +493,8 @@ Teaceherrouter.put(
       { name: "thumbnail", maxCount: 1 },
       { name: "attachments", maxCount: 10 },
       { name: "contentThumbnails", maxCount: 10 },
-      { name: "contentVideos", maxCount: 10 },
-    ]),
+      { name: "contentVideos", maxCount: 10 }
+    ])
   ],
   async (req, res) => {
     try {
@@ -509,7 +509,7 @@ Teaceherrouter.put(
         whatYouWillLearn,
         level,
         status,
-        category,
+        category
       } = req.body;
 
       // First verify the teacher owns this course
@@ -517,14 +517,14 @@ Teaceherrouter.put(
       if (!existingCourse) {
         return res.status(404).json({
           success: false,
-          message: "Course not found",
+          message: "Course not found"
         });
       }
 
       if (existingCourse.instructor.toString() !== req.teacher._id.toString()) {
         return res.status(403).json({
           success: false,
-          message: "Unauthorized to update this course",
+          message: "Unauthorized to update this course"
         });
       }
 
@@ -535,7 +535,7 @@ Teaceherrouter.put(
           filename: thumbnailFile.originalname,
           path: thumbnailFile.path,
           size: thumbnailFile.size,
-          mimetype: thumbnailFile.mimetype,
+          mimetype: thumbnailFile.mimetype
         };
       }
 
@@ -570,11 +570,11 @@ Teaceherrouter.put(
           filename: file.originalname,
           path: file.path,
           size: file.size,
-          mimetype: file.mimetype,
+          mimetype: file.mimetype
         }));
         existingCourse.attachments = [
           ...existingCourse.attachments,
-          ...attachmentFiles,
+          ...attachmentFiles
         ];
       }
 
@@ -594,13 +594,13 @@ Teaceherrouter.put(
       res.json({
         success: true,
         message: "Course updated successfully",
-        data: existingCourse,
+        data: existingCourse
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while updating course",
+        message: "Server error while updating course"
       });
     }
   }
@@ -615,7 +615,7 @@ Teaceherrouter.delete(
       if (!course) {
         return res.status(404).json({
           success: false,
-          message: "Course not found",
+          message: "Course not found"
         });
       }
 
@@ -623,7 +623,7 @@ Teaceherrouter.delete(
       if (course.instructor.toString() !== req.teacher._id.toString()) {
         return res.status(403).json({
           success: false,
-          message: "Unauthorized to delete this course",
+          message: "Unauthorized to delete this course"
         });
       }
 
@@ -631,13 +631,13 @@ Teaceherrouter.delete(
 
       res.json({
         success: true,
-        message: "Course deleted successfully",
+        message: "Course deleted successfully"
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while deleting course",
+        message: "Server error while deleting course"
       });
     }
   }
@@ -656,8 +656,8 @@ Teaceherrouter.get(
             "title description instructor thumbnail price category level totalStudents rating duration language",
           populate: {
             path: "instructor",
-            select: "full_name profile_picture",
-          },
+            select: "full_name profile_picture"
+          }
         })
         .select("enrolledCourses");
 
@@ -694,7 +694,7 @@ Teaceherrouter.get(
           nextRecommendedContent: getNextRecommendedContent(
             enrollment.contentProgress,
             course.content
-          ),
+          )
         };
       });
 
@@ -709,14 +709,14 @@ Teaceherrouter.get(
       res.status(200).json({
         success: true,
         count: enrolledCourses.length,
-        data: enrolledCourses,
+        data: enrolledCourses
       });
     } catch (error) {
       console.error("Error fetching enrolled courses:", error);
       res.status(500).json({
         success: false,
         message: "Server error while fetching enrolled courses",
-        error: error.message,
+        error: error.message
       });
     }
   }
@@ -737,7 +737,7 @@ Teaceherrouter.get(
       if (req.user.role !== "admin" && req.user.id !== req.params.studentId) {
         return res.status(403).json({
           success: false,
-          message: "Not authorized to access these courses",
+          message: "Not authorized to access these courses"
         });
       }
 
@@ -750,8 +750,8 @@ Teaceherrouter.get(
             "title description instructor thumbnail price categories level duration content",
           populate: {
             path: "instructor",
-            select: "full_name profile_picture",
-          },
+            select: "full_name profile_picture"
+          }
         });
 
       if (!student) {
@@ -802,7 +802,7 @@ Teaceherrouter.get(
               quizAttempts: enrollment.quizAttempts
                 ? enrollment.quizAttempts.length
                 : 0,
-              certificates: enrollment.certificates || [],
+              certificates: enrollment.certificates || []
             },
             courseDetails: {
               _id: course._id,
@@ -811,15 +811,15 @@ Teaceherrouter.get(
               instructor: course.instructor,
               thumbnail: {
                 path: thumbnailUrl,
-                alt: course.title,
+                alt: course.title
               },
               price: course.price,
               categories: course.categories || [],
               level: course.level,
               duration: course.duration, // in minutes
               contentCount: totalContentItems,
-              nextRecommendedContent: nextContent,
-            },
+              nextRecommendedContent: nextContent
+            }
           };
         })
       );
@@ -840,14 +840,14 @@ Teaceherrouter.get(
       res.status(200).json({
         success: true,
         count: enrolledCourses.length,
-        enrolledCourses,
+        enrolledCourses
       });
     } catch (error) {
       console.error("Error fetching enrolled courses:", error);
       res.status(500).json({
         success: false,
         message: "Server error while fetching enrolled courses",
-        error: error.message,
+        error: error.message
       });
     }
   }
@@ -870,7 +870,7 @@ function getNextRecommendedContent(contentProgress = [], courseContent = []) {
       return {
         contentItemId: contentItem._id,
         title: contentItem.title || "Untitled Content",
-        type: contentItem.type || "lesson",
+        type: contentItem.type || "lesson"
       };
     }
   }
@@ -880,7 +880,7 @@ function getNextRecommendedContent(contentProgress = [], courseContent = []) {
   return {
     contentItemId: firstItem._id,
     title: firstItem.title || "Untitled Content",
-    type: firstItem.type || "lesson",
+    type: firstItem.type || "lesson"
   };
 }
 
@@ -898,7 +898,7 @@ function getNextRecommendedContent(contentProgress, courseContent) {
       return {
         contentItemId: contentItem._id,
         title: contentItem.title,
-        type: contentItem.type,
+        type: contentItem.type
       };
     }
   }
@@ -907,7 +907,7 @@ function getNextRecommendedContent(contentProgress, courseContent) {
   return {
     contentItemId: courseContent[0]._id,
     title: courseContent[0].title,
-    type: courseContent[0].type,
+    type: courseContent[0].type
   };
 }
 // -------------------------- Profile Photo Update ----------------------------
@@ -922,7 +922,7 @@ Teaceherrouter.put(
       if (!req.file) {
         return res.status(400).json({
           success: false,
-          message: "Profile photo is required",
+          message: "Profile photo is required"
         });
       }
 
@@ -934,7 +934,7 @@ Teaceherrouter.put(
         fs.unlinkSync(req.file.path);
         return res.status(404).json({
           success: false,
-          message: "Teacher not found",
+          message: "Teacher not found"
         });
       }
 
@@ -956,8 +956,8 @@ Teaceherrouter.put(
         success: true,
         message: "Profile photo updated successfully",
         data: {
-          profile_photo: teacher.profile_photo,
-        },
+          profile_photo: teacher.profile_photo
+        }
       });
     } catch (error) {
       console.error("Error updating profile photo:", error);
@@ -968,7 +968,7 @@ Teaceherrouter.put(
       res.status(500).json({
         success: false,
         message: "Failed to update profile photo",
-        error: error.message,
+        error: error.message
       });
     }
   }
@@ -995,7 +995,7 @@ Teaceherrouter.post("/create-mcq", authenticateTeacher, async (req, res) => {
       correctAnswer,
       explanation: explanation || "", // Default to empty string if not provided
       points,
-      createdBy: req.body.user_id,
+      createdBy: req.body.user_id
     });
 
     await mcq.save();
@@ -1021,7 +1021,7 @@ Teaceherrouter.get(
   async (req, res) => {
     try {
       const mcqs = await MCQ.find({ createdBy: req.params.id }).sort({
-        createdAt: -1,
+        createdAt: -1
       });
       res.send(mcqs);
     } catch (error) {
@@ -1051,13 +1051,13 @@ Teaceherrouter.put("/update-mcq/:id", authenticateTeacher, async (req, res) => {
     "correctAnswer",
     "category",
     "difficulty",
-    "explanation",
+    "explanation"
   ];
 
   try {
     const mcq = await MCQ.findOne({
       _id: req.params.id,
-      createdBy: req.body.user_id,
+      createdBy: req.body.user_id
     });
 
     if (!mcq) {
@@ -1080,7 +1080,7 @@ Teaceherrouter.delete(
     try {
       const mcq = await MCQ.findOneAndDelete({
         _id: req.params.id,
-        createdBy: req.body.user_id,
+        createdBy: req.body.user_id
       });
       if (!mcq) {
         return res.status(404).send();
@@ -1141,14 +1141,14 @@ Teaceherrouter.post(
       if (!questions || !Array.isArray(questions)) {
         return res.status(400).json({
           error: "Validation failed",
-          message: "Questions array is required",
+          message: "Questions array is required"
         });
       }
 
       if (!user_id) {
         return res.status(400).json({
           error: "Validation failed",
-          message: "User ID is required",
+          message: "User ID is required"
         });
       }
 
@@ -1159,7 +1159,7 @@ Teaceherrouter.post(
         if (!q.title || !q.content || q.number === undefined) {
           return res.status(400).json({
             error: "Validation failed",
-            message: "Each question must have title, content, and number",
+            message: "Each question must have title, content, and number"
           });
         }
 
@@ -1169,7 +1169,7 @@ Teaceherrouter.post(
           type: q.type || "block",
           number: q.number,
           tags: q.tags || [],
-          author: user_id,
+          author: user_id
         });
 
         await question.save();
@@ -1179,13 +1179,13 @@ Teaceherrouter.post(
           type: question.type,
           number: question.number,
           tags: question.tags,
-          createdAt: question.createdAt,
+          createdAt: question.createdAt
         });
       }
 
       res.status(201).json({
         message: `${createdQuestions.length} question(s) created successfully`,
-        questions: createdQuestions,
+        questions: createdQuestions
       });
     } catch (error) {
       console.error("Error creating question:", error);
@@ -1193,13 +1193,13 @@ Teaceherrouter.post(
       if (error.name === "ValidationError") {
         return res.status(400).json({
           error: "Validation failed",
-          details: Object.values(error.errors).map((err) => err.message),
+          details: Object.values(error.errors).map((err) => err.message)
         });
       }
 
       res.status(500).json({
         error: "Internal server error",
-        message: error.message,
+        message: error.message
       });
     }
   }
@@ -1210,7 +1210,7 @@ Teaceherrouter.get(
   async (req, res) => {
     try {
       const mcqs = await Question.find({ author: req.params.id }).sort({
-        createdAt: -1,
+        createdAt: -1
       });
       res.send(mcqs);
     } catch (error) {
@@ -1236,7 +1236,7 @@ Teaceherrouter.put(
     try {
       const question = await Question.findOne({
         _id: req.params.id,
-        author: req.user._id,
+        author: req.user._id
       });
 
       if (!question) {
@@ -1262,7 +1262,7 @@ Teaceherrouter.delete(
   async (req, res) => {
     try {
       const question = await Question.findOneAndDelete({
-        _id: req.params.id,
+        _id: req.params.id
       });
       if (!question) {
         return res
@@ -1290,7 +1290,7 @@ Teaceherrouter.post(
       if (!req.files || !req.files["thumbnail"]) {
         return res.status(400).json({
           success: false,
-          message: "Course thumbnail is required",
+          message: "Course thumbnail is required"
         });
       }
 
@@ -1306,7 +1306,7 @@ Teaceherrouter.post(
         level,
         status,
         user_id,
-        category,
+        category
       } = req.body;
 
       // Validate required fields
@@ -1314,7 +1314,7 @@ Teaceherrouter.post(
         cleanupFiles(req.files);
         return res.status(400).json({
           success: false,
-          message: "Title, description, type, and user ID are required",
+          message: "Title, description, type, and user ID are required"
         });
       }
 
@@ -1333,7 +1333,7 @@ Teaceherrouter.post(
         return res.status(400).json({
           success: false,
           message: "Invalid content format",
-          error: parseError.message,
+          error: parseError.message
         });
       }
 
@@ -1343,7 +1343,7 @@ Teaceherrouter.post(
         filename: thumbnailFile.filename,
         path: thumbnailFile.path,
         size: thumbnailFile.size,
-        mimetype: thumbnailFile.mimetype,
+        mimetype: thumbnailFile.mimetype
       };
 
       // Process attachments
@@ -1354,7 +1354,7 @@ Teaceherrouter.post(
             filename: file.originalname,
             path: file.path,
             size: file.size,
-            mimetype: file.mimetype,
+            mimetype: file.mimetype
           });
         });
       }
@@ -1395,7 +1395,7 @@ Teaceherrouter.post(
         if (item.type === "quiz" && item.questions) {
           contentItem.questions = item.questions.map((q) => ({
             ...q,
-            correctAnswer: formatCorrectAnswer(q.type, q.correctAnswer),
+            correctAnswer: formatCorrectAnswer(q.type, q.correctAnswer)
           }));
         }
 
@@ -1412,13 +1412,13 @@ Teaceherrouter.post(
         content: processedContent,
         price: type === "premium" ? parseFloat(price) || 0 : 0,
         type,
-        status: status || "active",
+        status: status || "draft",
         categories: safeParseJSON(categories),
         requirements: safeParseJSON(requirements),
         whatYouWillLearn: safeParseJSON(whatYouWillLearn),
         level: level || "beginner",
         createbyid: user_id,
-        category,
+        category
       });
 
       await newCourse.save();
@@ -1426,7 +1426,7 @@ Teaceherrouter.post(
       res.status(201).json({
         success: true,
         message: "Course created successfully",
-        data: newCourse,
+        data: newCourse
       });
     } catch (error) {
       console.error("Error creating course:", error);
@@ -1435,7 +1435,7 @@ Teaceherrouter.post(
       res.status(500).json({
         success: false,
         message: "Failed to create course",
-        error: error.message,
+        error: error.message
       });
     }
   }
@@ -1490,7 +1490,7 @@ Teaceherrouter.get("/all-courses", authenticateTeacher, async (req, res) => {
 Teaceherrouter.get("/my-courses/:id", authenticateTeacher, async (req, res) => {
   try {
     const courses = await Course.find({ instructor: req.params.id }).sort({
-      createdAt: -1,
+      createdAt: -1
     });
     res.send(courses);
   } catch (error) {
@@ -1538,7 +1538,7 @@ Teaceherrouter.put(
       "requirements",
       "whatYouWillLearn",
       "level",
-      "content",
+      "content"
     ];
 
     // const isValidOperation = updates.every(update => allowedUpdates.includes(update));
@@ -1550,7 +1550,7 @@ Teaceherrouter.put(
     try {
       const course = await Course.findOne({
         _id: req.params.id,
-        createbyid: req.body.user_id,
+        createbyid: req.body.user_id
       });
 
       if (!course) {
@@ -1578,7 +1578,7 @@ Teaceherrouter.delete(
     try {
       const course = await Course.findOneAndDelete({
         _id: req.params.id,
-        createbyid: req.user._id,
+        createbyid: req.user._id
       });
 
       if (!course) {
@@ -1602,7 +1602,7 @@ Teaceherrouter.post(
     try {
       const course = await Course.findOne({
         _id: req.params.courseId,
-        createbyid: req.user._id,
+        createbyid: req.user._id
       });
 
       if (!course) {
@@ -1628,7 +1628,7 @@ Teaceherrouter.put(
     try {
       const course = await Course.findOne({
         _id: req.params.courseId,
-        createbyid: req.user._id,
+        createbyid: req.user._id
       });
 
       if (!course) {
@@ -1659,7 +1659,7 @@ Teaceherrouter.delete(
   async (req, res) => {
     try {
       const course = await Course.findByIdAndDelete({
-        _id: req.params.courseId,
+        _id: req.params.courseId
       });
       console.log(req.params);
       res.send({ success: true, message: "Deleted successfully!" });
@@ -1681,5 +1681,1226 @@ Teaceherrouter.get("/all-category", authenticateTeacher, async (req, res) => {
     console.log(error);
   }
 });
+// -------------------------- All Student Submissions Routes ----------------------------
 
+// Get all student submissions across all courses taught by the teacher
+// Get all student submissions across all courses taught by the teacher
+Teaceherrouter.get(
+  "/all-submissions",
+  authenticateTeacher,
+  async (req, res) => {
+    try {
+      // Get teacher_id from authenticated user (set by authenticateTeacher middleware)
+      const teacher_id = req.teacher._id;
+      console.log("Fetching submissions for teacher:", teacher_id);
+
+      // 1. Get all courses taught by this teacher
+      const courses = await Course.find({ instructor: teacher_id })
+        .populate({
+          path: "enrollments.studentId",
+          select: "full_name email"
+        })
+        .populate({
+          path: "content",
+          select: "title type"
+        });
+
+      if (!courses || courses.length === 0) {
+        return res.status(200).json({
+          success: true,
+          count: 0,
+          data: [],
+          message: "No courses found for this teacher"
+        });
+      }
+
+      // 2. Transform the data to show submissions
+      const submissions = courses
+        .flatMap((course) => {
+          if (!course.enrollments || course.enrollments.length === 0) {
+            return [];
+          }
+
+          return course.enrollments.flatMap((enrollment) => {
+            if (!enrollment.progress || enrollment.progress.length === 0) {
+              return [];
+            }
+
+            return enrollment.progress.map((progress) => {
+              // Find the content item details
+              const contentItem = course.content.find(
+                (c) =>
+                  c &&
+                  c._id &&
+                  progress.contentItemId &&
+                  c._id.toString() === progress.contentItemId.toString()
+              );
+
+              // Safely process answers
+              const answers = (progress.answers || []).map((answer) => ({
+                question: answer.questionText || "Unknown question",
+                type: answer.questionType || "unknown",
+                studentAnswer:
+                  answer.answer !== undefined ? answer.answer : "No answer",
+                correctAnswer:
+                  answer.correctAnswer !== undefined
+                    ? answer.correctAnswer
+                    : "No correct answer provided",
+                isCorrect: answer.isCorrect || false,
+                marksObtained: answer.marksObtained || 0,
+                maxMarks: answer.maxMarks || 0,
+                feedback: answer.teacherFeedback || "Not graded yet"
+              }));
+
+              return {
+                student: {
+                  name: enrollment.studentId?.full_name || "Unknown student",
+                  email: enrollment.studentId?.email || "No email"
+                },
+                courseTitle: course.title || "Untitled course",
+                contentItem: {
+                  title: contentItem?.title || "Unknown content",
+                  type: contentItem?.type || "unknown"
+                },
+                status: progress.status || "unknown",
+                gradingStatus: progress.gradingStatus || "not-graded",
+                score: progress.score || 0,
+                maxScore: progress.maxScore || 0,
+                percentage: progress.percentage || 0,
+                passed: progress.passed || false,
+                lastAccessed: progress.lastAccessed || new Date(),
+                answers
+              };
+            });
+          });
+        })
+        .filter((submission) => submission !== null);
+
+      res.status(200).json({
+        success: true,
+        count: submissions.length,
+        data: submissions
+      });
+    } catch (error) {
+      console.error("Error fetching all submissions:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch submissions",
+        error: error.message,
+        stack: process.env.NODE_ENV === "development" ? error.stack : undefined
+      });
+    }
+  }
+);
+// Grade a student's submission
+Teaceherrouter.put(
+  "/grade-submission",
+  authenticateTeacher,
+  async (req, res) => {
+    try {
+      const { studentEmail, contentTitle, answers } = req.body;
+      console.log(req.teacher._id);
+
+      // 1. Find the course and enrollment
+      const course = await Course.findOne({
+        instructor: req.teacher._id
+      }).populate({
+        path: "enrollments.studentId",
+        match: { email: studentEmail }
+      });
+
+      if (!course) {
+        return res.status(404).json({
+          success: false,
+          message: "Course not found for this teacher"
+        });
+      }
+
+      // 2. Find the specific enrollment
+      const enrollment = course.enrollments.find((e) => e.studentId);
+
+      if (!enrollment) {
+        return res.status(404).json({
+          success: false,
+          message: "Student enrollment not found"
+        });
+      }
+
+      if (!enrollment.progress) {
+        return res.status(404).json({
+          success: false,
+          message: "No progress data found for this enrollment"
+        });
+      }
+
+      // 3. Find the progress item for the content
+      const progress = enrollment.progress.find((p) => {
+        const contentItem = course.content.find(
+          (c) => c._id.toString() === p.contentItemId.toString()
+        );
+        return contentItem?.title === contentTitle;
+      });
+
+      if (!progress) {
+        return res.status(404).json({
+          success: false,
+          message: "Content submission not found"
+        });
+      }
+
+      if (!progress.answers) {
+        return res.status(404).json({
+          success: false,
+          message: "No answers found for this submission"
+        });
+      }
+
+      // 4. Update each answer with grading
+      let newScore = 0;
+      const now = new Date();
+
+      answers.forEach((gradedAnswer) => {
+        const answer = progress.answers.find(
+          (a) => a.questionText === gradedAnswer.question
+        );
+
+        if (answer) {
+          answer.marksObtained = gradedAnswer.marks;
+          answer.teacherFeedback = gradedAnswer.feedback;
+          answer.isCorrect = gradedAnswer.marks >= answer.maxMarks * 0.5;
+          answer.gradedAt = now;
+
+          newScore += gradedAnswer.marks;
+        }
+      });
+
+      // 5. Update progress metrics
+      progress.score = newScore;
+      progress.percentage = Math.round((newScore / progress.maxScore) * 100);
+      progress.passed = progress.percentage >= 70; // Assuming 70% passing
+      progress.gradingStatus = "manually-graded";
+      progress.status = "graded";
+
+      // 6. Save the changes
+      await course.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Submission graded successfully",
+        data: {
+          student: enrollment.studentId.email,
+          content: contentTitle,
+          newScore,
+          maxScore: progress.maxScore,
+          percentage: progress.percentage,
+          passed: progress.passed
+        }
+      });
+    } catch (error) {
+      console.error("Error grading submission:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to grade submission",
+        error: error.message
+      });
+    }
+  }
+);
+// Get submissions needing grading
+Teaceherrouter.get(
+  "/submissions-needing-grading",
+  authenticateTeacher,
+  async (req, res) => {
+    try {
+      const courses = await Course.find({ instructor: req.body.teacher_id })
+        .populate({
+          path: "enrollments.studentId",
+          select: "full_name email"
+        })
+        .populate({
+          path: "content",
+          select: "title type"
+        });
+
+      const needsGrading = courses.flatMap((course) => {
+        return course.enrollments.flatMap((enrollment) => {
+          return enrollment.progress
+            .filter(
+              (progress) =>
+                progress.gradingStatus === "partially-graded" ||
+                progress.answers.some((a) => !a.gradedAt)
+            )
+            .map((progress) => {
+              const contentItem = course.content.find(
+                (c) => c._id.toString() === progress.contentItemId.toString()
+              );
+
+              return {
+                student: enrollment.studentId.full_name,
+                email: enrollment.studentId.email,
+                course: course.title,
+                content: contentItem?.title || "Unknown",
+                type: contentItem?.type || "unknown",
+                submittedAt: progress.lastAccessed,
+                answers: progress.answers
+                  .filter((a) => !a.gradedAt)
+                  .map((a) => ({
+                    question: a.questionText,
+                    type: a.questionType,
+                    studentAnswer: a.answer,
+                    correctAnswer: a.correctAnswer,
+                    maxMarks: a.maxMarks
+                  }))
+              };
+            });
+        });
+      });
+
+      res.status(200).json({
+        success: true,
+        count: needsGrading.length,
+        data: needsGrading
+      });
+    } catch (error) {
+      console.error("Error fetching submissions needing grading:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch submissions needing grading",
+        error: error.message
+      });
+    }
+  }
+);
+
+// -------------------------- Student Quiz Answers Routes ----------------------------
+
+// Get all quiz answers for a specific course
+Teaceherrouter.get(
+  "/course/:courseId/quiz-answers",
+  authenticateTeacher,
+  async (req, res) => {
+    try {
+      const courseId = req.params.courseId;
+      const teacherId = req.teacher._id;
+
+      // Verify teacher owns the course
+      const course = await Course.findOne({
+        _id: courseId,
+        instructor: teacherId
+      }).populate({
+        path: "enrollments.studentId",
+        select: "full_name email"
+      });
+
+      if (!course) {
+        return res.status(404).json({
+          success: false,
+          message: "Course not found or not authorized"
+        });
+      }
+
+      // Extract all quiz answers from enrollments
+      const quizAnswers = [];
+
+      course.enrollments.forEach((enrollment) => {
+        enrollment.progress.forEach((progress) => {
+          // Only include quiz content items
+          const contentItem = course.content.id(progress.contentItemId);
+          if (contentItem && contentItem.type === "quiz") {
+            quizAnswers.push({
+              student: {
+                id: enrollment.studentId._id,
+                name: enrollment.studentId.full_name,
+                email: enrollment.studentId.email
+              },
+              quizId: progress.contentItemId,
+              quizTitle: contentItem.title,
+              attemptNumber: progress.attempts,
+              score: progress.score,
+              maxScore: progress.maxScore,
+              percentage: progress.percentage,
+              passed: progress.passed,
+              gradingStatus: progress.gradingStatus,
+              answers: progress.answers.map((answer) => ({
+                questionId: answer.questionId,
+                questionText: answer.questionText,
+                questionType: answer.questionType,
+                studentAnswer: answer.answer,
+                correctAnswer: answer.correctAnswer,
+                isCorrect: answer.isCorrect,
+                marksObtained: answer.marksObtained,
+                maxMarks: answer.maxMarks,
+                teacherFeedback: answer.teacherFeedback,
+                needsManualGrading: answer.needsManualGrading,
+                graded: !!answer.gradedAt
+              })),
+              submittedAt: progress.lastAccessed
+            });
+          }
+        });
+      });
+
+      res.status(200).json({
+        success: true,
+        count: quizAnswers.length,
+        data: quizAnswers
+      });
+    } catch (error) {
+      console.error("Error fetching quiz answers:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch quiz answers",
+        error: error.message
+      });
+    }
+  }
+);
+
+// Get quiz answers for a specific student in a course
+Teaceherrouter.get(
+  "/course/:courseId/student/:studentId/quiz-answers",
+  authenticateTeacher,
+  async (req, res) => {
+    try {
+      const { courseId, studentId } = req.params;
+      const teacherId = req.teacher._id;
+
+      // Verify teacher owns the course
+      const course = await Course.findOne({
+        _id: courseId,
+        instructor: teacherId
+      }).populate({
+        path: "enrollments.studentId",
+        match: { _id: studentId },
+        select: "full_name email"
+      });
+
+      if (!course) {
+        return res.status(404).json({
+          success: false,
+          message: "Course not found or not authorized"
+        });
+      }
+
+      // Find the specific enrollment
+      const enrollment = course.enrollments.find(
+        (e) => e.studentId._id.toString() === studentId
+      );
+      if (!enrollment) {
+        return res.status(404).json({
+          success: false,
+          message: "Student not enrolled in this course"
+        });
+      }
+
+      // Extract quiz answers for this student
+      const quizAnswers = [];
+
+      enrollment.progress.forEach((progress) => {
+        // Only include quiz content items
+        const contentItem = course.content.id(progress.contentItemId);
+        if (contentItem && contentItem.type === "quiz") {
+          quizAnswers.push({
+            quizId: progress.contentItemId,
+            quizTitle: contentItem.title,
+            attemptNumber: progress.attempts,
+            score: progress.score,
+            maxScore: progress.maxScore,
+            percentage: progress.percentage,
+            passed: progress.passed,
+            gradingStatus: progress.gradingStatus,
+            answers: progress.answers.map((answer) => ({
+              questionId: answer.questionId,
+              questionText: answer.questionText,
+              questionType: answer.questionType,
+              studentAnswer: answer.answer,
+              correctAnswer: answer.correctAnswer,
+              isCorrect: answer.isCorrect,
+              marksObtained: answer.marksObtained,
+              maxMarks: answer.maxMarks,
+              teacherFeedback: answer.teacherFeedback,
+              needsManualGrading: answer.needsManualGrading,
+              graded: !!answer.gradedAt
+            })),
+            submittedAt: progress.lastAccessed
+          });
+        }
+      });
+
+      res.status(200).json({
+        success: true,
+        count: quizAnswers.length,
+        data: {
+          student: {
+            id: enrollment.studentId._id,
+            name: enrollment.studentId.full_name,
+            email: enrollment.studentId.email
+          },
+          quizzes: quizAnswers
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching student quiz answers:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch student quiz answers",
+        error: error.message
+      });
+    }
+  }
+);
+
+// Grade a specific quiz question answer
+Teaceherrouter.put(
+  "/course/:courseId/quiz/:quizId/student/:studentId/grade",
+  authenticateTeacher,
+  async (req, res) => {
+    try {
+      const { courseId, quizId, studentId } = req.params;
+      const teacherId = req.teacher._id;
+      const { questionId, marks, feedback, isCorrect } = req.body;
+
+      // Validate input
+      if (marks === undefined) {
+        return res.status(400).json({
+          success: false,
+          message: "Marks are required for grading"
+        });
+      }
+
+      // Verify teacher owns the course
+      const course = await Course.findOne({
+        _id: courseId,
+        instructor: teacherId
+      });
+
+      if (!course) {
+        return res.status(404).json({
+          success: false,
+          message: "Course not found or not authorized"
+        });
+      }
+
+      // Find the specific enrollment
+      const enrollment = course.enrollments.find(
+        (e) => e.studentId.toString() === studentId
+      );
+
+      if (!enrollment) {
+        return res.status(404).json({
+          success: false,
+          message: "Student not enrolled in this course"
+        });
+      }
+
+      // Find the quiz progress
+      const progress = enrollment.progress.find(
+        (p) => p.contentItemId.toString() === quizId
+      );
+
+      if (!progress) {
+        return res.status(404).json({
+          success: false,
+          message: "Quiz attempt not found"
+        });
+      }
+
+      // Find the specific answer to grade
+      const answer = progress.answers.find(
+        (a) => a.questionId.toString() === questionId
+      );
+
+      if (!answer) {
+        return res.status(404).json({
+          success: false,
+          message: "Question answer not found"
+        });
+      }
+
+      // Validate marks don't exceed max marks
+      if (marks > answer.maxMarks) {
+        return res.status(400).json({
+          success: false,
+          message: `Marks cannot exceed maximum marks (${answer.maxMarks})`
+        });
+      }
+
+      // Update the answer with grading information
+      answer.marksObtained = marks;
+      answer.teacherFeedback = feedback || "";
+      answer.isCorrect =
+        isCorrect !== undefined ? isCorrect : marks >= answer.maxMarks * 0.5;
+      answer.gradedBy = teacherId;
+      answer.gradedAt = new Date();
+
+      // Recalculate the total score
+      let newScore = 0;
+      progress.answers.forEach((a) => {
+        newScore += a.marksObtained || 0;
+      });
+
+      // Update progress metrics
+      progress.score = newScore;
+      progress.percentage = Math.round((newScore / progress.maxScore) * 100);
+      progress.passed =
+        progress.percentage >= (course.content.id(quizId).passingScore || 70);
+
+      // Update grading status
+      const ungradedAnswers = progress.answers.filter((a) => !a.gradedAt);
+      progress.gradingStatus =
+        ungradedAnswers.length === 0 ? "manually-graded" : "partially-graded";
+
+      // Save the changes
+      await course.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Answer graded successfully",
+        data: {
+          studentId,
+          quizId,
+          questionId,
+          marksObtained: answer.marksObtained,
+          maxMarks: answer.maxMarks,
+          isCorrect: answer.isCorrect,
+          newTotalScore: progress.score,
+          maxTotalScore: progress.maxScore,
+          percentage: progress.percentage,
+          passed: progress.passed,
+          gradingStatus: progress.gradingStatus
+        }
+      });
+    } catch (error) {
+      console.error("Error grading quiz answer:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to grade quiz answer",
+        error: error.message
+      });
+    }
+  }
+);
+
+// Bulk grade multiple quiz questions
+Teaceherrouter.put(
+  "/course/:courseId/quiz/:quizId/student/:studentId/bulk-grade",
+  authenticateTeacher,
+  async (req, res) => {
+    try {
+      const { courseId, quizId, studentId } = req.params;
+      const teacherId = req.teacher._id;
+      const { grades } = req.body; // Array of { questionId, marks, feedback, isCorrect }
+
+      // Validate input
+      if (!grades || !Array.isArray(grades)) {
+        return res.status(400).json({
+          success: false,
+          message: "Grades array is required"
+        });
+      }
+
+      // Verify teacher owns the course
+      const course = await Course.findOne({
+        _id: courseId,
+        instructor: teacherId
+      });
+
+      if (!course) {
+        return res.status(404).json({
+          success: false,
+          message: "Course not found or not authorized"
+        });
+      }
+
+      // Find the specific enrollment
+      const enrollment = course.enrollments.find(
+        (e) => e.studentId.toString() === studentId
+      );
+
+      if (!enrollment) {
+        return res.status(404).json({
+          success: false,
+          message: "Student not enrolled in this course"
+        });
+      }
+
+      // Find the quiz progress
+      const progress = enrollment.progress.find(
+        (p) => p.contentItemId.toString() === quizId
+      );
+
+      if (!progress) {
+        return res.status(404).json({
+          success: false,
+          message: "Quiz attempt not found"
+        });
+      }
+
+      const now = new Date();
+      let newScore = 0;
+
+      // Process each grade
+      grades.forEach((grade) => {
+        const { questionId, marks, feedback, isCorrect } = grade;
+
+        // Find the answer to grade
+        const answer = progress.answers.find(
+          (a) => a.questionId.toString() === questionId
+        );
+
+        if (answer) {
+          // Validate marks don't exceed max marks
+          const finalMarks = Math.min(marks, answer.maxMarks);
+
+          // Update the answer
+          answer.marksObtained = finalMarks;
+          answer.teacherFeedback = feedback || "";
+          answer.isCorrect =
+            isCorrect !== undefined
+              ? isCorrect
+              : finalMarks >= answer.maxMarks * 0.5;
+          answer.gradedBy = teacherId;
+          answer.gradedAt = now;
+
+          newScore += finalMarks;
+        }
+      });
+
+      // Update progress metrics
+      progress.score = newScore;
+      progress.percentage = Math.round((newScore / progress.maxScore) * 100);
+      progress.passed =
+        progress.percentage >= course.content.id(quizId).passingScore || 70;
+
+      // Update grading status
+      const ungradedAnswers = progress.answers.filter((a) => !a.gradedAt);
+      progress.gradingStatus =
+        ungradedAnswers.length === 0 ? "manually-graded" : "partially-graded";
+
+      // Save the changes
+      await course.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Answers graded successfully",
+        data: {
+          studentId,
+          quizId,
+          questionsGraded: grades.length,
+          newTotalScore: progress.score,
+          maxTotalScore: progress.maxScore,
+          percentage: progress.percentage,
+          passed: progress.passed,
+          gradingStatus: progress.gradingStatus
+        }
+      });
+    } catch (error) {
+      console.error("Error bulk grading quiz answers:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to grade quiz answers",
+        error: error.message
+      });
+    }
+  }
+);
+// Get live class attendance data for a teacher
+Teaceherrouter.get(
+  "/live-class-attendance",
+  authenticateTeacher,
+  async (req, res) => {
+    try {
+      const teacherId = req.teacher._id;
+
+      // 1. Find all courses taught by this teacher that have live class content
+      const courses = await Course.find({
+        instructor: teacherId
+      });
+
+      if (!courses || courses.length === 0) {
+        return res.status(200).json({
+          success: true,
+          count: 0,
+          data: [],
+          message: "No live classes found for this teacher"
+        });
+      }
+
+      // 2. Transform the data to show attendance records
+      const attendanceRecords = [];
+
+      courses.forEach((course) => {
+        // Find all live class content items in this course
+        const liveClasses = course.content.filter(
+          (item) => item.type === "live"
+        );
+
+        liveClasses.forEach((liveClass) => {
+          // For each enrollment, find progress for this live class
+          course.enrollments.forEach((enrollment) => {
+            const progress = enrollment.progress.find(
+              (p) => p.contentItemId.toString() === liveClass._id.toString()
+            );
+
+            attendanceRecords.push({
+              courseId: course._id,
+              courseTitle: course.title,
+              contentId: liveClass._id,
+              contentItem: {
+                _id: liveClass._id,
+                title: liveClass.title,
+                type: liveClass.type,
+                schedule: liveClass.schedule,
+                duration: liveClass.duration
+              },
+              student: {
+                _id: enrollment.studentId._id,
+                name: enrollment.studentId.full_name,
+                email: enrollment.studentId.email
+              },
+              completed: progress?.completed || false,
+              lastAccessed: progress?.lastAccessed,
+              timeSpent: progress?.timeSpent || 0,
+              status: progress?.status || "not-started"
+            });
+          });
+        });
+      });
+
+      res.status(200).json({
+        success: true,
+        count: attendanceRecords.length,
+        data: attendanceRecords
+      });
+    } catch (error) {
+      console.error("Error fetching live class attendance:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch live class attendance",
+        error: error.message
+      });
+    }
+  }
+);
+// Get all answers needing manual grading for a teacher's courses
+Teaceherrouter.get(
+  "/answers-needing-grading",
+  authenticateTeacher,
+  async (req, res) => {
+    try {
+      const teacherId = req.teacher._id;
+
+      // Find all courses taught by this teacher
+      const courses = await Course.find({ instructor: teacherId })
+        .populate({
+          path: "enrollments.studentId",
+          select: "full_name email"
+        })
+        .populate({
+          path: "content",
+          select: "title type"
+        });
+
+      // Collect all answers needing grading
+      const answersNeedingGrading = [];
+
+      courses.forEach((course) => {
+        course.enrollments.forEach((enrollment) => {
+          enrollment.progress.forEach((progress) => {
+            // Only include quiz content items
+            const contentItem = course.content.id(progress.contentItemId);
+            if (contentItem && contentItem.type === "quiz") {
+              progress.answers.forEach((answer) => {
+                if (!answer.gradedAt && answer.needsManualGrading) {
+                  answersNeedingGrading.push({
+                    courseId: course._id,
+                    courseTitle: course.title,
+                    student: {
+                      id: enrollment.studentId._id,
+                      name: enrollment.studentId.full_name,
+                      email: enrollment.studentId.email
+                    },
+                    quizId: progress.contentItemId,
+                    quizTitle: contentItem.title,
+                    questionId: answer.questionId,
+                    questionText: answer.questionText,
+                    questionType: answer.questionType,
+                    studentAnswer: answer.answer,
+                    correctAnswer: answer.correctAnswer,
+                    maxMarks: answer.maxMarks,
+                    attemptNumber: progress.attempts,
+                    submittedAt: progress.lastAccessed
+                  });
+                }
+              });
+            }
+          });
+        });
+      });
+
+      res.status(200).json({
+        success: true,
+        count: answersNeedingGrading.length,
+        data: answersNeedingGrading
+      });
+    } catch (error) {
+      console.error("Error fetching answers needing grading:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch answers needing grading",
+        error: error.message
+      });
+    }
+  }
+);
+
+// -------------------------- Live Class Progress Routes ----------------------------
+
+// Get live class progress data for teacher
+Teaceherrouter.get(
+  "/live-class-progress/:courseId",
+  authenticateTeacher,
+  async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const teacherId = req.teacher._id;
+      console.log("dfsdf", teacherId);
+      // Find the course and verify the teacher is the instructor
+      const course = await Course.findOne({
+        _id: courseId,
+        instructor: teacherId
+      })
+        .populate("enrollments.studentId", "full_name email")
+        .select("content enrollments");
+
+      if (!course) {
+        return res.json({
+          success: false,
+          message: "Course not found or you are not the instructor"
+        });
+      }
+
+      // Find all live class content items
+      const liveClasses = course.content.filter((item) => item.type === "live");
+
+      // Get progress data for each live class
+      const liveClassProgress = liveClasses.map((liveClass) => {
+        // Find all enrollments that have progress for this live class
+        const enrollmentsWithProgress = course.enrollments.filter(
+          (enrollment) => {
+            return enrollment.progress.some(
+              (p) => p.contentItemId.toString() === liveClass._id.toString()
+            );
+          }
+        );
+
+        // Calculate completion stats
+        const totalStudents = course.enrollments.length;
+        const completedStudents = enrollmentsWithProgress.length;
+        const completionRate =
+          totalStudents > 0
+            ? Math.round((completedStudents / totalStudents) * 100)
+            : 0;
+
+        return {
+          liveClassId: liveClass._id,
+          title: liveClass.title,
+          scheduledTime: liveClass.scheduledTime,
+          duration: liveClass.duration,
+          totalStudents,
+          completedStudents,
+          completionRate,
+          students: enrollmentsWithProgress.map((enrollment) => {
+            const progress = enrollment.progress.find(
+              (p) => p.contentItemId.toString() === liveClass._id.toString()
+            );
+            return {
+              studentId: enrollment.studentId._id,
+              name: enrollment.studentId.full_name,
+              email: enrollment.studentId.email,
+              completed: progress?.completed || false,
+              lastAccessed: progress?.lastAccessed,
+              timeSpent: progress?.timeSpent || 0
+            };
+          })
+        };
+      });
+
+      res.json({
+        success: true,
+        data: liveClassProgress
+      });
+    } catch (error) {
+      console.error("Error fetching live class progress:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch live class progress",
+        error: error.message
+      });
+    }
+  }
+);
+
+// Mark live class as completed for all students
+Teaceherrouter.post(
+  "/complete-live-class/:courseId/:contentId",
+  authenticateTeacher,
+  async (req, res) => {
+    try {
+      const { courseId, contentId } = req.params;
+      const teacherId = req.teacher._id;
+
+      // Verify the teacher is the course instructor
+      const course = await Course.findOne({
+        _id: courseId,
+        instructor: teacherId
+      });
+
+      if (!course) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized or course not found"
+        });
+      }
+
+      // Verify the content item is a live class
+      const liveClass = course.content.id(contentId);
+      if (!liveClass || liveClass.type !== "live") {
+        return res.status(404).json({
+          success: false,
+          message: "Live class not found"
+        });
+      }
+
+      const now = new Date();
+
+      // Update progress for all enrolled students
+      course.enrollments.forEach((enrollment) => {
+        let progress = enrollment.progress.find(
+          (p) => p.contentItemId.toString() === contentId.toString()
+        );
+
+        if (!progress) {
+          progress = {
+            contentItemId: liveClass._id,
+            contentItemType: "live",
+            completed: false,
+            lastAccessed: null,
+            status: "not-started",
+            timeSpent: 0
+          };
+          enrollment.progress.push(progress);
+        }
+
+        progress.completed = true;
+        progress.status = "completed";
+        progress.lastAccessed = now;
+        // Set default time spent if not set (e.g., 60 minutes for a typical class)
+        progress.timeSpent = progress.timeSpent || liveClass.duration || 60;
+      });
+
+      await course.save();
+
+      res.json({
+        success: true,
+        message: "Live class marked as completed for all students",
+        data: {
+          courseId,
+          liveClassId: contentId,
+          completedAt: now,
+          totalStudents: course.enrollments.length
+        }
+      });
+    } catch (error) {
+      console.error("Error completing live class:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to complete live class",
+        error: error.message
+      });
+    }
+  }
+);
+
+// Update individual student progress for live class
+Teaceherrouter.post(
+  "/update-live-class-progress/:courseId/:contentId/:studentId",
+  authenticateTeacher,
+  async (req, res) => {
+    try {
+      const { courseId, contentId, studentId } = req.params;
+      const { completed, timeSpent } = req.body;
+      const teacherId = req.teacher._id;
+
+      // Verify the teacher is the course instructor
+      const course = await Course.findOne({
+        _id: courseId,
+        instructor: teacherId
+      });
+
+      if (!course) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized or course not found"
+        });
+      }
+
+      // Verify the content item is a live class
+      const liveClass = course.content.id(contentId);
+      if (!liveClass || liveClass.type !== "live") {
+        return res.status(404).json({
+          success: false,
+          message: "Live class not found"
+        });
+      }
+
+      // Find the student enrollment
+      const enrollment = course.enrollments.find(
+        (e) => e.studentId.toString() === studentId.toString()
+      );
+
+      if (!enrollment) {
+        return res.status(404).json({
+          success: false,
+          message: "Student not enrolled in this course"
+        });
+      }
+
+      const now = new Date();
+
+      // Find or create progress record
+      let progress = enrollment.progress.find(
+        (p) => p.contentItemId.toString() === contentId.toString()
+      );
+
+      if (!progress) {
+        progress = {
+          contentItemId: liveClass._id,
+          contentItemType: "live",
+          completed: false,
+          lastAccessed: null,
+          status: "not-started",
+          timeSpent: 0
+        };
+        enrollment.progress.push(progress);
+      }
+
+      // Update progress
+      if (completed !== undefined) {
+        progress.completed = completed;
+        progress.status = completed ? "completed" : "in-progress";
+      }
+      if (timeSpent !== undefined) {
+        progress.timeSpent = timeSpent;
+      }
+      progress.lastAccessed = now;
+
+      // Update course completion status if needed
+      const allContentIds = course.content.map((item) => item._id.toString());
+      const completedContentIds = enrollment.progress
+        .filter((p) => p.completed)
+        .map((p) => p.contentItemId.toString());
+
+      const allCompleted = allContentIds.every((id) =>
+        completedContentIds.includes(id)
+      );
+
+      if (allCompleted) {
+        enrollment.completed = true;
+        enrollment.completedAt = now;
+        enrollment.status = "completed";
+      }
+
+      await course.save();
+
+      res.json({
+        success: true,
+        data: {
+          studentId,
+          liveClassId: contentId,
+          completed: progress.completed,
+          timeSpent: progress.timeSpent,
+          lastAccessed: progress.lastAccessed,
+          courseCompleted: allCompleted
+        }
+      });
+    } catch (error) {
+      console.error("Error updating live class progress:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to update live class progress",
+        error: error.message
+      });
+    }
+  }
+);
+
+// Get student progress for a specific live class
+Teaceherrouter.get(
+  "/live-class-student-progress/:courseId/:contentId",
+  authenticateTeacher,
+  async (req, res) => {
+    try {
+      const { courseId, contentId } = req.params;
+      const teacherId = req.teacher._id;
+
+      // Verify the teacher is the course instructor
+      const course = await Course.findOne({
+        _id: courseId,
+        instructor: teacherId
+      })
+        .populate("enrollments.studentId", "full_name email")
+        .select("content enrollments");
+
+      if (!course) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized or course not found"
+        });
+      }
+
+      // Verify the content item is a live class
+      const liveClass = course.content.id(contentId);
+      if (!liveClass || liveClass.type !== "live") {
+        return res.status(404).json({
+          success: false,
+          message: "Live class not found"
+        });
+      }
+
+      // Get progress data for all students
+      const studentProgress = course.enrollments.map((enrollment) => {
+        const progress = enrollment.progress.find(
+          (p) => p.contentItemId.toString() === contentId.toString()
+        );
+
+        return {
+          studentId: enrollment.studentId._id,
+          name: enrollment.studentId.full_name,
+          email: enrollment.studentId.email,
+          completed: progress?.completed || false,
+          lastAccessed: progress?.lastAccessed,
+          timeSpent: progress?.timeSpent || 0,
+          status: progress?.status || "not-started"
+        };
+      });
+
+      res.json({
+        success: true,
+        data: {
+          liveClassId: contentId,
+          title: liveClass.title,
+          studentProgress
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching student progress:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch student progress",
+        error: error.message
+      });
+    }
+  }
+);
 module.exports = Teaceherrouter;

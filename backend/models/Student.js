@@ -18,7 +18,8 @@ const studentSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
-      minlength: [6, "Password must be at least 6 characters"]
+      minlength: [6, "Password must be at least 6 characters"],
+      select: false
     },
     full_name: {
       type: String,
@@ -55,29 +56,23 @@ const studentSchema = new mongoose.Schema(
       enum: ["student", "admin"]
     },
     otp: {
-      type: String,
-      select: false
+      type: String
     },
     otpExpires: {
-      type: Date,
-      select: false
+      type: Date
     },
     resetPasswordToken: {
-      type: String,
-      select: false
+      type: String
     },
     resetPasswordExpire: {
-      type: Date,
-      select: false
+      type: Date
     },
     loginAttempts: {
       type: Number,
-      default: 0,
-      select: false
+      default: 0
     },
     lockUntil: {
-      type: Date,
-      select: false
+      type: Date
     },
     enrolledCourses: [
       {

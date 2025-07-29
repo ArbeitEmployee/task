@@ -5,6 +5,9 @@ const Student = require("../models/Student");
 const bcrypt = require("bcryptjs");
 const Course = require("../models/Course");
 const mongoose = require("mongoose");
+const path = require("path");
+const multer = require("multer");
+const fs = require("fs");
 // Protected route - Get student profile
 Studentrouter.get("/profile/:id", studentAuth, async (req, res) => {
   try {
@@ -22,7 +25,7 @@ Studentrouter.get("/profile/:id", studentAuth, async (req, res) => {
     if (req.student._id.toString() !== req.params.id) {
       return res.status(403).json({
         success: false,
-        message: "Not authorized to view this profile.",
+        message: "Not authorized to view this profile."
       });
     }
 
@@ -32,62 +35,69 @@ Studentrouter.get("/profile/:id", studentAuth, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
-
-// Protected route - Update student profile (excluding password)
-Studentrouter.put("/profile/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { email, full_name, phone, date_of_birth, address } = req.body;
-
-    // Verify the requesting student has permission to update this profile
-    if (req.student._id.toString() !== id) {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized to update this profile.",
-      });
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, "../public/students");
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
     }
-
-    // Find the student
-    const student = await Student.findById(id);
-    if (!student) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Student not found." });
-    }
-
-    // Prepare update data (exclude sensitive fields)
-    const updateData = {};
-    if (email && email !== student.email) {
-      updateData.email = email;
-      updateData.isVerified = false; // Reset verification if email changes
-    }
-    if (full_name) updateData.full_name = full_name;
-    if (phone) updateData.phone = phone;
-    if (date_of_birth) updateData.date_of_birth = date_of_birth;
-    if (address) updateData.address = address;
-
-    // Update the student
-    const updatedStudent = await Student.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    }).select(
-      "-password -otp -otpExpires -resetPasswordToken -resetPasswordExpire -loginAttempts -lockUntil"
-    );
-
-    res.status(200).json({ success: true, student: updatedStudent });
-  } catch (error) {
-    console.log(error);
-    if (error.name === "ValidationError") {
-      return res.status(400).json({ success: false, message: error.message });
-    }
-    if (error.code === 11000) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Email already in use." });
-    }
-    res.status(500).json({ success: false, message: "Server error" });
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
   }
 });
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 2 * 1024 * 1024 // 2MB limit
+  }
+});
+// Protected route - Update student profile (excluding password)
+Studentrouter.put(
+  "/profile/:id",
+  upload.single("profile_picture"), // This handles the file upload
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+
+      // Remove restricted fields
+      delete updates._id;
+      delete updates.password;
+      delete updates.isVerified;
+
+      // If a file was uploaded, add it to updates
+      if (req.file) {
+        updates.profile_picture = req.file.filename;
+      }
+
+      const updatedStudent = await Student.findByIdAndUpdate(id, updates, {
+        new: true,
+        runValidators: true
+      }).select(
+        "-password -otp -otpExpires -resetPasswordToken -resetPasswordExpire -loginAttempts -lockUntil"
+      );
+
+      if (!updatedStudent) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Student not found" });
+      }
+
+      res.status(200).json({
+        success: true,
+        student: updatedStudent,
+        profile_picture: req.file?.filename // Include the filename in response if uploaded
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ success: false, message: "Server error" });
+    }
+  }
+);
 
 // Protected route - Update student password
 Studentrouter.put("/profile/:id/password", studentAuth, async (req, res) => {
@@ -99,7 +109,7 @@ Studentrouter.put("/profile/:id/password", studentAuth, async (req, res) => {
     if (req.student._id.toString() !== id) {
       return res.status(403).json({
         success: false,
-        message: "Not authorized to update this password.",
+        message: "Not authorized to update this password."
       });
     }
 
@@ -107,19 +117,19 @@ Studentrouter.put("/profile/:id/password", studentAuth, async (req, res) => {
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: "Current and new password are required.",
+        message: "Current and new password are required."
       });
     }
 
     if (newPassword.length < 6) {
       return res.status(400).json({
         success: false,
-        message: "Password must be at least 6 characters.",
+        message: "Password must be at least 6 characters."
       });
     }
 
-    // Find the student
-    const student = await Student.findById(id);
+    // Find the student with password field selected
+    const student = await Student.findById(id).select("+password");
     if (!student) {
       return res
         .status(404)
@@ -127,24 +137,27 @@ Studentrouter.put("/profile/:id/password", studentAuth, async (req, res) => {
     }
 
     // Verify current password
-    const isMatch = await bcrypt.compare(currentPassword, student.password);
+    const isMatch = await student.comparePassword(currentPassword);
     if (!isMatch) {
       return res
         .status(400)
         .json({ success: false, message: "Current password is incorrect." });
     }
 
-    // Update password
-    const salt = await bcrypt.genSalt(10);
-    student.password = await bcrypt.hash(newPassword, salt);
+    // Update password (let the pre-save middleware handle hashing)
+    student.password = newPassword;
     await student.save();
 
     res
       .status(200)
       .json({ success: true, message: "Password updated successfully." });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Password update error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
   }
 });
 
@@ -189,7 +202,7 @@ Studentrouter.post("/enroll/:courseId", async (req, res) => {
     if (isEnrolled) {
       return res.status(400).json({
         success: false,
-        message: "You are already enrolled in this course",
+        message: "You are already enrolled in this course"
       });
     }
 
@@ -199,14 +212,14 @@ Studentrouter.post("/enroll/:courseId", async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Successfully enrolled in the course",
-      enrolledCourses: student.enrolledCourses,
+      enrolledCourses: student.enrolledCourses
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message,
+      error: error.message
     });
   }
 });
@@ -217,7 +230,7 @@ Studentrouter.get("/my-courses", async (req, res) => {
     const student = await Student.findById(req.student._id)
       .populate({
         path: "enrolledCourses.course",
-        select: "title description thumbnail instructor rating duration price",
+        select: "title description thumbnail instructor rating duration price"
       })
       .select("enrolledCourses");
 
@@ -235,146 +248,514 @@ Studentrouter.get("/my-courses", async (req, res) => {
         instructor: enrollment.course.instructor,
         rating: enrollment.course.rating,
         duration: enrollment.course.duration,
-        price: enrollment.course.price,
+        price: enrollment.course.price
       },
       enrolledAt: enrollment.enrolledAt,
       progress: enrollment.progress,
       completed: enrollment.completed,
       lastAccessed: enrollment.lastAccessed,
-      certificates: enrollment.certificates,
+      certificates: enrollment.certificates
     }));
 
     res.status(200).json({
       success: true,
       enrolledCourses,
-      count: enrolledCourses.length,
+      count: enrolledCourses.length
     });
   } catch (error) {
     console.error("Error fetching enrolled courses:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch enrolled courses",
-      error: error.message,
+      error: error.message
     });
   }
 });
-// Get enrolled courses for a specific student
+
+// Enroll in a course
+Studentrouter.post("/:courseId/enroll", studentAuth, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+    console.log(req.body.user_id);
+    if (!course) {
+      return res.status(404).json({ message: "Course not found" });
+    }
+
+    // Check if already enrolled
+    const alreadyEnrolled = course.enrollments.some(
+      (enrollment) =>
+        enrollment.studentId.toString() === req.body.user_id.toString()
+    );
+
+    if (alreadyEnrolled) {
+      return res.status(400).json({
+        success: false,
+        message: "You are already enrolled in this course"
+      });
+    }
+
+    // Check if course is premium and user has access
+    if (course.type === "premium" && !req.user.subscription.active) {
+      return res.status(403).json({
+        success: false,
+        message: "Premium course requires an active subscription"
+      });
+    }
+
+    // Initialize progress for each content item
+    const progress = course.content.map((item) => ({
+      contentItemId: item._id,
+      completed: false,
+      lastAccessed: new Date()
+    }));
+
+    // Create new enrollment
+    const newEnrollment = {
+      studentId: req.body.user_id,
+      progress,
+      lastAccessed: new Date()
+    };
+
+    course.enrollments.push(newEnrollment);
+    await course.save();
+
+    // Add course to user's enrolled courses
+    await Student.findByIdAndUpdate(req.body.user_id, {
+      $addToSet: { enrolledCourses: course._id }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Successfully enrolled in the course",
+      enrollment: newEnrollment
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+});
 Studentrouter.get("/enrolled-courses/:studentId", async (req, res) => {
   try {
     const { studentId } = req.params;
 
-    // Find the student and populate enrolled courses
-    const student = await Student.findById(studentId)
-      .populate({
-        path: "enrolledCourses.course",
-        select:
-          "title description thumbnail instructor duration price averageRating categories content",
-      })
-      .select("enrolledCourses");
+    // Find all courses where the student is enrolled and populate necessary fields
+    const courses = await Course.find({
+      "enrollments.studentId": studentId
+    })
+      .populate("instructor", "name email profilePicture")
+      .populate("enrollments.progress.answers.gradedBy", "name")
+      .lean();
 
-    if (!student) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Student not found" });
+    if (!courses || courses.length === 0) {
+      return res.status(200).json({
+        success: true,
+        enrolledCourses: [],
+        message: "No enrolled courses found for this student"
+      });
     }
 
     // Format the response
-    const enrolledCourses = student.enrolledCourses.map((enrollment) => ({
-      courseDetails: enrollment.course,
-      enrollmentInfo: {
-        enrolledAt: enrollment.enrolledAt,
-        progress: enrollment.progress,
-        completed: enrollment.completed,
-        lastAccessed: enrollment.lastAccessed,
-      },
-    }));
+    const enrolledCourses = courses.map((course) => {
+      const enrollment = course.enrollments.find(
+        (e) => e.studentId.toString() === studentId
+      );
+
+      // Calculate progress statistics
+      let totalQuestions = 0;
+      let correctAnswers = 0;
+      let totalMarksObtained = 0;
+      let totalMaxMarks = 0;
+
+      enrollment.progress.forEach((item) => {
+        if (item.answers && item.answers.length > 0) {
+          totalQuestions += item.answers.length;
+          correctAnswers += item.answers.filter((a) => a.isCorrect).length;
+          totalMarksObtained += item.answers.reduce(
+            (sum, a) => sum + (a.marksObtained || 0),
+            0
+          );
+          totalMaxMarks += item.answers.reduce(
+            (sum, a) => sum + (a.maxMarks || 0),
+            0
+          );
+        }
+      });
+
+      const accuracy =
+        totalQuestions > 0
+          ? Math.round((correctAnswers / totalQuestions) * 100)
+          : 0;
+      const overallPercentage =
+        totalMaxMarks > 0
+          ? Math.round((totalMarksObtained / totalMaxMarks) * 100)
+          : 0;
+
+      return {
+        courseDetails: {
+          _id: course._id,
+          title: course.title,
+          description: course.description,
+          thumbnail: course.thumbnail,
+          instructor: course.instructor,
+          duration: course.duration,
+          price: course.price,
+          type: course.type,
+          category: course.category,
+          totalLessons: course.content.filter((c) => c.type === "tutorial")
+            .length,
+          totalQuizzes: course.content.filter((c) => c.type === "quiz").length,
+          totalContentItems: course.content.length
+        },
+        enrollmentInfo: {
+          enrolledAt: enrollment.enrolledAt,
+          completed: enrollment.completed,
+          completedAt: enrollment.completedAt,
+          lastAccessed: enrollment.lastAccessed,
+          totalTimeSpent: enrollment.totalTimeSpent,
+          certificate: enrollment.certificate,
+          progress: calculateOverallProgress(enrollment.progress),
+          progressDetails: enrollment.progress,
+          stats: {
+            totalQuestions,
+            correctAnswers,
+            incorrectAnswers: totalQuestions - correctAnswers,
+            accuracy,
+            totalMarksObtained,
+            totalMaxMarks,
+            overallPercentage
+          }
+        }
+      };
+    });
 
     res.status(200).json({
       success: true,
-      enrolledCourses,
-      count: enrolledCourses.length,
+      enrolledCourses
     });
   } catch (error) {
     console.error("Error fetching enrolled courses:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to fetch enrolled courses",
-      error: error.message,
+      message: "Server error while fetching enrolled courses"
     });
   }
 });
 
-// Get quiz questions for a specific content item in an enrolled course
-Studentrouter.get(
-  "/courses/:courseId/content/:contentId/quiz",
+// Helper function to calculate overall progress
+function calculateOverallProgress(progressItems) {
+  if (!progressItems || progressItems.length === 0) return 0;
+
+  const completedItems = progressItems.filter((item) => item.completed).length;
+  return Math.round((completedItems / progressItems.length) * 100);
+}
+
+// Helper function to calculate overall progress percentage
+function calculateOverallProgress(progressItems) {
+  if (!progressItems || progressItems.length === 0) return 0;
+
+  const totalItems = progressItems.length;
+  const completedItems = progressItems.filter((item) => item.completed).length;
+
+  return Math.round((completedItems / totalItems) * 100);
+}
+
+// Track course access (when student clicks Start/Continue)
+Studentrouter.post("/:courseId/access", studentAuth, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+    if (!course) {
+      return res.status(404).json({ message: "Course not found" });
+    }
+
+    // Find or create enrollment
+    let enrollment = course.enrollments.find(
+      (e) => e.studentId.toString() === req.user._id.toString()
+    );
+
+    const now = new Date();
+
+    if (!enrollment) {
+      // If not enrolled, create new enrollment with initialized progress
+      enrollment = {
+        studentId: req.user._id,
+        enrolledAt: now,
+        firstAccessedAt: now,
+        lastAccessed: now,
+        progress: course.content.map((item) => ({
+          contentItemId: item._id,
+          completed: false,
+          timeSpent: 0
+        })),
+        totalTimeSpent: 0,
+        accessHistory: [
+          {
+            accessedAt: now,
+            duration: 0 // Will be updated when they leave the course
+          }
+        ]
+      };
+      course.enrollments.push(enrollment);
+    } else {
+      // Update last accessed time and add to access history
+      enrollment.lastAccessed = now;
+      enrollment.accessHistory.push({
+        accessedAt: now,
+        duration: 0
+      });
+
+      // Set first accessed time if not set
+      if (!enrollment.firstAccessedAt) {
+        enrollment.firstAccessedAt = now;
+      }
+    }
+
+    await course.save();
+
+    res.status(200).json({
+      message: "Course access recorded",
+      enrollment: {
+        _id: enrollment._id,
+        firstAccessedAt: enrollment.firstAccessedAt,
+        lastAccessed: enrollment.lastAccessed
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get course progress for a student
+Studentrouter.get("/:courseId/progress", studentAuth, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+    if (!course) {
+      return res.status(404).json({ message: "Course not found" });
+    }
+
+    const enrollment = course.enrollments.find(
+      (e) => e.studentId.toString() === req.user._id.toString()
+    );
+
+    if (!enrollment) {
+      return res
+        .status(404)
+        .json({ message: "You are not enrolled in this course" });
+    }
+
+    // Calculate overall progress
+    const totalItems = course.content.length;
+    const completedItems = enrollment.progress.filter(
+      (p) => p.completed
+    ).length;
+    const progressPercentage =
+      totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+
+    res.status(200).json({
+      progress: enrollment.progress,
+      overallProgress: progressPercentage,
+      totalItems,
+      completedItems,
+      lastAccessed: enrollment.lastAccessed,
+      totalTimeSpent: enrollment.totalTimeSpent
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Update progress for a content item
+Studentrouter.put(
+  "/:courseId/progress/:contentItemId",
   studentAuth,
   async (req, res) => {
     try {
-      const { courseId, contentId } = req.params;
-      const studentId = req.student._id;
+      const { answers, completed, timeSpent } = req.body;
+      const course = await Course.findById(req.params.courseId);
 
-      // Check if student is enrolled in the course
-      const student = await Student.findOne({
-        _id: studentId,
-        "enrolledCourses.course": courseId,
-      });
-
-      if (!student) {
-        return res.status(403).json({
-          success: false,
-          message: "You are not enrolled in this course or it does not exist",
-        });
-      }
-
-      // Get the course and content item
-      const course = await Course.findById(courseId);
       if (!course) {
-        return res.status(404).json({
-          success: false,
-          message: "Course not found",
-        });
+        return res.status(404).json({ message: "Course not found" });
       }
 
-      const contentItem = course.content.id(contentId);
-      if (!contentItem) {
-        return res.status(404).json({
-          success: false,
-          message: "Content item not found",
-        });
+      // Find the enrollment
+      const enrollmentIndex = course.enrollments.findIndex(
+        (e) => e.studentId.toString() === req.user._id.toString()
+      );
+
+      if (enrollmentIndex === -1) {
+        return res
+          .status(404)
+          .json({ message: "You are not enrolled in this course" });
       }
 
-      // Check if content item is a quiz
-      if (contentItem.type !== "quiz") {
-        return res.status(400).json({
-          success: false,
-          message: "This content item is not a quiz",
-        });
+      // Find the progress item
+      const progressIndex = course.enrollments[
+        enrollmentIndex
+      ].progress.findIndex(
+        (p) => p.contentItemId.toString() === req.params.contentItemId
+      );
+
+      if (progressIndex === -1) {
+        return res
+          .status(404)
+          .json({ message: "Content item not found in your progress" });
       }
 
-      // Return questions without correct answers
-      const questions = contentItem.questions.map((question) => {
-        const { correctAnswer, ...questionWithoutAnswer } = question.toObject();
-        return questionWithoutAnswer;
-      });
+      // Update progress
+      const progressItem =
+        course.enrollments[enrollmentIndex].progress[progressIndex];
+      progressItem.lastAccessed = new Date();
+
+      if (completed !== undefined) {
+        progressItem.completed = completed;
+        if (completed) {
+          progressItem.completedAt = new Date();
+        }
+      }
+
+      if (timeSpent) {
+        progressItem.timeSpent = (progressItem.timeSpent || 0) + timeSpent;
+        course.enrollments[enrollmentIndex].totalTimeSpent += timeSpent;
+      }
+
+      // Process answers if provided (for quizzes)
+      if (answers && Array.isArray(answers)) {
+        const contentItem = course.content.id(req.params.contentItemId);
+        if (!contentItem || contentItem.type !== "quiz") {
+          return res
+            .status(400)
+            .json({ message: "Content item is not a quiz or not found" });
+        }
+
+        let score = 0;
+        const processedAnswers = answers
+          .map((answer) => {
+            const question = contentItem.questions.id(answer.questionId);
+            if (!question) return null;
+
+            let isCorrect = false;
+            let marksObtained = 0;
+
+            // Check answer correctness
+            if (
+              question.type === "mcq-single" ||
+              question.type === "mcq-multiple"
+            ) {
+              const correctAnswers = Array.isArray(question.correctAnswer)
+                ? question.correctAnswer
+                : [question.correctAnswer];
+              const studentAnswers = Array.isArray(answer.answer)
+                ? answer.answer
+                : [answer.answer];
+
+              isCorrect =
+                correctAnswers.length === studentAnswers.length &&
+                correctAnswers.every((ans) => studentAnswers.includes(ans));
+              marksObtained = isCorrect ? question.marks : 0;
+            } else {
+              // For subjective answers, mark as incomplete (needs teacher review)
+              isCorrect = false;
+              marksObtained = 0;
+            }
+
+            score += marksObtained;
+
+            return {
+              questionId: question._id,
+              answer: answer.answer,
+              isCorrect,
+              marksObtained
+            };
+          })
+          .filter(Boolean);
+
+        progressItem.answers = processedAnswers;
+        progressItem.score = score;
+        progressItem.maxScore = contentItem.questions.reduce(
+          (sum, q) => sum + q.marks,
+          0
+        );
+      }
+
+      // Update last accessed for the entire enrollment
+      course.enrollments[enrollmentIndex].lastAccessed = new Date();
+
+      await course.save();
 
       res.status(200).json({
-        success: true,
-        quiz: {
-          title: contentItem.title,
-          description: contentItem.description,
-          questions,
-        },
+        message: "Progress updated successfully",
+        progress: progressItem
       });
     } catch (error) {
-      console.error("Error fetching quiz questions:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to fetch quiz questions",
-        error: error.message,
-      });
+      res.status(500).json({ message: error.message });
     }
   }
 );
+// Get enrolled courses by student ID
+Studentrouter.get("/enrolled/:studentId", async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    // Validate studentId
+    if (!mongoose.Types.ObjectId.isValid(studentId)) {
+      return res.status(400).json({ message: "Invalid student ID" });
+    }
+
+    // Find all courses where the student is enrolled
+    const enrolledCourses = await Course.find({
+      "enrollments.studentId": studentId
+    })
+      .populate("instructor", "name email") // Populate instructor details
+      .select("-content -attachments -previousInstructors -ratings"); // Exclude large/unnecessary fields
+
+    if (!enrolledCourses || enrolledCourses.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No enrolled courses found for this student" });
+    }
+
+    // Format the response to include enrollment details for each course
+    const formattedCourses = enrolledCourses.map((course) => {
+      // Find the specific enrollment for this student
+      const enrollment = course.enrollments.find(
+        (enroll) => enroll.studentId.toString() === studentId
+      );
+
+      return {
+        _id: course._id,
+        title: course.title,
+        description: course.description,
+        instructor: course.instructor,
+        thumbnail: course.thumbnail,
+        type: course.type,
+        status: course.status,
+        category: course.category,
+        level: course.level,
+        price: course.price,
+        duration: course.duration,
+        totalLessons: course.totalLessons,
+        totalQuizzes: course.totalQuizzes,
+        enrollment: {
+          enrolledAt: enrollment.enrolledAt,
+          completed: enrollment.completed,
+          completedAt: enrollment.completedAt,
+          progress: enrollment.progress.length,
+          totalProgress: course.content.length,
+          lastAccessed: enrollment.lastAccessed,
+          totalTimeSpent: enrollment.totalTimeSpent,
+          certificateIssued: enrollment.certificateIssued
+        },
+        createdAt: course.createdAt
+      };
+    });
+
+    res.json(formattedCourses);
+  } catch (error) {
+    console.error("Error fetching enrolled courses:", error);
+    res
+      .status(500)
+      .json({ message: "Server error while fetching enrolled courses" });
+  }
+});
 Studentrouter.get("/single-courses/:id", async (req, res) => {
   try {
     const course = await Course.findById({ _id: req.params.id });
@@ -386,275 +767,8 @@ Studentrouter.get("/single-courses/:id", async (req, res) => {
     console.log(error);
   }
 });
-// Submit quiz answers and calculate score
-Studentrouter.post(
-  "/courses/:courseId/content/:contentId/submit-quiz",
-  studentAuth,
-  async (req, res) => {
-    try {
-      const { courseId, contentId } = req.params;
-      const { answers } = req.body;
-      const studentId = req.student._id;
 
-      if (!answers || !Array.isArray(answers)) {
-        return res.status(400).json({
-          success: false,
-          message: "Answers must be provided as an array",
-        });
-      }
-
-      // Check if student is enrolled in the course
-      const student = await Student.findOne({
-        _id: studentId,
-        "enrolledCourses.course": courseId,
-      });
-
-      if (!student) {
-        return res.status(403).json({
-          success: false,
-          message: "You are not enrolled in this course or it does not exist",
-        });
-      }
-
-      // Get the course and content item
-      const course = await Course.findById(courseId);
-      if (!course) {
-        return res.status(404).json({
-          success: false,
-          message: "Course not found",
-        });
-      }
-
-      const contentItem = course.content.id(contentId);
-      if (!contentItem) {
-        return res.status(404).json({
-          success: false,
-          message: "Content item not found",
-        });
-      }
-
-      // Check if content item is a quiz
-      if (contentItem.type !== "quiz") {
-        return res.status(400).json({
-          success: false,
-          message: "This content item is not a quiz",
-        });
-      }
-
-      // Calculate score
-      let correctAnswers = 0;
-      const results = contentItem.questions.map((question, index) => {
-        const userAnswer = answers[index];
-        let isCorrect = false;
-
-        switch (question.type) {
-          case "mcq-single":
-            isCorrect = userAnswer === question.correctAnswer;
-            break;
-          case "mcq-multiple":
-            // For multiple correct answers, we need to check if arrays match
-            isCorrect =
-              Array.isArray(userAnswer) &&
-              userAnswer.length === question.correctAnswer.length &&
-              userAnswer.every((val) => question.correctAnswer.includes(val));
-            break;
-          case "short-answer":
-          case "broad-answer":
-            // For text answers, we might want to implement more complex checking
-            // For now, we'll just do a simple case-insensitive comparison
-            isCorrect =
-              userAnswer &&
-              typeof userAnswer === "string" &&
-              userAnswer.toLowerCase().trim() ===
-                question.correctAnswer.toLowerCase().trim();
-            break;
-        }
-
-        if (isCorrect) correctAnswers++;
-
-        return {
-          question: question.question,
-          type: question.type,
-          userAnswer,
-          correctAnswer: question.correctAnswer,
-          isCorrect,
-        };
-      });
-
-      const score = (correctAnswers / contentItem.questions.length) * 100;
-
-      // Update course progress
-      const enrollment = student.enrolledCourses.find(
-        (e) => e.course.toString() === courseId
-      );
-
-      // Only update progress if this quiz gives a higher score than current progress
-      if (score > enrollment.progress) {
-        enrollment.progress = score;
-        enrollment.lastAccessed = new Date();
-
-        // Mark as completed if progress is 100%
-        if (score >= 100) {
-          enrollment.completed = true;
-        }
-
-        await student.save();
-      }
-
-      res.status(200).json({
-        success: true,
-        score,
-        totalQuestions: contentItem.questions.length,
-        correctAnswers,
-        results,
-        progress: enrollment.progress,
-        completed: enrollment.completed,
-      });
-    } catch (error) {
-      console.error("Error submitting quiz:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to submit quiz",
-        error: error.message,
-      });
-    }
-  }
-);
-
-// Get course content including quizzes
-Studentrouter.get(
-  "/courses/:courseId/content",
-  studentAuth,
-  async (req, res) => {
-    try {
-      const { courseId } = req.params;
-      const studentId = req.student._id;
-
-      // Check if student is enrolled in the course
-      const student = await Student.findOne({
-        _id: studentId,
-        "enrolledCourses.course": courseId,
-      });
-
-      if (!student) {
-        return res.status(403).json({
-          success: false,
-          message: "You are not enrolled in this course or it does not exist",
-        });
-      }
-
-      // Get the course and its content
-      const course = await Course.findById(courseId).select(
-        "title description content"
-      );
-
-      if (!course) {
-        return res.status(404).json({
-          success: false,
-          message: "Course not found",
-        });
-      }
-
-      // Format content items (hide correct answers for quizzes)
-      const content = course.content.map((item) => {
-        const contentItem = item.toObject();
-
-        if (contentItem.type === "quiz") {
-          contentItem.questions = contentItem.questions.map((question) => {
-            const { correctAnswer, ...questionWithoutAnswer } = question;
-            return questionWithoutAnswer;
-          });
-        } else {
-          // For non-quiz content, remove questions if they exist
-          delete contentItem.questions;
-        }
-
-        return contentItem;
-      });
-
-      res.status(200).json({
-        success: true,
-        course: {
-          title: course.title,
-          description: course.description,
-          content,
-        },
-      });
-    } catch (error) {
-      console.error("Error fetching course content:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to fetch course content",
-        error: error.message,
-      });
-    }
-  }
-);
-
-// Update course progress (for non-quiz content)
-Studentrouter.put(
-  "/courses/:courseId/progress",
-  studentAuth,
-  async (req, res) => {
-    try {
-      const { courseId } = req.params;
-      const { progress } = req.body;
-      const studentId = req.student._id;
-
-      if (typeof progress !== "number" || progress < 0 || progress > 100) {
-        return res.status(400).json({
-          success: false,
-          message: "Progress must be a number between 0 and 100",
-        });
-      }
-
-      // Find student and enrollment
-      const student = await Student.findById(studentId);
-      if (!student) {
-        return res.status(404).json({
-          success: false,
-          message: "Student not found",
-        });
-      }
-
-      const enrollment = student.enrolledCourses.find(
-        (e) => e.course.toString() === courseId
-      );
-
-      if (!enrollment) {
-        return res.status(403).json({
-          success: false,
-          message: "You are not enrolled in this course",
-        });
-      }
-
-      // Only update if new progress is higher than current
-      if (progress > enrollment.progress) {
-        enrollment.progress = progress;
-        enrollment.lastAccessed = new Date();
-
-        if (progress >= 100) {
-          enrollment.completed = true;
-        }
-
-        await student.save();
-      }
-
-      res.status(200).json({
-        success: true,
-        progress: enrollment.progress,
-        completed: enrollment.completed,
-      });
-    } catch (error) {
-      console.error("Error updating course progress:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to update course progress",
-        error: error.message,
-      });
-    }
-  }
-);
+// Get course learning page with student progress
 
 // -----------------single-course----------------------------------
 Studentrouter.get("/course-overview/:id", async (req, res) => {
@@ -670,29 +784,25 @@ Studentrouter.get("/course-overview/:id", async (req, res) => {
   }
 });
 
-const { v4: uuidv4 } = require("uuid");
-const path = require("path");
-const fs = require("fs");
 const PDFDocument = require("pdfkit");
 const moment = require("moment");
 
-// Submit quiz and track progress
-Studentrouter.post("/submit-quiz", async (req, res) => {
-  const { courseId, contentItemId, answers, studentId } = req.body;
-
+// Generate and download certificate
+Studentrouter.get("/certificate/:courseId/:studentId", async (req, res) => {
   try {
-    // Validate inputs
-    if (!mongoose.Types.ObjectId.isValid(courseId)) {
-      return res.json({ success: false, message: "Invalid course ID" });
-    }
-    if (!mongoose.Types.ObjectId.isValid(contentItemId)) {
-      return res.json({ success: false, message: "Invalid content item ID" });
-    }
-    if (!mongoose.Types.ObjectId.isValid(studentId)) {
-      return res.json({ success: false, message: "Invalid student ID" });
+    const { courseId, studentId } = req.params;
+
+    // Validate IDs
+    if (
+      !mongoose.Types.ObjectId.isValid(courseId) ||
+      !mongoose.Types.ObjectId.isValid(studentId)
+    ) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid course or student ID" });
     }
 
-    // Find the course and the specific quiz content
+    // Find the course and enrollment
     const course = await Course.findById(courseId);
     if (!course) {
       return res
@@ -700,372 +810,175 @@ Studentrouter.post("/submit-quiz", async (req, res) => {
         .json({ success: false, message: "Course not found" });
     }
 
-    const quizContent = course.content.id(contentItemId);
-    if (!quizContent || quizContent.type !== "quiz") {
-      return res
-        .status(400)
-        .json({ success: false, message: "Content item is not a quiz" });
+    const enrollment = course.enrollments.find(
+      (e) => e.studentId.toString() === studentId
+    );
+    if (!enrollment) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not enrolled in this course"
+      });
     }
 
-    // Calculate quiz score
-    let score = 0;
-    const detailedAnswers = [];
+    // Check if course is completed
+    if (!enrollment.completed) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Course not completed yet" });
+    }
 
-    quizContent.questions.forEach((question) => {
-      const userAnswer = answers[question._id];
-      let isCorrect = false;
-
-      if (question.type === "mcq-single") {
-        isCorrect = userAnswer === question.correctAnswer;
-      } else if (question.type === "mcq-multiple") {
-        const userAnswers = Array.isArray(userAnswer) ? userAnswer : [];
-        const correctAnswers = question.correctAnswer;
-        isCorrect =
-          userAnswers.length === correctAnswers.length &&
-          userAnswers.every((val) => correctAnswers.includes(val));
-      } else if (
-        question.type === "short-answer" ||
-        question.type === "broad-answer"
-      ) {
-        // For text answers, we consider it correct if it contains the correct answer text
-        isCorrect =
-          userAnswer &&
-          typeof userAnswer === "string" &&
-          userAnswer.toLowerCase().includes(question.answer.toLowerCase());
-      }
-
-      if (isCorrect) score++;
-
-      detailedAnswers.push({
-        questionId: question._id,
-        answer: userAnswer,
-        isCorrect,
-      });
-    });
-
-    const percentageScore = Math.round(
-      (score / quizContent.questions.length) * 100
-    );
-    const passed = percentageScore >= 70; // Assuming passing score is 70%
-
-    // Update student's progress
-    const student = await Student.findById(studentId);
+    // Find student details
+    const student = await Student.findById(studentId).select("full_name email");
     if (!student) {
       return res
         .status(404)
         .json({ success: false, message: "Student not found" });
     }
 
-    // Record quiz attempt
-    await student.recordQuizAttempt(
-      courseId,
-      contentItemId,
-      detailedAnswers,
-      percentageScore,
-      passed
-    );
-
-    // Check if course is completed and generate certificate if needed
-    let certificateUrl = null;
-    const enrollment = student.enrolledCourses.find(
-      (e) => e.course.toString() === courseId.toString()
-    );
-
-    if (enrollment.completed) {
-      certificateUrl = await generateCertificate(student, course);
-
-      // Add certificate to student's record if generated
-      if (certificateUrl) {
-        enrollment.certificates.push({
-          url: certificateUrl,
-          issuedAt: new Date(),
-          expiresAt: moment().add(2, "years").toDate(), // Certificate expires in 2 years
-        });
-        await student.save();
-      }
+    // Create certificate if not already exists
+    if (!enrollment.certificate) {
+      enrollment.certificate = {
+        certificateId: `CERT-${Date.now()}`,
+        issuedAt: new Date(),
+        verificationCode: generateVerificationCode(),
+        downloadUrl: ""
+      };
+      await course.save();
     }
 
-    res.status(200).json({
-      success: true,
-      score: percentageScore,
-      passed,
-      totalQuestions: quizContent.questions.length,
-      correctAnswers: score,
-      certificateUrl: certificateUrl || null,
-    });
-  } catch (error) {
-    console.error("Error submitting quiz:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to submit quiz",
-      error: error.message,
-    });
-  }
-});
-
-// Generate certificate PDF
-async function generateCertificate(student, course) {
-  try {
-    // Create certificates directory if it doesn't exist
-    const certDir = path.join(__dirname, "../public/certificates");
-    if (!fs.existsSync(certDir)) {
-      fs.mkdirSync(certDir, { recursive: true });
-    }
-
-    const certId = uuidv4();
-    const fileName = `certificate_${course._id}_${student._id}_${certId}.pdf`;
-    const filePath = path.join(certDir, fileName);
-    const publicUrl = `/certificates/${fileName}`;
-
-    // Create PDF document
+    // Generate PDF certificate
     const doc = new PDFDocument({
       layout: "landscape",
       size: "A4",
-      margin: 0,
+      margin: 0
     });
 
-    // Pipe the PDF to a file
-    const stream = fs.createWriteStream(filePath);
-    doc.pipe(stream);
+    // Generate safe filename
+    const filename = `${course.title.replace(
+      /[^\w\s.-]/gi,
+      ""
+    )}_Certificate_${student.full_name.replace(/[^\w\s.-]/gi, "")}.pdf`;
+    const encodedFilename = encodeURIComponent(filename);
 
-    // Add background
+    // Set response headers with properly encoded filename
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${encodedFilename}"; filename*=UTF-8''${encodedFilename}`
+    );
+
+    // Pipe the PDF to response
+    doc.pipe(res);
+
+    // Background
     doc.rect(0, 0, doc.page.width, doc.page.height).fill("#f8f9fa");
 
-    // Add decorative elements
+    // Border
     doc
+      .strokeColor("#343a40")
+      .lineWidth(20)
+      .rect(10, 10, doc.page.width - 20, doc.page.height - 20)
+      .stroke();
+
+    // Logo (replace with your logo path)
+    const logoPath = path.join(__dirname, "../public/images/logo.png");
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, doc.page.width / 2 - 50, 60, { width: 100 });
+    }
+
+    // Title
+    doc
+      .fontSize(36)
       .fill("#343a40")
-      .fontSize(60)
       .text("Certificate of Completion", {
         align: "center",
-        valign: "center",
-        lineGap: 10,
-        width: doc.page.width,
-        height: doc.page.height * 0.15,
-      });
+        underline: true,
+        lineGap: 10
+      })
+      .moveDown(0.5);
 
-    // Add main content
+    // Subtitle
     doc
-      .fill("#212529")
-      .fontSize(24)
-      .text("This is to certify that", {
-        align: "center",
-        valign: "center",
-        lineGap: 10,
-        width: doc.page.width,
-        height: doc.page.height * 0.1,
-      });
-
-    doc
-      .fill("#0d6efd")
-      .fontSize(36)
-      .font("Helvetica-Bold")
-      .text(student.full_name, {
-        align: "center",
-        valign: "center",
-        lineGap: 10,
-        width: doc.page.width,
-        height: doc.page.height * 0.15,
-      });
-
-    doc
-      .fill("#212529")
-      .fontSize(20)
-      .text("has successfully completed the course", {
-        align: "center",
-        valign: "center",
-        lineGap: 10,
-        width: doc.page.width,
-        height: doc.page.height * 0.1,
-      });
-
-    doc
-      .fill("#0d6efd")
-      .fontSize(28)
-      .font("Helvetica-Bold")
-      .text(course.title, {
-        align: "center",
-        valign: "center",
-        lineGap: 10,
-        width: doc.page.width,
-        height: doc.page.height * 0.1,
-      });
-
-    // Add completion date
-    const completionDate = moment().format("MMMM Do, YYYY");
-    doc
-      .fill("#495057")
-      .fontSize(16)
-      .text(`Completed on ${completionDate}`, {
-        align: "center",
-        valign: "center",
-        lineGap: 10,
-        width: doc.page.width,
-        height: doc.page.height * 0.1,
-      });
-
-    // Add certificate ID
-    doc
+      .fontSize(18)
       .fill("#6c757d")
+      .text("This is to certify that", { align: "center" })
+      .moveDown(1);
+
+    // Student name
+    doc
+      .fontSize(32)
+      .fill("#007bff")
+      .text(student.full_name, { align: "center", lineGap: 5 })
+      .moveDown(0.5);
+
+    // Completion text
+    doc
+      .fontSize(16)
+      .fill("#6c757d")
+      .text("has successfully completed the course", { align: "center" })
+      .moveDown(1);
+
+    // Course title
+    doc
+      .fontSize(24)
+      .fill("#28a745")
+      .text(`"${course.title}"`, { align: "center", lineGap: 5 })
+      .moveDown(1.5);
+
+    // Details
+    doc
+      .fontSize(14)
+      .fill("#495057")
+      .text(`Course Duration: ${course.duration} hours`, { align: "center" })
+      .text(
+        `Completion Date: ${moment(enrollment.completedAt).format(
+          "MMMM Do, YYYY"
+        )}`,
+        { align: "center" }
+      )
+      .moveDown(2);
+
+    // Verification
+    doc
       .fontSize(12)
-      .text(`Certificate ID: ${certId}`, {
-        align: "center",
-        valign: "center",
-        lineGap: 10,
-        width: doc.page.width,
-        height: doc.page.height * 0.05,
-      });
+      .fill("#6c757d")
+      .text(`Certificate ID: ${enrollment.certificate.certificateId}`, {
+        align: "center"
+      })
+      .text(`Verification Code: ${enrollment.certificate.verificationCode}`, {
+        align: "center"
+      })
+      .moveDown(3);
 
-    // Finalize PDF
+    // Signatures
+    const signatureY = doc.page.height - 150;
+    doc
+      .fontSize(14)
+      .text("________________________", 100, signatureY, { align: "left" })
+      .text("Instructor Signature", 100, signatureY + 20, { align: "left" })
+      .text("________________________", doc.page.width - 300, signatureY, {
+        align: "right"
+      })
+      .text("Date", doc.page.width - 300, signatureY + 20, { align: "right" });
+
+    // Finalize the PDF
     doc.end();
-
-    // Wait for the stream to finish writing
-    await new Promise((resolve, reject) => {
-      stream.on("finish", resolve);
-      stream.on("error", reject);
-    });
-
-    return publicUrl;
   } catch (error) {
     console.error("Error generating certificate:", error);
-    return null;
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate certificate",
+      error: error.message
+    });
   }
+});
+
+// Helper function to generate verification code
+function generateVerificationCode() {
+  return (
+    Math.random().toString(36).substring(2, 10) +
+    Math.random().toString(36).substring(2, 10)
+  );
 }
 
-// Get student's quiz attempts for a course
-Studentrouter.get("/quiz-attempts/:studentId/:courseId", async (req, res) => {
-  try {
-    const { studentId, courseId } = req.params;
-
-    // Validate inputs
-    if (
-      !mongoose.Types.ObjectId.isValid(studentId) ||
-      !mongoose.Types.ObjectId.isValid(courseId)
-    ) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid IDs provided" });
-    }
-
-    const student = await Student.findById(studentId)
-      .select("enrolledCourses")
-      .populate({
-        path: "enrolledCourses.course",
-        select: "title",
-      });
-
-    if (!student) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Student not found" });
-    }
-
-    const enrollment = student.enrolledCourses.find(
-      (e) => e.course._id.toString() === courseId.toString()
-    );
-
-    if (!enrollment) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Enrollment not found" });
-    }
-
-    // Get course content to map quiz titles
-    const course = await Course.findById(courseId).select("content");
-
-    const quizAttemptsWithDetails = enrollment.quizAttempts.map((attempt) => {
-      const contentItem = course.content.id(attempt.contentItemId);
-      return {
-        ...attempt.toObject(),
-        quizTitle: contentItem?.title || "Unknown Quiz",
-        quizDescription: contentItem?.description || "",
-      };
-    });
-
-    res.status(200).json({
-      success: true,
-      quizAttempts: quizAttemptsWithDetails,
-      courseTitle: enrollment.course.title,
-    });
-  } catch (error) {
-    console.error("Error fetching quiz attempts:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch quiz attempts",
-      error: error.message,
-    });
-  }
-});
-
-// Get student's certificate for a course
-Studentrouter.get("/certificate/:studentId/:courseId", async (req, res) => {
-  try {
-    const { studentId, courseId } = req.params;
-
-    // Validate inputs
-    if (
-      !mongoose.Types.ObjectId.isValid(studentId) ||
-      !mongoose.Types.ObjectId.isValid(courseId)
-    ) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid IDs provided" });
-    }
-
-    const student = await Student.findById(studentId).select(
-      "enrolledCourses full_name"
-    );
-
-    if (!student) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Student not found" });
-    }
-
-    const enrollment = student.enrolledCourses.find(
-      (e) => e.course.toString() === courseId.toString()
-    );
-
-    if (!enrollment) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Enrollment not found" });
-    }
-
-    if (!enrollment.completed) {
-      return res.status(400).json({
-        success: false,
-        message: "Course not completed yet",
-      });
-    }
-
-    if (enrollment.certificates.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Certificate not found",
-      });
-    }
-
-    // Get the most recent certificate
-    const latestCertificate = enrollment.certificates.reduce((latest, cert) => {
-      return !latest || new Date(cert.issuedAt) > new Date(latest.issuedAt)
-        ? cert
-        : latest;
-    });
-
-    res.status(200).json({
-      success: true,
-      certificateUrl: latestCertificate.url,
-      issuedAt: latestCertificate.issuedAt,
-      expiresAt: latestCertificate.expiresAt,
-      studentName: student.full_name,
-    });
-  } catch (error) {
-    console.error("Error fetching certificate:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch certificate",
-      error: error.message,
-    });
-  }
-});
 module.exports = Studentrouter;

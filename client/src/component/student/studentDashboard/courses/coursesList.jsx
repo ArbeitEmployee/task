@@ -13,6 +13,7 @@ import {
   FiSearch,
   FiClock,
   FiUsers,
+  FiEye
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
@@ -36,40 +37,48 @@ const CourseList = ({ setActiveView }) => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
+
         // Fetch all courses
-        const coursesResponse = await axios.get(`${base_url}/api/student/all-courses`);
+        const coursesResponse = await axios.get(
+          `${base_url}/api/student/all-courses`
+        );
         if (coursesResponse.data.success) {
-          const formattedCourses = coursesResponse.data.courses.map(course => ({
-            id: course._id,
-            title: course.title || 'Untitled Course',
-            description: course.description || 'No description available',
-            thumbnail: course.thumbnail?.filename ? 
-                     `${base_url}/uploads/courses/${course.thumbnail.filename}` : 
-                     course.thumbnail || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
-            instructor: course.instructor || 'Unknown Instructor',
-            rating: course.averageRating || 4.5,
-            students: course.studentsEnrolled?.length || 0,
-            duration: course.duration || 'Unknown duration',
-            price: course.price || 0,
-            type: course.price > 0 ? 'premium' : 'free'
-          }));
-          
+          const formattedCourses = coursesResponse.data.courses.map(
+            (course) => ({
+              id: course._id,
+              title: course.title || "Untitled Course",
+              description: course.description || "No description available",
+              thumbnail: course.thumbnail?.filename
+                ? `${base_url}/uploads/courses/${course.thumbnail.filename}`
+                : course.thumbnail ||
+                  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
+              instructor: course.instructor || "Unknown Instructor",
+              rating: course.averageRating || 4.5,
+              students: course.studentsEnrolled?.length || 0,
+              duration: course.duration || "Unknown duration",
+              price: course.price || 0,
+              type: course.price > 0 ? "premium" : "free"
+            })
+          );
+
           setCourses(formattedCourses);
           setFilteredCourses(formattedCourses);
         }
 
         // Fetch enrolled courses if student is logged in
-        if (studentData?.id && localStorage.getItem('studentToken')) {
-          const enrolledResponse = await axios.get(`${base_url}/api/student/enrolled-courses/${studentData.id}`, {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('studentToken')}`
+        if (studentData?.id && localStorage.getItem("studentToken")) {
+          const enrolledResponse = await axios.get(
+            `${base_url}/api/student/enrolled-courses/${studentData.id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("studentToken")}`
+              }
             }
-          });
-          
+          );
+
           if (enrolledResponse.data.success) {
             const enrolledIds = enrolledResponse.data.enrolledCourses.map(
-              ec => ec.courseDetails._id
+              (ec) => ec.courseDetails._id
             );
             setEnrolledCourses(enrolledIds);
           }
@@ -78,10 +87,9 @@ const CourseList = ({ setActiveView }) => {
         // Load cart from localStorage
         const savedCart = JSON.parse(localStorage.getItem("courseCart")) || [];
         setCart(savedCart);
-
       } catch (error) {
-        console.error('Error fetching data:', error);
-        toast.error(error.response?.data?.message || 'Failed to load data');
+        console.error("Error fetching data:", error);
+        toast.error(error.response?.data?.message || "Failed to load data");
       } finally {
         setLoading(false);
       }
@@ -98,8 +106,12 @@ const CourseList = ({ setActiveView }) => {
       results = results.filter(
         (course) =>
           course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (course.instructor && course.instructor.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (course.description && course.description.toLowerCase().includes(searchTerm.toLowerCase()))
+          (course.instructor &&
+            course.instructor
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase())) ||
+          (course.description &&
+            course.description.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -138,27 +150,26 @@ const CourseList = ({ setActiveView }) => {
     toast.success("Course removed from cart");
   };
 
-  // Enroll course function
+  // Enroll course function with the new route logic
   const enrollCourse = async (courseId) => {
     if (enrolling || !studentData?.id) return;
-    
+
     try {
       setEnrolling(true);
-      
+
       // Check if already enrolled locally first
       if (enrolledCourses.includes(courseId)) {
         toast.error("You're already enrolled in this course");
         return;
       }
 
-      // Make API call to enroll
+      // Make API call to enroll using the new route
       const response = await axios.post(
-        `${base_url}/api/student/enroll/${courseId}`,
-        { userid: studentData.id },
+        `${base_url}/api/student/${courseId}/enroll`,
+        { user_id: studentData.id }, // Empty body since we're using the token for auth
         {
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('studentToken')}`
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`
           }
         }
       );
@@ -167,16 +178,32 @@ const CourseList = ({ setActiveView }) => {
         // Update local state
         setEnrolledCourses([...enrolledCourses, courseId]);
         toast.success("Successfully enrolled in course!");
-        
-        // Optionally navigate to the course
-        // navigate(`/learn/${courseId}`);
+
+        // If this was a free course that was in cart, remove it
+        const course = courses.find((c) => c.id === courseId);
+        if (course && course.price === 0 && isInCart(courseId)) {
+          removeFromCart(courseId);
+        }
       } else {
-        toast.error(response.data.message || 'Enrollment failed');
+        toast.error(response.data.message || "Enrollment failed");
       }
     } catch (error) {
-      console.error('Enrollment error:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to enroll in course';
-      toast.error(errorMessage);
+      console.error("Enrollment error:", error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to enroll in course";
+
+      // Handle specific error cases
+      if (error.response?.status === 403) {
+        toast.error("Premium course requires an active subscription");
+      } else if (error.response?.status === 400) {
+        toast.error("You are already enrolled in this course");
+      } else if (error.response?.status === 404) {
+        toast.error("Course not found");
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setEnrolling(false);
     }
@@ -191,7 +218,7 @@ const CourseList = ({ setActiveView }) => {
   return (
     <div className="min-h-screen text-gray-900 p-0">
       <Toaster position="top-right" />
-      
+
       {/* Header */}
       <header className="bg-white py-4 sm:py-6 px-4 sm:px-6 lg:px-8 border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -295,7 +322,8 @@ const CourseList = ({ setActiveView }) => {
                       alt={course.title}
                       className="w-full h-40 sm:h-48 object-cover"
                       onError={(e) => {
-                        e.target.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80';
+                        e.target.src =
+                          "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80";
                       }}
                     />
                     <div className="absolute top-2 right-2 bg-black bg-opacity-80 text-white px-2 py-1 text-xs rounded">
@@ -306,9 +334,9 @@ const CourseList = ({ setActiveView }) => {
                     <h3 className="text-base sm:text-lg font-bold mb-1 line-clamp-2">
                       {course.title}
                     </h3>
-                    <p 
+                    <p
                       className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2"
-                      dangerouslySetInnerHTML={{ __html: course.description }} 
+                      dangerouslySetInnerHTML={{ __html: course.description }}
                     />
                     <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 mb-2">
                       <span className="flex items-center">
@@ -331,10 +359,19 @@ const CourseList = ({ setActiveView }) => {
                   </div>
                 </div>
 
-                <div className="p-3 sm:p-4 pt-0">
+                <div className="p-3 sm:p-4 pt-0 flex flex-col gap-2">
+                  <button
+                    onClick={() =>
+                      navigate(`/student/course-overview/${course.id}`)
+                    }
+                    className="w-full bg-gray-100 text-gray-800 py-1 sm:py-2 rounded-lg text-xs sm:text-sm hover:bg-gray-200 transition-all flex items-center justify-center"
+                  >
+                    <FiEye className="mr-1 sm:mr-2" /> Overview
+                  </button>
+
                   {isEnrolled(course.id) ? (
                     <button
-                      onClick={() => navigate(`/learn/${course.id}`)}
+                      onClick={() => navigate(`/student/learn/${course.id}`)}
                       className="w-full bg-gray-900 text-white py-1 sm:py-2 rounded-lg text-xs sm:text-sm hover:bg-gray-800 transition-all"
                     >
                       Continue Learning
@@ -344,10 +381,10 @@ const CourseList = ({ setActiveView }) => {
                       onClick={() => enrollCourse(course.id)}
                       disabled={enrolling}
                       className={`w-full bg-gray-900 text-white py-1 sm:py-2 rounded-lg text-xs sm:text-sm hover:bg-gray-800 transition-all ${
-                        enrolling ? 'opacity-50 cursor-not-allowed' : ''
+                        enrolling ? "opacity-50 cursor-not-allowed" : ""
                       }`}
                     >
-                      {enrolling ? 'Enrolling...' : 'Enroll Now'}
+                      {enrolling ? "Enrolling..." : "Enroll Now"}
                     </button>
                   ) : isInCart(course.id) ? (
                     <button

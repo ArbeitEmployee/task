@@ -10,6 +10,8 @@ import {
   FiMapPin,
   FiEye,
   FiEyeOff,
+  FiUpload,
+  FiX
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
@@ -30,9 +32,16 @@ const StudentAuth = () => {
     full_name: "",
     phone: "",
     date_of_birth: "",
-    address: "",
+    address: ""
   });
 
+  // Profile picture state
+  const [files, setFiles] = useState({
+    profile_picture: null
+  });
+  const [fileErrors, setFileErrors] = useState({
+    profile_picture: ""
+  });
   // OTP verification state
   const [otp, setOtp] = useState("");
   const [otpError, setOtpError] = useState("");
@@ -43,11 +52,16 @@ const StudentAuth = () => {
   const [loginForm, setLoginForm] = useState({
     email: "",
     password: "",
-    remember: false,
+    remember: false
   });
 
   // UI states
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState({
+    email: "",
+    password: "",
+    full_name: "",
+    phone: ""
+  });
   const [loginErrors, setLoginErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
@@ -63,9 +77,33 @@ const StudentAuth = () => {
     return () => clearTimeout(timer);
   }, [otpCountdown]);
 
+  // Handle profile picture upload
+  const handleFileChange = (e) => {
+    const { name } = e.target;
+    const file = e.target.files[0];
+
+    // Clear previous errors
+    setFileErrors((prev) => ({ ...prev, [name]: "" }));
+
+    // Validate file size
+    if (file && file.size > 2 * 1024 * 1024) {
+      // 2MB in bytes
+      setFileErrors((prev) => ({
+        ...prev,
+        [name]: "Image couldn't be uploaded more than 2MB"
+      }));
+      // Clear the file input
+      e.target.value = "";
+      return;
+    }
+
+    setFiles((prev) => ({ ...prev, [name]: file }));
+  };
+
   // ========== REGISTRATION FUNCTIONS ==========
   const validateField = (name, value) => {
     let error = "";
+
     switch (name) {
       case "email":
         if (!value) error = "Email is required";
@@ -86,14 +124,18 @@ const StudentAuth = () => {
         break;
       case "phone":
         if (!value) error = "Phone is required";
+        else if (!/^\+[1-9]\d{1,14}$/.test(value))
+          error = "Include country code (e.g., +880)";
         break;
       case "date_of_birth":
-        if (value && !/^\d{2}\/\d{2}\/\d{4}$/.test(value))
-          error = "Use DD/MM/YYYY format";
+        if (value && !/^\d{4}-\d{2}-\d{2}$/.test(value))
+          error = "Use YYYY-MM-DD format";
         break;
+
       default:
         break;
     }
+
     setErrors((prev) => ({ ...prev, [name]: error }));
     return !error;
   };
@@ -106,23 +148,75 @@ const StudentAuth = () => {
 
   const validateForm = () => {
     let isValid = true;
+
+    // Check if profile picture is required
+    if (!files.profile_picture) {
+      setFileErrors((prev) => ({
+        ...prev,
+        profile_picture: "Profile picture is required"
+      }));
+      isValid = false;
+    } else {
+      setFileErrors((prev) => ({ ...prev, profile_picture: "" }));
+    }
+
+    // Validate other fields
     Object.keys(form).forEach((key) => {
       if (key !== "date_of_birth" && key !== "address") {
         isValid = validateField(key, form[key]) && isValid;
       }
     });
+
     return isValid;
   };
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      toast.error("Please fix all errors before submitting");
+      return;
+    }
 
     setIsSubmitting(true);
+
     try {
+      const formData = new FormData();
+      // Append all form fields
+      for (const [key, value] of Object.entries(form)) {
+        if (value) formData.append(key, value);
+      }
+
+      // Handle profile photo upload
+      if (files.profile_picture) {
+        // Validate file size
+        if (files.profile_picture.size > 100 * 1024 * 1024) {
+          throw new Error("Profile photo must be less than 100MB");
+        }
+
+        // Validate file type
+        const validTypes = ["image/jpeg", "image/png", "image/jpg"];
+        if (!validTypes.includes(files.profile_picture.type)) {
+          throw new Error("Only JPEG, JPG, or PNG images are allowed");
+        }
+
+        formData.append("profile_picture", files.profile_picture);
+      }
+      const formDataEntries = {};
+      for (let [key, value] of formData.entries()) {
+        formDataEntries[key] =
+          value instanceof File
+            ? `File: ${value.name} (${value.type}, ${value.size} bytes)`
+            : value;
+      }
       const response = await axios.post(
         `${base_url}/api/auth/student/register`,
-        form
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${localStorage.getItem("token")}`
+          }
+        }
       );
 
       setRegisteredEmail(form.email);
@@ -153,7 +247,7 @@ const StudentAuth = () => {
         `${base_url}/api/auth/student/verify-otp`,
         {
           email: registeredEmail,
-          otp,
+          otp
         }
       );
 
@@ -172,7 +266,7 @@ const StudentAuth = () => {
     setIsResending(true);
     try {
       await axios.post(`${base_url}/api/auth/student/resend-otp`, {
-        email: registeredEmail,
+        email: registeredEmail
       });
       setOtpCountdown(60); // Reset countdown
       toast.success("New OTP sent to your email!");
@@ -226,7 +320,7 @@ const StudentAuth = () => {
     try {
       const response = await axios.post(`${base_url}/api/auth/student/login`, {
         email: loginForm.email,
-        password: loginForm.password,
+        password: loginForm.password
       });
 
       const { token, student } = response.data;
@@ -239,7 +333,6 @@ const StudentAuth = () => {
         localStorage.setItem("studentData", JSON.stringify(student));
       }
 
-      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       toast.success("Login successful");
       navigate("/student/dashboard");
     } catch (err) {
@@ -275,6 +368,64 @@ const StudentAuth = () => {
       </div>
 
       <form onSubmit={handleRegister}>
+        {/* Replace the existing Profile Picture Upload section with this code */}
+        <div className="flex flex-col items-center space-y-4 mb-6">
+          <label className="block text-sm font-medium text-gray-700 text-center">
+            Profile Photo
+          </label>
+
+          <div className="relative">
+            {/* Profile Photo Container */}
+            <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+              {files.profile_picture ? (
+                <>
+                  <img
+                    src={URL.createObjectURL(files.profile_picture)}
+                    alt="Profile Preview"
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Remove button - now always visible */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFiles((prev) => ({ ...prev, profile_picture: null }))
+                    }
+                    className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 transition-all"
+                  >
+                    <FiX className="h-4 w-4" />
+                  </button>
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center text-gray-400">
+                  <FiUser className="h-12 w-12" />
+                  <span className="text-xs mt-2">No photo</span>
+                </div>
+              )}
+            </div>
+
+            {/* Upload Button */}
+            <label className="absolute bottom-0 right-0 bg-gray-700 text-white rounded-full p-2 shadow-md hover:bg-gray-900 transition-all cursor-pointer">
+              <FiUpload className="h-5 w-5" />
+              <input
+                type="file"
+                name="profile_picture"
+                onChange={handleFileChange}
+                className="hidden"
+                accept=".jpg,.jpeg,.png"
+              />
+            </label>
+          </div>
+
+          <p className="text-xs text-gray-500 text-center">
+            JPG or PNG, max 2MB
+          </p>
+          {fileErrors.profile_picture && (
+            <p className="text-sm text-red-500 text-center">
+              {fileErrors.profile_picture}
+            </p>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Left Column */}
           <div className="space-y-6">
@@ -373,6 +524,7 @@ const StudentAuth = () => {
                 <FiCalendar className="mr-2 text-gray-500" /> Date of Birth
               </label>
               <input
+                type="date"
                 name="date_of_birth"
                 value={form.date_of_birth}
                 onChange={handleChange}

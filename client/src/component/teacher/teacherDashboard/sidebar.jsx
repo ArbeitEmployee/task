@@ -13,17 +13,18 @@ import {
   FiBook,
   FiFileText,
   FiEdit,
-  FiList,
+  FiList
 } from "react-icons/fi";
 import axios from "axios";
+import { MdClass } from "react-icons/md";
 import { toast } from "react-hot-toast";
 import { useNavigate, useLocation } from "react-router-dom";
-
+import { MdGolfCourse } from "react-icons/md";
 const Sidebar = ({ isOpen, toggleSidebar }) => {
   const [teacherData, setTeacherData] = useState({
     name: "Loading...",
     email: "loading...@example.com",
-    avatarColor: "bg-gradient-to-r from-blue-600 to-blue-400",
+    avatarColor: "bg-gradient-to-r from-blue-600 to-blue-400"
   });
   const [loading, setLoading] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState({});
@@ -35,7 +36,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     {
       name: "Dashboard",
       icon: <FiHome size={18} />,
-      path: "/teacher/dashboard",
+      path: "/teacher/dashboard"
     },
     {
       name: "Courses",
@@ -44,25 +45,32 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         {
           name: "Create Course",
           icon: <FiEdit size={16} />,
-          path: "/teacher/courses/create",
+          path: "/teacher/courses/create"
         },
         {
           name: "Course List",
           icon: <FiList size={16} />,
-          path: "/teacher/course-list",
-        },
-      ],
+          path: "/teacher/course-list"
+        }
+      ]
     },
-    // {
-    //   name: "Assessments",
-    //   icon: <FiFileText size={18} />,
-    //   children: [
-    //     { name: "Create MCQ", icon: <FiEdit size={16} />, path: "/teacher/create-mcq" },
-    //     { name: "MCQ List", icon: <FiList size={16} />, path: "/teacher/mcq-list" },
-    //     { name: "Create Question", icon: <FiEdit size={16} />, path: "/teacher/create-question" },
-    //     { name: "Question List", icon: <FiList size={16} />, path: "/teacher/question-list" },
-    //   ],
-    // },
+
+    {
+      name: "Courses paper",
+      icon: <MdGolfCourse size={18} />,
+      children: [
+        {
+          name: "Answere Paper ",
+          icon: <FiEdit size={16} />,
+          path: "/teacher/student-paper"
+        }
+      ]
+    },
+    {
+      name: "Live Class",
+      icon: <MdClass size={18} />,
+      path: "/teacher/live-class"
+    },
     {
       name: "notifications",
       icon: (
@@ -74,19 +82,19 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           </span>
         </div>
       ),
-      path: "/teacher/notifications",
+      path: "/teacher/notifications"
     },
     {
       name: "settings",
       icon: <FiSettings size={18} />,
-      path: "/teacher/settings",
-    },
+      path: "/teacher/settings"
+    }
   ];
 
   const toggleMenu = (menuName) => {
     setExpandedMenus((prev) => ({
       ...prev,
-      [menuName]: !prev[menuName],
+      [menuName]: !prev[menuName]
     }));
   };
 
@@ -138,7 +146,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                       transition-all duration-200 ease-in-out hover:scale-[1.01] active:scale-[0.99]
                       ${
                         expandedMenus[item.name]
-                          ? "bg-blue-600 text-white"
+                          ? "bg-theme_color text-white"
                           : "text-gray-600 hover:bg-gray-50"
                       }
                     `}
@@ -178,10 +186,10 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                             onClick={() => navigate(child.path)}
                             className={`
                               flex items-center cursor-pointer text-xs md:text-sm py-2.5 px-3 w-full text-left 
-                              rounded-md transition-all duration-150 ease-in-out font-[600] text-gray-700 hover:text-blue-600 hover:translate-x-1
+                              rounded-md transition-all duration-150 ease-in-out font-[600] text-gray-700 hover:text-theme_color hover:translate-x-1
                               ${
                                 location.pathname === child.path
-                                  ? "text-blue-500"
+                                  ? "text-theme_color"
                                   : ""
                               }
                             `}
@@ -202,7 +210,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                     transition-all duration-200 ease-in-out cursor-pointer hover:scale-[1.01] active:scale-[0.99]
                     ${
                       location.pathname === item.path
-                        ? "bg-blue-600 text-white"
+                        ? "bg-theme_color text-white"
                         : "text-gray-600 hover:bg-gray-50"
                     }
                   `}
