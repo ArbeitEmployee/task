@@ -4,13 +4,14 @@ import { motion } from "framer-motion";
 import {
   AiOutlineLock,
   AiOutlineEye,
-  AiOutlineEyeInvisible
+  AiOutlineEyeInvisible,
 } from "react-icons/ai";
 import axios from "axios";
 import toast from "react-hot-toast"; // Import toast and ToastContainer
 import { useNavigate, useLocation } from "react-router-dom";
 
-const ResetPasswordStudent = () => {
+const ResetPasswordStudent = ({ setAuthMode }) => {
+  const base_url = import.meta.env.VITE_API_KEY_Base_URL;
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -46,22 +47,26 @@ const ResetPasswordStudent = () => {
 
     try {
       const response = await axios.post(
-        // "http://localhost:3500/api/auth/reset-password",
+        `${base_url}/api/auth/student/reset-password`,
         {
           email,
           otp,
-          newPassword
+          newPassword,
         }
       );
 
       if (response.data.success) {
-        toast.success("Password reset successfully!"); // Success toast notification
+        toast.success(response.data.message || "Password reset successfully!");
         navigate("/student");
+        setAuthMode("login");
       } else {
-        toast.error(response.data.message); // Error toast notification
+        toast.error(response.data.message || "Failed to reset password");
       }
     } catch (error) {
-      toast.error("Failed to reset password. Please try again!"); // Error toast notification
+      toast.error(
+        error.response?.data?.message ||
+          "Failed to reset password. Please try again!"
+      );
     }
     setIsSubmitting(false);
   };

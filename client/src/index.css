@@ -97,3 +97,4 @@ input[type="datetime-local"]:after {
   transform: translateY(-50%);
   pointer-events: none;
 }
+/* Add to your global CSS */

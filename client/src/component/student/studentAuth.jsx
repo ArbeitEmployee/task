@@ -11,18 +11,20 @@ import {
   FiEye,
   FiEyeOff,
   FiUpload,
-  FiX
+  FiX,
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 
-const StudentAuth = () => {
+const StudentAuth = ({ authMode, setAuthMode }) => {
   const navigate = useNavigate();
   const base_url = import.meta.env.VITE_API_KEY_Base_URL;
 
   // Tab system states
-  const [activeTab, setActiveTab] = useState("register"); // register | verify | login
+  const handleAuthModeChange = (mode) => {
+    setAuthMode(mode);
+  };
   const [registeredEmail, setRegisteredEmail] = useState("");
 
   // Registration form state
@@ -32,15 +34,15 @@ const StudentAuth = () => {
     full_name: "",
     phone: "",
     date_of_birth: "",
-    address: ""
+    address: "",
   });
 
   // Profile picture state
   const [files, setFiles] = useState({
-    profile_picture: null
+    profile_picture: null,
   });
   const [fileErrors, setFileErrors] = useState({
-    profile_picture: ""
+    profile_picture: "",
   });
   // OTP verification state
   const [otp, setOtp] = useState("");
@@ -48,19 +50,17 @@ const StudentAuth = () => {
   const [isResending, setIsResending] = useState(false);
   const [otpCountdown, setOtpCountdown] = useState(0);
 
-  // Login form state
   const [loginForm, setLoginForm] = useState({
     email: "",
     password: "",
-    remember: false
+    remember: false,
   });
-
   // UI states
   const [errors, setErrors] = useState({
     email: "",
     password: "",
     full_name: "",
-    phone: ""
+    phone: "",
   });
   const [loginErrors, setLoginErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -90,7 +90,7 @@ const StudentAuth = () => {
       // 2MB in bytes
       setFileErrors((prev) => ({
         ...prev,
-        [name]: "Image couldn't be uploaded more than 2MB"
+        [name]: "Image couldn't be uploaded more than 2MB",
       }));
       // Clear the file input
       e.target.value = "";
@@ -153,7 +153,7 @@ const StudentAuth = () => {
     if (!files.profile_picture) {
       setFileErrors((prev) => ({
         ...prev,
-        profile_picture: "Profile picture is required"
+        profile_picture: "Profile picture is required",
       }));
       isValid = false;
     } else {
@@ -214,14 +214,30 @@ const StudentAuth = () => {
         {
           headers: {
             "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${localStorage.getItem("token")}`
-          }
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
       );
-
+      // Clear all registration data
+      setForm({
+        email: "",
+        password: "",
+        full_name: "",
+        phone: "",
+        date_of_birth: "",
+        address: "",
+      });
+      setFiles({ profile_picture: null });
+      setFileErrors({ profile_picture: "" });
+      setErrors({
+        email: "",
+        password: "",
+        full_name: "",
+        phone: "",
+      });
       setRegisteredEmail(form.email);
-      setActiveTab("verify");
-      setOtpCountdown(60); // 1 minute countdown
+      setAuthMode("verify");
+      setOtpCountdown(60);
       toast.success("OTP sent to your email!");
     } catch (err) {
       const errorMessage = err.response?.data?.message || "Registration failed";
@@ -247,13 +263,20 @@ const StudentAuth = () => {
         `${base_url}/api/auth/student/verify-otp`,
         {
           email: registeredEmail,
-          otp
+          otp,
         }
       );
-
+      // Clear OTP data
+      setOtp("");
+      setOtpError("");
+      // Only keep the email for login
+      setLoginForm({
+        email: registeredEmail,
+        password: "",
+        remember: false,
+      });
       toast.success("Account verified successfully!");
-      setActiveTab("login");
-      setLoginForm((prev) => ({ ...prev, email: registeredEmail }));
+      setAuthMode("login");
     } catch (err) {
       const errorMessage =
         err.response?.data?.message || "OTP verification failed";
@@ -266,7 +289,7 @@ const StudentAuth = () => {
     setIsResending(true);
     try {
       await axios.post(`${base_url}/api/auth/student/resend-otp`, {
-        email: registeredEmail
+        email: registeredEmail,
       });
       setOtpCountdown(60); // Reset countdown
       toast.success("New OTP sent to your email!");
@@ -320,7 +343,7 @@ const StudentAuth = () => {
     try {
       const response = await axios.post(`${base_url}/api/auth/student/login`, {
         email: loginForm.email,
-        password: loginForm.password
+        password: loginForm.password,
       });
 
       const { token, student } = response.data;
@@ -344,10 +367,6 @@ const StudentAuth = () => {
     } finally {
       setIsLoginSubmitting(false);
     }
-  };
-
-  const handleForgotPassword = () => {
-    navigate("/student/forgot-password");
   };
 
   // ========== RENDER FUNCTIONS ==========
@@ -412,6 +431,7 @@ const StudentAuth = () => {
                 onChange={handleFileChange}
                 className="hidden"
                 accept=".jpg,.jpeg,.png"
+                autoComplete="off"
               />
             </label>
           </div>
@@ -436,13 +456,14 @@ const StudentAuth = () => {
               <input
                 name="email"
                 type="email"
-                value={form.email}
-                onChange={handleChange}
-                onBlur={() => validateField("email", form.email)}
+                value={loginForm.email}
+                onChange={handleLoginChange}
+                onBlur={() => validateLoginField("email", loginForm.email)}
                 placeholder="student@example.com"
                 className={`w-full px-4 py-3 rounded-lg border ${
-                  errors.email ? "border-red-500" : "border-gray-300"
-                } focus:ring-2 focus:ring-black focus:border-gray-500`}
+                  loginErrors.email ? "border-red-500" : "border-gray-300"
+                }focus:border-gray-500`}
+                autoComplete="off"
               />
               {errors.email && (
                 <p className="text-sm text-red-500">{errors.email}</p>
@@ -463,7 +484,8 @@ const StudentAuth = () => {
                   placeholder="At least 8 characters with 1 number & special char"
                   className={`w-full px-4 py-3 rounded-lg border ${
                     errors.password ? "border-red-500" : "border-gray-300"
-                  } focus:ring-2 focus:ring-black focus:border-gray-500 pr-10`}
+                  }  focus:border-gray-500 pr-10`}
+                  autoComplete="off"
                 />
                 <button
                   type="button"
@@ -490,7 +512,8 @@ const StudentAuth = () => {
                 placeholder="First and Last name"
                 className={`w-full px-4 py-3 rounded-lg border ${
                   errors.full_name ? "border-red-500" : "border-gray-300"
-                } focus:ring-2 focus:ring-black focus:border-gray-500`}
+                }  focus:border-gray-500`}
+                autoComplete="off"
               />
               {errors.full_name && (
                 <p className="text-sm text-red-500">{errors.full_name}</p>
@@ -512,7 +535,8 @@ const StudentAuth = () => {
                 placeholder="+8801912345678"
                 className={`w-full px-4 py-3 rounded-lg border ${
                   errors.phone ? "border-red-500" : "border-gray-300"
-                } focus:ring-2 focus:ring-black focus:border-gray-500`}
+                }  focus:border-gray-500`}
+                autoComplete="off"
               />
               {errors.phone && (
                 <p className="text-sm text-red-500">{errors.phone}</p>
@@ -534,7 +558,8 @@ const StudentAuth = () => {
                 placeholder="DD/MM/YYYY"
                 className={`w-full px-4 py-3 rounded-lg border ${
                   errors.date_of_birth ? "border-red-500" : "border-gray-300"
-                } focus:ring-2 focus:ring-black focus:border-gray-500`}
+                }  focus:border-gray-500`}
+                autoComplete="off"
               />
               {errors.date_of_birth && (
                 <p className="text-sm text-red-500">{errors.date_of_birth}</p>
@@ -552,6 +577,7 @@ const StudentAuth = () => {
                 placeholder="Your current address"
                 rows="2"
                 className="w-full px-4 py-3 rounded-lg border border-gray-300"
+                autoComplete="off"
               />
             </div>
           </div>
@@ -598,7 +624,7 @@ const StudentAuth = () => {
             Already have an account?{" "}
             <button
               type="button"
-              onClick={() => setActiveTab("login")}
+              onClick={() => setAuthMode("login")}
               className="text-gray-600 hover:text-gray-800 font-medium"
             >
               Sign In
@@ -643,7 +669,7 @@ const StudentAuth = () => {
               maxLength="6"
               className={`w-full px-4 py-3 rounded-lg border ${
                 otpError ? "border-red-500" : "border-gray-300"
-              } focus:ring-2 focus:ring-black focus:border-gray-500`}
+              }  focus:border-gray-500`}
             />
             {otpError && <p className="text-sm text-red-500">{otpError}</p>}
           </div>
@@ -675,7 +701,7 @@ const StudentAuth = () => {
       <div className="mt-6 text-center text-sm text-gray-600">
         <button
           type="button"
-          onClick={() => setActiveTab("register")}
+          onClick={() => setAuthMode("register")}
           className="text-gray-600 hover:text-gray-800 font-medium"
         >
           Back to Registration
@@ -715,7 +741,8 @@ const StudentAuth = () => {
               placeholder="student@example.com"
               className={`w-full px-4 py-3 rounded-lg border ${
                 loginErrors.email ? "border-red-500" : "border-gray-300"
-              } focus:ring-2 focus:ring-black focus:border-gray-500`}
+              }  focus:border-gray-500`}
+              autoComplete="off"
             />
             {loginErrors.email && (
               <p className="text-sm text-red-500">{loginErrors.email}</p>
@@ -738,7 +765,8 @@ const StudentAuth = () => {
                 placeholder="Enter your password"
                 className={`w-full px-4 py-3 rounded-lg border ${
                   loginErrors.password ? "border-red-500" : "border-gray-300"
-                } focus:ring-2 focus:ring-black focus:border-gray-500 pr-10`}
+                }  focus:border-gray-500 pr-10`}
+                autoComplete="off"
               />
               <button
                 type="button"
@@ -753,28 +781,45 @@ const StudentAuth = () => {
             )}
           </div>
 
-          <div className="flex items-center justify-between pt-2">
-            <label className="inline-flex items-center gap-2 cursor-pointer">
-              <input
-                id="remember"
-                name="remember"
-                type="checkbox"
-                checked={loginForm.remember}
-                onChange={handleLoginChange}
-                className="rounded border-gray-300 text-black focus:ring-black"
-              />
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="flex items-center justify-between pt-2"
+          >
+            <label className="inline-flex items-center space-x-1 cursor-pointer">
+              <div className="relative w-10 h-6">
+                <input
+                  type="checkbox"
+                  name="remember"
+                  className="sr-only peer"
+                  checked={loginForm.remember}
+                  onChange={handleLoginChange}
+                />
+                <div className="w-full h-full bg-gray-200 rounded-full peer peer-checked:bg-black transition-colors duration-300">
+                  <motion.div
+                    className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm"
+                    animate={{
+                      x: loginForm.remember ? 20 : 3,
+                      transition: {
+                        type: "spring",
+                        stiffness: 700,
+                        damping: 30,
+                      },
+                    }}
+                  />
+                </div>
+              </div>
               <span className="text-sm text-gray-600">Remember me</span>
             </label>
 
-            <button
-              type="button"
-              onClick={handleForgotPassword}
-              className="text-sm text-gray-600 hover:text-blue-500 transition-colors duration-200"
+            <Link
+              to="/student/forgotPassword"
+              className="text-sm text-gray-600 hover:text-black transition-colors duration-200"
             >
               Forgot password?
-            </button>
-          </div>
-
+            </Link>
+          </motion.div>
           <button
             type="submit"
             disabled={isLoginSubmitting}
@@ -815,7 +860,7 @@ const StudentAuth = () => {
             Don't have an account?{" "}
             <button
               type="button"
-              onClick={() => setActiveTab("register")}
+              onClick={() => setAuthMode("register")}
               className="text-gray-600 hover:text-gray-800 font-medium"
             >
               Register here
@@ -834,9 +879,9 @@ const StudentAuth = () => {
       className="min-h-screen bg-gray-50 flex items-center justify-center p-4"
     >
       <div className="w-full max-w-5xl mx-auto">
-        {activeTab === "register" && renderRegisterTab()}
-        {activeTab === "verify" && renderVerifyTab()}
-        {activeTab === "login" && renderLoginTab()}
+        {authMode === "register" && renderRegisterTab()}
+        {authMode === "verify" && renderVerifyTab()}
+        {authMode === "login" && renderLoginTab()}
       </div>
     </motion.div>
   );

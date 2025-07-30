@@ -1,16 +1,21 @@
 /* eslint-disable no-unused-vars */
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { AiOutlineMail } from "react-icons/ai";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast"; // Correct import for Toaster
 
+// Change this line in ForgotPasswordStudent.js
 const ForgotPasswordStudent = ({ setAuthMode }) => {
+  // Remove the 'b' from setAuthModeb
+  const base_url = import.meta.env.VITE_API_KEY_Base_URL;
   const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState(Array(4).fill("")); // Array to store OTP digits
-  const [isOtpSent, setIsOtpSent] = useState(false); // Toggle OTP sent state
+  const [otp, setOtp] = useState(Array(6).fill("")); // 6-digit OTP
+  const [isOtpSent, setIsOtpSent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [canResend, setCanResend] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(60);
   const navigate = useNavigate();
 
   // Handle email submit for sending OTP
@@ -18,71 +23,133 @@ const ForgotPasswordStudent = ({ setAuthMode }) => {
     setIsSubmitting(true);
     try {
       const response = await axios.post(
-        // "http://localhost:3500/api/auth/forgot-password",
+        `${base_url}/api/auth/student/forgot-password`,
         { email }
       );
 
       if (response.data.success) {
-        toast.success("OTP sent to your email!");
+        toast.success(
+          response.data.message.includes("successfully")
+            ? response.data.message
+            : "OTP sent successfully!"
+        );
         setIsOtpSent(true);
+        setCanResend(false);
+        setResendCountdown(60); // 60 seconds countdown
       } else {
         toast.error(response.data.message);
       }
     } catch (error) {
-      toast.error("Failed to send OTP. Please try again!");
+      toast.error(error.response?.data?.message || "Failed to send OTP");
     }
     setIsSubmitting(false);
   };
 
   // Handle OTP input change
+  // Handle OTP input change
   const handleOtpChange = (e, index) => {
-    const value = e.target.value;
-    if (isNaN(value)) return; // Prevent non-numeric input
+    const value = e.target.value.replace(/\D/g, ""); // Numbers only
 
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
+    // Handle backspace/delete
+    if (e.nativeEvent.inputType === "deleteContentBackward") {
+      const newOtp = [...otp];
+      newOtp[index] = "";
+      setOtp(newOtp);
 
-    // Focus next input if value is entered
-    if (e.target.nextSibling && value) {
-      e.target.nextSibling.focus();
+      // Move focus to previous input if current is empty
+      if (index > 0 && !value) {
+        e.target.previousSibling?.focus();
+      }
+      return;
+    }
+
+    // Handle regular input
+    if (value) {
+      const newOtp = [...otp];
+      newOtp[index] = value.slice(-1); // Only take the last character if pasted
+      setOtp(newOtp);
+
+      // Focus next input if value is entered
+      if (value && e.target.nextSibling) {
+        e.target.nextSibling.focus();
+      }
     }
   };
-
   // Handle OTP submit for verification and password reset
   const handleOtpSubmit = async () => {
-    const otpCode = otp.join(""); // Join OTP digits
+    const otpCode = otp.join("");
+    try {
+      const response = await axios.post(
+        `${base_url}/api/auth/student/verify-reset-otp`,
+        { email, otp: otpCode }
+      );
 
-    if (otpCode.length === 4) {
-      try {
-        const response = await axios.post(
-          // "http://localhost:3500/api/auth/verify-otp", // API to verify OTP
-          {
+      if (response.data.success) {
+        toast.success("OTP verified!");
+        navigate("/student/reset-password", {
+          state: {
             email,
-            otp: otpCode
-          }
-        );
-
-        if (response.data.success) {
-          // If OTP is valid, navigate to reset password page
-          toast.success("OTP Matched!");
-          navigate("/student/reset-password", {
-            state: { email, otp: otpCode }
-          });
-        } else {
-          toast.error(response.data.message);
-        }
-      } catch (error) {
-        toast.error("OTP validation failed. Please try again!");
+            tempToken: response.data.tempToken,
+          },
+        });
+      } else {
+        toast.error(response.data.message || "Invalid OTP");
       }
-    } else {
-      toast.error("Please enter a valid 4-digit OTP.");
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message ||
+          "OTP verification failed. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  const handleResendOtp = async () => {
+    setCanResend(false);
+    setResendCountdown(60);
+    await handleEmailSubmit();
+  };
+
+  useEffect(() => {
+    let timer;
+    if (resendCountdown > 0) {
+      timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000);
+    } else {
+      setCanResend(true);
+    }
+    return () => clearTimeout(timer);
+  }, [resendCountdown]);
+
   const handleBackToLogin = () => {
     setAuthMode("login"); // Update authMode to "login"
     navigate("/student"); // Navigate back to the login page
   };
+  const renderOtpInputs = () => (
+    <div className="flex justify-center space-x-3">
+      {otp.map((digit, index) => (
+        <input
+          key={index}
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          maxLength="1"
+          value={digit}
+          onChange={(e) => handleOtpChange(e, index)}
+          onKeyDown={(e) => {
+            if (e.key === "Backspace" && !digit && index > 0) {
+              const newOtp = [...otp];
+              newOtp[index - 1] = "";
+              setOtp(newOtp);
+              e.target.previousSibling?.focus();
+            }
+          }}
+          className="w-12 h-14 text-center text-2xl font-bold bg-gray-50 border border-gray-200 rounded-lg focus:outline-none  focus:border-gray-500 transition-all"
+          autoFocus={index === 0 && isOtpSent}
+        />
+      ))}
+    </div>
+  );
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4 overflow-hidden">
       <motion.div
@@ -159,25 +226,30 @@ const ForgotPasswordStudent = ({ setAuthMode }) => {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
-                className="space-y-2"
+                className="space-y-6"
               >
-                <label
-                  htmlFor="otp"
-                  className="block text-sm font-medium text-gray-700 uppercase tracking-wider"
-                >
-                  Enter OTP
-                </label>
-                <div className="flex justify-between space-x-4">
-                  {otp.map((digit, index) => (
-                    <input
-                      key={index}
-                      type="text"
-                      maxLength="1"
-                      value={digit}
-                      onChange={(e) => handleOtpChange(e, index)}
-                      className="w-1/2 h-15 text-center bg-gray-50 border border-gray-200 rounded-xl py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black/30 transition-all duration-200"
-                    />
-                  ))}
+                <div className="text-center">
+                  <p className="text-gray-600 mb-6">
+                    We sent a 6-digit code to{" "}
+                    <span className="font-semibold">{email}</span>
+                  </p>
+                  {renderOtpInputs()}
+                </div>
+
+                <div className="text-center">
+                  {canResend ? (
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      className="text-sm text-gray-600 hover:text-gray-800 font-medium"
+                    >
+                      Resend OTP
+                    </button>
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      Resend code in {resendCountdown}s
+                    </p>
+                  )}
                 </div>
               </motion.div>
 
@@ -185,14 +257,27 @@ const ForgotPasswordStudent = ({ setAuthMode }) => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
-                className="pt-4"
+                className="pt-6"
               >
                 <button
                   type="button"
                   onClick={handleOtpSubmit}
-                  className="w-full bg-black text-white font-medium rounded-xl py-4 px-6 flex items-center justify-center space-x-3 transition-all duration-300 hover:bg-gray-800"
+                  disabled={isSubmitting}
+                  className="w-full bg-gradient-to-r from-gray-600 to-gray-500 text-white font-medium rounded-xl py-4 px-6 flex items-center justify-center space-x-3 transition-all duration-300 hover:from-gray-700 hover:to-gray-600 disabled:opacity-70"
                 >
-                  Submit OTP
+                  {isSubmitting ? (
+                    <>
+                      <svg
+                        className="animate-spin h-5 w-5 mr-2"
+                        viewBox="0 0 24 24"
+                      >
+                        {/* Loading spinner */}
+                      </svg>
+                      Verifying...
+                    </>
+                  ) : (
+                    "Verify OTP"
+                  )}
                 </button>
               </motion.div>
             </>

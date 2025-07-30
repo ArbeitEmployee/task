@@ -11,7 +11,7 @@ import {
   FiCalendar,
   FiMapPin,
   FiUser,
-  FiMail
+  FiMail,
 } from "react-icons/fi";
 import axios from "axios";
 import { toast } from "react-hot-toast";
@@ -27,21 +27,21 @@ const StudentSettings = () => {
     address: "",
     profile_picture: null,
     isVerified: false,
-    createdAt: ""
+    createdAt: "",
   });
   const [editMode, setEditMode] = useState({
     full_name: false,
     email: false,
     phone: false,
     date_of_birth: false,
-    address: false
+    address: false,
   });
   const [tempProfile, setTempProfile] = useState({});
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
-    confirmPassword: ""
+    confirmPassword: "",
   });
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -49,7 +49,7 @@ const StudentSettings = () => {
   const [loading, setLoading] = useState({
     profile: false,
     password: false,
-    photo: false
+    photo: false,
   });
 
   // Format date for display
@@ -63,7 +63,7 @@ const StudentSettings = () => {
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
-      day: "numeric"
+      day: "numeric",
     });
   };
   const studentdata = JSON.parse(localStorage.getItem("studentData"));
@@ -88,8 +88,8 @@ const StudentSettings = () => {
           `http://localhost:3500/api/student/profile/${studentdata.id}`,
           {
             headers: {
-              Authorization: `Bearer ${token}`
-            }
+              Authorization: `Bearer ${token}`,
+            },
           }
         );
 
@@ -102,10 +102,9 @@ const StudentSettings = () => {
           address: studentData.address || "",
           profile_picture: studentData.profile_picture || null,
           isVerified: studentData.isVerified || false,
-          createdAt: studentData.createdAt || ""
+          createdAt: studentData.createdAt || "",
         });
       } catch (err) {
-        console.error("Failed to fetch profile:", err);
         toast.error("Failed to load profile data");
       }
     };
@@ -145,13 +144,13 @@ const StudentSettings = () => {
         `http://localhost:3500/api/student/profile/${studentdata.id}`, // Include student ID
         {
           [field]: tempProfile[field],
-          id: studentdata.id // Also include ID in body if your backend expects it
+          id: studentdata.id, // Also include ID in body if your backend expects it
         },
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
+            "Content-Type": "application/json",
+          },
         }
       );
 
@@ -160,7 +159,6 @@ const StudentSettings = () => {
       setEditMode((prev) => ({ ...prev, [field]: false }));
       toast.success(`${field.replace(/_/g, " ")} updated successfully!`);
     } catch (err) {
-      console.error("Failed to update profile:", err);
       toast.error(err.response?.data?.message || `Failed to update ${field}`);
     } finally {
       setLoading({ ...loading, profile: false });
@@ -206,12 +204,12 @@ const StudentSettings = () => {
         `${base_url}/api/student/profile/${studentdata.id}/password`, // Updated URL
         {
           currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword
+          newPassword: passwordData.newPassword,
         },
         {
           headers: {
-            Authorization: `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
@@ -219,11 +217,10 @@ const StudentSettings = () => {
       setPasswordData({
         currentPassword: "",
         newPassword: "",
-        confirmPassword: ""
+        confirmPassword: "",
       });
       setShowPasswordChange(false);
     } catch (err) {
-      console.error("Failed to change password:", err);
       toast.error(err.response?.data?.message || "Failed to change password");
     } finally {
       setLoading({ ...loading, password: false });
@@ -247,18 +244,17 @@ const StudentSettings = () => {
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data"
-          }
+            "Content-Type": "multipart/form-data",
+          },
         }
       );
 
       setProfile((prev) => ({
         ...prev,
-        profile_picture: response.data.profile_picture || prev.profile_picture
+        profile_picture: response.data.profile_picture || prev.profile_picture,
       }));
       toast.success("Profile photo updated successfully!");
     } catch (err) {
-      console.error("Failed to update profile photo:", err);
       toast.error(
         err.response?.data?.message || "Failed to update profile photo"
       );
@@ -713,7 +709,7 @@ const StudentSettings = () => {
                           className="cursor-pointer w-full px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                           whileHover={{
                             scale: 1.005,
-                            boxShadow: "0px 4px 15px rgba(0, 0, 0, 0.2)"
+                            boxShadow: "0px 4px 15px rgba(0, 0, 0, 0.2)",
                           }}
                           whileTap={{ scale: 1.005 }}
                           initial={{ opacity: 0, y: 10 }}
