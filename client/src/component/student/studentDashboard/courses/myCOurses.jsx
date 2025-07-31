@@ -375,8 +375,6 @@ const MyCourses = ({ setActiveView }) => {
 
   return (
     <div className="min-h-screen text-gray-900 bg-gray-50">
-      <Toaster position="top-right" />
-
       {/* Header */}
       <header className="bg-white py-6 px-4 sm:px-6 lg:px-8 border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto">

@@ -197,8 +197,6 @@ const CourseLearningPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
-      <Toaster position="top-right" />
-
       <div className="max-w-7xl mx-auto">
         {/* Course Header */}
         <div className="mb-6 flex items-center justify-between">

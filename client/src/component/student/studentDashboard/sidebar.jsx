@@ -242,7 +242,6 @@ const Sidebar = ({ activeView, setActiveView }) => {
       </nav>
 
       {/* Footer Profile */}
-      {/* Footer Profile */}
       <div className="p-4 border-t border-gray-200">
         <motion.div
           className="flex items-center"
