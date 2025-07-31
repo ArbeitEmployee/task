@@ -1,4 +1,3 @@
-/* eslint-disable no-constant-binary-expression */
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -10,7 +9,7 @@ import {
   FiLock,
   FiPlay,
   FiAward,
-  FiDownload
+  FiDownload,
 } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
@@ -47,7 +46,7 @@ const CourseOverview = () => {
         courseData.content.forEach((item) => {
           initialProgress[item._id] = {
             completed: false,
-            progress: 0
+            progress: 0,
           };
         });
         setProgress(initialProgress);
@@ -82,8 +81,8 @@ const CourseOverview = () => {
         [itemId]: {
           ...prevState[itemId],
           completed: newCompletedState,
-          progress: newCompletedState ? 100 : 0
-        }
+          progress: newCompletedState ? 100 : 0,
+        },
       }));
 
       // Check if course is now completed
@@ -94,7 +93,7 @@ const CourseOverview = () => {
 
         if (allCompleted) {
           setCertificate({
-            downloadUrl: "#" // Replace with actual certificate URL
+            downloadUrl: "#", // Replace with actual certificate URL
           });
         }
       }
@@ -250,10 +249,7 @@ const CourseOverview = () => {
             <div className="lg:w-1/3 flex items-center justify-center">
               <div className="relative group">
                 <img
-                  src={
-                    `${base_url}/uploads/courses/${course.thumbnail?.filename}` ||
-                    "https://via.placeholder.com/800x450?text=Course+Thumbnail"
-                  }
+                  src={`${base_url}/uploads/courses/${course.thumbnail?.filename}`}
                   alt={course.title}
                   className="w-full h-auto rounded-xl shadow-2xl transform group-hover:scale-105 transition-transform duration-300"
                 />
@@ -485,7 +481,7 @@ const CourseOverview = () => {
                             <div
                               className="bg-indigo-500 h-1"
                               style={{
-                                width: `${progress[item._id].progress}%`
+                                width: `${progress[item._id].progress}%`,
                               }}
                             ></div>
                           </div>

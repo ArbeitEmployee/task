@@ -70,6 +70,7 @@ const attachmentSchema = new Schema({
   mimetype: { type: String, required: true },
 });
 
+// Student answer schema with detailed tracking
 const studentAnswerSchema = new Schema(
   {
     questionId: { type: Schema.Types.ObjectId, ref: "Student", required: true },
@@ -216,8 +217,6 @@ const courseSchema = new Schema(
       },
     ],
     averageRating: { type: Number, default: 0 },
-    requirements: [String],
-    whatYouWillLearn: [String],
     targetAudience: [String],
     level: {
       type: String,

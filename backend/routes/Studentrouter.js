@@ -2,12 +2,13 @@ const express = require("express");
 const Studentrouter = express.Router();
 const studentAuth = require("../middleware/studentMiddleware");
 const Student = require("../models/Student");
+const Teacher = require("../models/Teacher");
 const bcrypt = require("bcryptjs");
 const Course = require("../models/Course");
 const mongoose = require("mongoose");
 const path = require("path");
 const multer = require("multer");
-const fs = require("fs");
+
 // Protected route - Get student profile
 Studentrouter.get("/profile/:id", studentAuth, async (req, res) => {
   try {
@@ -25,7 +26,7 @@ Studentrouter.get("/profile/:id", studentAuth, async (req, res) => {
     if (req.student._id.toString() !== req.params.id) {
       return res.status(403).json({
         success: false,
-        message: "Not authorized to view this profile."
+        message: "Not authorized to view this profile.",
       });
     }
 
@@ -46,14 +47,14 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
+  },
 });
 
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 2 * 1024 * 1024 // 2MB limit
-  }
+    fileSize: 2 * 1024 * 1024, // 2MB limit
+  },
 });
 // Protected route - Update student profile (excluding password)
 Studentrouter.put(
@@ -76,7 +77,7 @@ Studentrouter.put(
 
       const updatedStudent = await Student.findByIdAndUpdate(id, updates, {
         new: true,
-        runValidators: true
+        runValidators: true,
       }).select(
         "-password -otp -otpExpires -resetPasswordToken -resetPasswordExpire -loginAttempts -lockUntil"
       );
@@ -90,7 +91,7 @@ Studentrouter.put(
       res.status(200).json({
         success: true,
         student: updatedStudent,
-        profile_picture: req.file?.filename // Include the filename in response if uploaded
+        profile_picture: req.file?.filename, // Include the filename in response if uploaded
       });
     } catch (error) {
       console.error(error);
@@ -109,7 +110,7 @@ Studentrouter.put("/profile/:id/password", studentAuth, async (req, res) => {
     if (req.student._id.toString() !== id) {
       return res.status(403).json({
         success: false,
-        message: "Not authorized to update this password."
+        message: "Not authorized to update this password.",
       });
     }
 
@@ -117,14 +118,14 @@ Studentrouter.put("/profile/:id/password", studentAuth, async (req, res) => {
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: "Current and new password are required."
+        message: "Current and new password are required.",
       });
     }
 
     if (newPassword.length < 6) {
       return res.status(400).json({
         success: false,
-        message: "Password must be at least 6 characters."
+        message: "Password must be at least 6 characters.",
       });
     }
 
@@ -156,15 +157,35 @@ Studentrouter.put("/profile/:id/password", studentAuth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
 
 // ------------------------------all-courses--------------------------------
+// Student router (instead of Admin router)
+Studentrouter.get("/teachers", async (req, res) => {
+  try {
+    const teachers = await Teacher.find({})
+      .select("_id full_name email profile_photo") // Only select necessary fields
+      .lean();
+
+    res.json({
+      success: true,
+      teachers,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching teachers",
+    });
+  }
+});
 Studentrouter.get("/all-courses", async (req, res) => {
   try {
-    const allcourses = await Course.find();
+    const allcourses = await Course.find()
+      .populate("instructor", "full_name") // This ensures instructor data is included
+      .lean();
 
     if (!allcourses) {
       return res.send({ success: false, message: "No courses found!" });
@@ -202,7 +223,7 @@ Studentrouter.post("/enroll/:courseId", async (req, res) => {
     if (isEnrolled) {
       return res.status(400).json({
         success: false,
-        message: "You are already enrolled in this course"
+        message: "You are already enrolled in this course",
       });
     }
 
@@ -212,14 +233,14 @@ Studentrouter.post("/enroll/:courseId", async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Successfully enrolled in the course",
-      enrolledCourses: student.enrolledCourses
+      enrolledCourses: student.enrolledCourses,
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -230,7 +251,7 @@ Studentrouter.get("/my-courses", async (req, res) => {
     const student = await Student.findById(req.student._id)
       .populate({
         path: "enrolledCourses.course",
-        select: "title description thumbnail instructor rating duration price"
+        select: "title description thumbnail instructor rating duration price",
       })
       .select("enrolledCourses");
 
@@ -248,31 +269,30 @@ Studentrouter.get("/my-courses", async (req, res) => {
         instructor: enrollment.course.instructor,
         rating: enrollment.course.rating,
         duration: enrollment.course.duration,
-        price: enrollment.course.price
+        price: enrollment.course.price,
       },
       enrolledAt: enrollment.enrolledAt,
       progress: enrollment.progress,
       completed: enrollment.completed,
       lastAccessed: enrollment.lastAccessed,
-      certificates: enrollment.certificates
+      certificates: enrollment.certificates,
     }));
 
     res.status(200).json({
       success: true,
       enrolledCourses,
-      count: enrolledCourses.length
+      count: enrolledCourses.length,
     });
   } catch (error) {
     console.error("Error fetching enrolled courses:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch enrolled courses",
-      error: error.message
+      error: error.message,
     });
   }
 });
-
-// Enroll in a course
+// Get enrolled courses for a specific student
 Studentrouter.post("/:courseId/enroll", studentAuth, async (req, res) => {
   try {
     const course = await Course.findById(req.params.courseId);
@@ -290,7 +310,7 @@ Studentrouter.post("/:courseId/enroll", studentAuth, async (req, res) => {
     if (alreadyEnrolled) {
       return res.status(400).json({
         success: false,
-        message: "You are already enrolled in this course"
+        message: "You are already enrolled in this course",
       });
     }
 
@@ -298,7 +318,7 @@ Studentrouter.post("/:courseId/enroll", studentAuth, async (req, res) => {
     if (course.type === "premium" && !req.user.subscription.active) {
       return res.status(403).json({
         success: false,
-        message: "Premium course requires an active subscription"
+        message: "Premium course requires an active subscription",
       });
     }
 
@@ -306,14 +326,14 @@ Studentrouter.post("/:courseId/enroll", studentAuth, async (req, res) => {
     const progress = course.content.map((item) => ({
       contentItemId: item._id,
       completed: false,
-      lastAccessed: new Date()
+      lastAccessed: new Date(),
     }));
 
     // Create new enrollment
     const newEnrollment = {
       studentId: req.body.user_id,
       progress,
-      lastAccessed: new Date()
+      lastAccessed: new Date(),
     };
 
     course.enrollments.push(newEnrollment);
@@ -321,13 +341,13 @@ Studentrouter.post("/:courseId/enroll", studentAuth, async (req, res) => {
 
     // Add course to user's enrolled courses
     await Student.findByIdAndUpdate(req.body.user_id, {
-      $addToSet: { enrolledCourses: course._id }
+      $addToSet: { enrolledCourses: course._id },
     });
 
     res.status(200).json({
       success: true,
       message: "Successfully enrolled in the course",
-      enrollment: newEnrollment
+      enrollment: newEnrollment,
     });
   } catch (error) {
     console.log(error);
@@ -340,7 +360,7 @@ Studentrouter.get("/enrolled-courses/:studentId", async (req, res) => {
 
     // Find all courses where the student is enrolled and populate necessary fields
     const courses = await Course.find({
-      "enrollments.studentId": studentId
+      "enrollments.studentId": studentId,
     })
       .populate("instructor", "name email profilePicture")
       .populate("enrollments.progress.answers.gradedBy", "name")
@@ -350,7 +370,7 @@ Studentrouter.get("/enrolled-courses/:studentId", async (req, res) => {
       return res.status(200).json({
         success: true,
         enrolledCourses: [],
-        message: "No enrolled courses found for this student"
+        message: "No enrolled courses found for this student",
       });
     }
 
@@ -404,7 +424,7 @@ Studentrouter.get("/enrolled-courses/:studentId", async (req, res) => {
           totalLessons: course.content.filter((c) => c.type === "tutorial")
             .length,
           totalQuizzes: course.content.filter((c) => c.type === "quiz").length,
-          totalContentItems: course.content.length
+          totalContentItems: course.content.length,
         },
         enrollmentInfo: {
           enrolledAt: enrollment.enrolledAt,
@@ -422,25 +442,24 @@ Studentrouter.get("/enrolled-courses/:studentId", async (req, res) => {
             accuracy,
             totalMarksObtained,
             totalMaxMarks,
-            overallPercentage
-          }
-        }
+            overallPercentage,
+          },
+        },
       };
     });
 
     res.status(200).json({
       success: true,
-      enrolledCourses
+      enrolledCourses,
     });
   } catch (error) {
     console.error("Error fetching enrolled courses:", error);
     res.status(500).json({
       success: false,
-      message: "Server error while fetching enrolled courses"
+      message: "Server error while fetching enrolled courses",
     });
   }
 });
-
 // Helper function to calculate overall progress
 function calculateOverallProgress(progressItems) {
   if (!progressItems || progressItems.length === 0) return 0;
@@ -484,15 +503,15 @@ Studentrouter.post("/:courseId/access", studentAuth, async (req, res) => {
         progress: course.content.map((item) => ({
           contentItemId: item._id,
           completed: false,
-          timeSpent: 0
+          timeSpent: 0,
         })),
         totalTimeSpent: 0,
         accessHistory: [
           {
             accessedAt: now,
-            duration: 0 // Will be updated when they leave the course
-          }
-        ]
+            duration: 0, // Will be updated when they leave the course
+          },
+        ],
       };
       course.enrollments.push(enrollment);
     } else {
@@ -500,7 +519,7 @@ Studentrouter.post("/:courseId/access", studentAuth, async (req, res) => {
       enrollment.lastAccessed = now;
       enrollment.accessHistory.push({
         accessedAt: now,
-        duration: 0
+        duration: 0,
       });
 
       // Set first accessed time if not set
@@ -516,8 +535,8 @@ Studentrouter.post("/:courseId/access", studentAuth, async (req, res) => {
       enrollment: {
         _id: enrollment._id,
         firstAccessedAt: enrollment.firstAccessedAt,
-        lastAccessed: enrollment.lastAccessed
-      }
+        lastAccessed: enrollment.lastAccessed,
+      },
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -556,7 +575,7 @@ Studentrouter.get("/:courseId/progress", studentAuth, async (req, res) => {
       totalItems,
       completedItems,
       lastAccessed: enrollment.lastAccessed,
-      totalTimeSpent: enrollment.totalTimeSpent
+      totalTimeSpent: enrollment.totalTimeSpent,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -663,7 +682,7 @@ Studentrouter.put(
               questionId: question._id,
               answer: answer.answer,
               isCorrect,
-              marksObtained
+              marksObtained,
             };
           })
           .filter(Boolean);
@@ -683,7 +702,7 @@ Studentrouter.put(
 
       res.status(200).json({
         message: "Progress updated successfully",
-        progress: progressItem
+        progress: progressItem,
       });
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -702,7 +721,7 @@ Studentrouter.get("/enrolled/:studentId", async (req, res) => {
 
     // Find all courses where the student is enrolled
     const enrolledCourses = await Course.find({
-      "enrollments.studentId": studentId
+      "enrollments.studentId": studentId,
     })
       .populate("instructor", "name email") // Populate instructor details
       .select("-content -attachments -previousInstructors -ratings"); // Exclude large/unnecessary fields
@@ -742,9 +761,9 @@ Studentrouter.get("/enrolled/:studentId", async (req, res) => {
           totalProgress: course.content.length,
           lastAccessed: enrollment.lastAccessed,
           totalTimeSpent: enrollment.totalTimeSpent,
-          certificateIssued: enrollment.certificateIssued
+          certificateIssued: enrollment.certificateIssued,
         },
-        createdAt: course.createdAt
+        createdAt: course.createdAt,
       };
     });
 
@@ -783,7 +802,7 @@ Studentrouter.get("/course-overview/:id", async (req, res) => {
     console.log(error);
   }
 });
-
+const fs = require("fs");
 const PDFDocument = require("pdfkit");
 const moment = require("moment");
 
@@ -816,7 +835,7 @@ Studentrouter.get("/certificate/:courseId/:studentId", async (req, res) => {
     if (!enrollment) {
       return res.status(404).json({
         success: false,
-        message: "Student not enrolled in this course"
+        message: "Student not enrolled in this course",
       });
     }
 
@@ -841,7 +860,7 @@ Studentrouter.get("/certificate/:courseId/:studentId", async (req, res) => {
         certificateId: `CERT-${Date.now()}`,
         issuedAt: new Date(),
         verificationCode: generateVerificationCode(),
-        downloadUrl: ""
+        downloadUrl: "",
       };
       await course.save();
     }
@@ -850,7 +869,7 @@ Studentrouter.get("/certificate/:courseId/:studentId", async (req, res) => {
     const doc = new PDFDocument({
       layout: "landscape",
       size: "A4",
-      margin: 0
+      margin: 0,
     });
 
     // Generate safe filename
@@ -893,7 +912,7 @@ Studentrouter.get("/certificate/:courseId/:studentId", async (req, res) => {
       .text("Certificate of Completion", {
         align: "center",
         underline: true,
-        lineGap: 10
+        lineGap: 10,
       })
       .moveDown(0.5);
 
@@ -943,10 +962,10 @@ Studentrouter.get("/certificate/:courseId/:studentId", async (req, res) => {
       .fontSize(12)
       .fill("#6c757d")
       .text(`Certificate ID: ${enrollment.certificate.certificateId}`, {
-        align: "center"
+        align: "center",
       })
       .text(`Verification Code: ${enrollment.certificate.verificationCode}`, {
-        align: "center"
+        align: "center",
       })
       .moveDown(3);
 
@@ -957,7 +976,7 @@ Studentrouter.get("/certificate/:courseId/:studentId", async (req, res) => {
       .text("________________________", 100, signatureY, { align: "left" })
       .text("Instructor Signature", 100, signatureY + 20, { align: "left" })
       .text("________________________", doc.page.width - 300, signatureY, {
-        align: "right"
+        align: "right",
       })
       .text("Date", doc.page.width - 300, signatureY + 20, { align: "right" });
 
@@ -968,7 +987,7 @@ Studentrouter.get("/certificate/:courseId/:studentId", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to generate certificate",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -980,5 +999,309 @@ function generateVerificationCode() {
     Math.random().toString(36).substring(2, 10)
   );
 }
+// ------------------------------ Cart Routes ------------------------------
+Studentrouter.get("/cart", studentAuth, async (req, res) => {
+  try {
+    // First get the cart items without populating to check if there are any
+    const student = await Student.findById(req.student.id).select("cart");
 
+    if (!student) {
+      return res.json({ success: false, message: "Student not found" });
+    }
+
+    // If cart is empty, return early
+    if (!student.cart || student.cart.items.length === 0) {
+      return res.status(200).json({
+        success: true,
+        cart: { items: [], totalPrice: 0 },
+      });
+    }
+
+    // Now populate only the necessary fields and handle potential errors
+    const populatedStudent = await Student.findById(req.student._id)
+      .populate({
+        path: "cart.items.courseId",
+        select: "title thumbnail price instructor",
+        options: { lean: true }, // Use lean to avoid virtuals
+      })
+      .select("cart")
+      .lean();
+
+    // Calculate total price
+    const totalPrice = populatedStudent.cart.items.reduce(
+      (sum, item) => sum + (item.price || 0),
+      0
+    );
+
+    // Format the response safely
+    const safeCart = {
+      items: populatedStudent.cart.items.map((item) => ({
+        ...item,
+        courseId: {
+          _id: item.courseId?._id || null,
+          title: item.courseId?.title || "Unknown Course",
+          thumbnail: item.courseId?.thumbnail || null,
+          price: item.courseId?.price || 0,
+          instructor: item.courseId?.instructor || "Unknown Instructor",
+        },
+        price: item.price || 0,
+      })),
+      totalPrice,
+    };
+
+    res.status(200).json({
+      success: true,
+      cart: safeCart,
+    });
+  } catch (error) {
+    console.error("Error fetching cart:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching cart",
+      error: error.message,
+    });
+  }
+});
+Studentrouter.post("/cart", studentAuth, async (req, res) => {
+  try {
+    const { courseId } = req.body;
+
+    // Validate courseId
+    if (!mongoose.Types.ObjectId.isValid(courseId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid course ID" });
+    }
+
+    // Check if course exists and get price - don't select virtual fields
+    const course = await Course.findById(courseId)
+      .select("price title thumbnail instructor")
+      .lean();
+
+    if (!course) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Course not found" });
+    }
+
+    // Check if already enrolled
+    const isEnrolled = await Student.exists({
+      _id: req.student._id,
+      "enrolledCourses.course": courseId,
+    });
+
+    if (isEnrolled) {
+      return res.status(400).json({
+        success: false,
+        message: "You are already enrolled in this course",
+      });
+    }
+
+    // Check if already in cart
+    const alreadyInCart = await Student.exists({
+      _id: req.student._id,
+      "cart.items.courseId": courseId,
+    });
+
+    if (alreadyInCart) {
+      return res.status(400).json({
+        success: false,
+        message: "Course already in cart",
+      });
+    }
+
+    // Add to cart using direct update
+    const updatedStudent = await Student.findByIdAndUpdate(
+      req.student._id,
+      {
+        $push: {
+          "cart.items": {
+            courseId: courseId,
+            price: course.price,
+            addedAt: new Date(),
+          },
+        },
+      },
+      { new: true }
+    ).select("cart");
+
+    // Get simplified cart data without virtuals
+    const cartData = {
+      items: updatedStudent.cart.items.map((item) => ({
+        courseId: {
+          _id: item.courseId,
+          title: course.title,
+          thumbnail: course.thumbnail,
+          price: course.price,
+          instructor: course.instructor,
+        },
+        price: item.price,
+        addedAt: item.addedAt,
+      })),
+      totalPrice: updatedStudent.cart.items.reduce(
+        (sum, item) => sum + item.price,
+        0
+      ),
+    };
+
+    res.status(200).json({
+      success: true,
+      message: "Course added to cart successfully",
+      cart: cartData,
+    });
+  } catch (error) {
+    console.error("Error adding to cart:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while adding to cart",
+      error: error.message,
+    });
+  }
+});
+Studentrouter.delete("/cart/:courseId", studentAuth, async (req, res) => {
+  try {
+    const { courseId } = req.params;
+
+    // 1. Validate courseId format
+    if (!mongoose.isValidObjectId(courseId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid course ID format",
+      });
+    }
+
+    // 2. Convert to ObjectId properly
+    const courseObjectId = new mongoose.Types.ObjectId(courseId);
+
+    // 3. Find the student document
+    const student = await Student.findById(req.student._id);
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
+    }
+
+    // 4. Check if course exists in cart
+    const itemIndex = student.cart.items.findIndex((item) =>
+      item.courseId.equals(courseObjectId)
+    );
+
+    if (itemIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Course not found in cart",
+      });
+    }
+
+    // 5. Remove the item from cart
+    student.cart.items.splice(itemIndex, 1);
+
+    // 6. Recalculate cart total
+    student.cart.total = student.cart.items.reduce(
+      (total, item) => total + item.price,
+      0
+    );
+    student.cart.lastUpdated = new Date();
+
+    // 7. Save with disabled validation (to avoid enrolledCourses validation)
+    await student.save({ validateBeforeSave: false });
+
+    // 8. Get updated cart data (without virtuals)
+    const updatedStudent = await Student.findById(req.student._id)
+      .populate({
+        path: "cart.items.courseId",
+        select: "title thumbnail price instructor",
+        options: { lean: true },
+      })
+      .select("cart")
+      .lean();
+
+    // 9. Format the response
+    const response = {
+      success: true,
+      message: "Course removed from cart successfully",
+      cart: {
+        items: updatedStudent.cart.items.map((item) => ({
+          _id: item._id,
+          courseId: {
+            _id: item.courseId._id,
+            title: item.courseId.title,
+            thumbnail: item.courseId.thumbnail,
+            price: item.courseId.price,
+            instructor: item.courseId.instructor,
+          },
+          price: item.price,
+          addedAt: item.addedAt,
+        })),
+        total: updatedStudent.cart.total,
+        lastUpdated: updatedStudent.cart.lastUpdated,
+      },
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Error removing from cart:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while removing from cart",
+      error: error.message,
+    });
+  }
+});
+Studentrouter.delete("/cart", studentAuth, async (req, res) => {
+  try {
+    // Clear cart
+    const student = await Student.findById(req.student._id);
+    await student.clearCart();
+
+    res.status(200).json({
+      success: true,
+      message: "Cart cleared successfully",
+      cart: {
+        items: [],
+        total: 0,
+        lastUpdated: new Date(),
+      },
+    });
+  } catch (error) {
+    console.error("Error clearing cart:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while clearing cart",
+      error: error.message,
+    });
+  }
+});
+Studentrouter.post("/cart/checkout", studentAuth, async (req, res) => {
+  try {
+    const { paymentMethodId } = req.body;
+
+    // Check if cart is empty
+    const student = await Student.findById(req.student._id);
+    if (student.cart.items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Cart is empty",
+      });
+    }
+
+    // Process checkout
+    const order = await student.checkoutCart(paymentMethodId);
+
+    res.status(200).json({
+      success: true,
+      message: "Checkout successful",
+      order,
+      enrolledCourses: student.enrolledCourses,
+    });
+  } catch (error) {
+    console.error("Error during checkout:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error during checkout",
+      error: error.message,
+    });
+  }
+});
 module.exports = Studentrouter;

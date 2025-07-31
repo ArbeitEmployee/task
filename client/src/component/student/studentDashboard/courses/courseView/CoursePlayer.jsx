@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,7 +21,7 @@ import {
   FiUser,
   FiUsers,
   FiCalendar,
-  FiAlertCircle
+  FiAlertCircle,
 } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
@@ -63,8 +64,8 @@ const CoursePlayer = () => {
     const token = localStorage.getItem("authToken");
     return {
       headers: {
-        Authorization: `Bearer ${token}`
-      }
+        Authorization: `Bearer ${token}`,
+      },
     };
   };
 
@@ -86,7 +87,7 @@ const CoursePlayer = () => {
           initialProgress[item._id] = {
             completed: item.completed || false,
             progress: item.progress || 0,
-            timeSpent: item.timeSpent || 0
+            timeSpent: item.timeSpent || 0,
           };
 
           if (item.type === "quiz" && item.answers) {
@@ -119,7 +120,6 @@ const CoursePlayer = () => {
     };
 
     fetchCourse();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, base_url]);
 
   // Record course access
@@ -204,7 +204,7 @@ const CoursePlayer = () => {
               contentItemId: currentItem._id,
               secondsWatched: timeWatched,
               totalDuration: currentItem.duration || 0,
-              user_id: sudentdata.id
+              user_id: sudentdata.id,
             },
             getAuthHeaders()
           );
@@ -216,7 +216,6 @@ const CoursePlayer = () => {
 
       trackTime();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeWatched, lastTrackedTime, currentContent, course, id, base_url]);
 
   // Reset time tracking when content changes
@@ -233,7 +232,7 @@ const CoursePlayer = () => {
                 contentItemId: currentItem._id,
                 secondsWatched: timeWatched,
                 totalDuration: currentItem.duration || 0,
-                user_id: sudentdata.id
+                user_id: sudentdata.id,
               },
               getAuthHeaders()
             )
@@ -244,7 +243,6 @@ const CoursePlayer = () => {
       }
       clearInterval(timeTrackingInterval.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentContent]);
 
   // Fullscreen handling
@@ -302,7 +300,7 @@ const CoursePlayer = () => {
             contentItemId: currentItem._id,
             secondsWatched: timeWatched,
             totalDuration: currentItem.duration || 0,
-            user_id: sudentdata.id
+            user_id: sudentdata.id,
           },
           getAuthHeaders()
         );
@@ -319,8 +317,8 @@ const CoursePlayer = () => {
         [currentItem._id]: {
           ...prev[currentItem._id],
           completed: true,
-          progress: 100
-        }
+          progress: 100,
+        },
       }));
     }
   };
@@ -337,7 +335,7 @@ const CoursePlayer = () => {
   const handleAnswerChange = (questionId, answer) => {
     setQuizAnswers((prev) => ({
       ...prev,
-      [questionId]: answer
+      [questionId]: answer,
     }));
   };
 
@@ -353,7 +351,7 @@ const CoursePlayer = () => {
           contentItemId: quiz._id,
           contentItemType: quiz.type,
           answers: quizAnswers,
-          user_id: sudentdata.id
+          user_id: sudentdata.id,
         },
         getAuthHeaders()
       );
@@ -384,8 +382,8 @@ const CoursePlayer = () => {
         [quiz._id]: {
           ...prev[quiz._id],
           completed: true,
-          progress: 100
-        }
+          progress: 100,
+        },
       }));
 
       toast.success(
@@ -568,7 +566,7 @@ const CoursePlayer = () => {
                         style={{
                           width: `${
                             (timeWatched / (currentItem.duration || 1)) * 100
-                          }%`
+                          }%`,
                         }}
                       ></div>
                     </div>

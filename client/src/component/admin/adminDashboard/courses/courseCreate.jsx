@@ -11,7 +11,7 @@ import {
   FiImage,
   FiVideo,
   FiChevronDown,
-  FiChevronUp
+  FiChevronUp,
 } from "react-icons/fi";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
@@ -20,7 +20,7 @@ import axios from "axios";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 const ItemTypes = {
-  CONTENT_ITEM: "contentItem"
+  CONTENT_ITEM: "contentItem",
 };
 
 const DraggableItem = ({ id, index, moveItem, children }) => {
@@ -30,8 +30,8 @@ const DraggableItem = ({ id, index, moveItem, children }) => {
     type: ItemTypes.CONTENT_ITEM,
     item: { id, index },
     collect: (monitor) => ({
-      isDragging: monitor.isDragging()
-    })
+      isDragging: monitor.isDragging(),
+    }),
   });
 
   const [, drop] = useDrop({
@@ -54,7 +54,7 @@ const DraggableItem = ({ id, index, moveItem, children }) => {
 
       moveItem(dragIndex, hoverIndex);
       item.index = hoverIndex;
-    }
+    },
   });
 
   drag(drop(ref));
@@ -64,7 +64,7 @@ const DraggableItem = ({ id, index, moveItem, children }) => {
       ref={ref}
       style={{
         opacity: isDragging ? 0.5 : 1,
-        cursor: "move"
+        cursor: "move",
       }}
     >
       {children}
@@ -84,7 +84,7 @@ const CourseCreator = () => {
     price: "",
     categories: [], // This should be an array
     category: "", // Add this single-select field
-    level: "beginner"
+    level: "beginner",
   });
   const [expandedSections, setExpandedSections] = useState({});
   const [availableCategories, setAvailableCategories] = useState([]);
@@ -94,8 +94,8 @@ const CourseCreator = () => {
       ["bold", "italic", "underline", "strike", "blockquote"],
       [{ list: "ordered" }, { list: "bullet" }],
       ["link", "image"],
-      ["clean"]
-    ]
+      ["clean"],
+    ],
   };
 
   const quillFormats = [
@@ -108,7 +108,7 @@ const CourseCreator = () => {
     "list",
     "bullet",
     "link",
-    "image"
+    "image",
   ];
 
   const moveContentItem = (dragIndex, hoverIndex) => {
@@ -121,7 +121,7 @@ const CourseCreator = () => {
 
       return {
         ...prev,
-        content: newContent
+        content: newContent,
       };
     });
     setHoverIndex(null);
@@ -130,7 +130,7 @@ const CourseCreator = () => {
   const toggleSection = (id) => {
     setExpandedSections((prev) => ({
       ...prev,
-      [id]: !prev[id]
+      [id]: !prev[id],
     }));
   };
 
@@ -143,15 +143,15 @@ const CourseCreator = () => {
       isPremium: isPremium,
       // For premium courses, we'll track the file separately
       ...(isPremium ? { contentFile: null, content: "" } : { youtubeLink: "" }),
-      isExpanded: true
+      isExpanded: true,
     };
     setCourseData((prev) => ({
       ...prev,
-      content: [...prev.content, newTutorial]
+      content: [...prev.content, newTutorial],
     }));
     setExpandedSections((prev) => ({
       ...prev,
-      [newTutorial.id]: true
+      [newTutorial.id]: true,
     }));
   };
 
@@ -168,18 +168,18 @@ const CourseCreator = () => {
           type: "mcq-single",
           options: ["", ""],
           correctAnswer: 0,
-          answer: ""
-        }
+          answer: "",
+        },
       ],
-      isExpanded: true // New quizzes are expanded by default
+      isExpanded: true, // New quizzes are expanded by default
     };
     setCourseData((prev) => ({
       ...prev,
-      content: [...prev.content, newQuiz]
+      content: [...prev.content, newQuiz],
     }));
     setExpandedSections((prev) => ({
       ...prev,
-      [newQuiz.id]: true
+      [newQuiz.id]: true,
     }));
   };
 
@@ -192,15 +192,15 @@ const CourseCreator = () => {
       thumbnail: null,
       meetingLink: "",
       schedule: "",
-      isExpanded: true // New live classes are expanded by default
+      isExpanded: true, // New live classes are expanded by default
     };
     setCourseData((prev) => ({
       ...prev,
-      content: [...prev.content, newLiveClass]
+      content: [...prev.content, newLiveClass],
     }));
     setExpandedSections((prev) => ({
       ...prev,
-      [newLiveClass.id]: true
+      [newLiveClass.id]: true,
     }));
   };
 
@@ -209,7 +209,7 @@ const CourseCreator = () => {
       id: Date.now(),
       question: "",
       type: questionType,
-      answer: ""
+      answer: "",
     };
 
     let question;
@@ -219,7 +219,7 @@ const CourseCreator = () => {
         question = {
           ...baseQuestion,
           options: ["", ""],
-          correctAnswer: questionType === "mcq-single" ? 0 : []
+          correctAnswer: questionType === "mcq-single" ? 0 : [],
         };
         break;
       case "short-answer":
@@ -236,11 +236,11 @@ const CourseCreator = () => {
         if (item.id === quizId) {
           return {
             ...item,
-            questions: [...item.questions, question]
+            questions: [...item.questions, question],
           };
         }
         return item;
-      })
+      }),
     }));
   };
 
@@ -255,22 +255,22 @@ const CourseCreator = () => {
               if (q.id === questionId) {
                 return {
                   ...q,
-                  options: [...q.options, ""]
+                  options: [...q.options, ""],
                 };
               }
               return q;
-            })
+            }),
           };
         }
         return item;
-      })
+      }),
     }));
   };
 
   const removeContentItem = (id) => {
     setCourseData((prev) => ({
       ...prev,
-      content: prev.content.filter((item) => item.id !== id)
+      content: prev.content.filter((item) => item.id !== id),
     }));
   };
 
@@ -278,7 +278,7 @@ const CourseCreator = () => {
     const { name, value } = e.target;
     setCourseData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -290,7 +290,7 @@ const CourseCreator = () => {
           return { ...item, [field]: value };
         }
         return item;
-      })
+      }),
     }));
   };
 
@@ -306,11 +306,11 @@ const CourseCreator = () => {
                 return { ...q, [field]: value };
               }
               return q;
-            })
+            }),
           };
         }
         return item;
-      })
+      }),
     }));
   };
 
@@ -328,11 +328,11 @@ const CourseCreator = () => {
                 return { ...q, options: newOptions };
               }
               return q;
-            })
+            }),
           };
         }
         return item;
-      })
+      }),
     }));
   };
 
@@ -357,11 +357,11 @@ const CourseCreator = () => {
                 return { ...q, correctAnswer: newAnswers };
               }
               return q;
-            })
+            }),
           };
         }
         return item;
-      })
+      }),
     }));
   };
 
@@ -377,11 +377,11 @@ const CourseCreator = () => {
                 return { ...q, answer: value };
               }
               return q;
-            })
+            }),
           };
         }
         return item;
-      })
+      }),
     }));
   };
 
@@ -397,7 +397,7 @@ const CourseCreator = () => {
     if (file) {
       setCourseData((prev) => ({
         ...prev,
-        thumbnail: file
+        thumbnail: file,
       }));
     }
   };
@@ -406,14 +406,14 @@ const CourseCreator = () => {
     const files = Array.from(e.target.files);
     setCourseData((prev) => ({
       ...prev,
-      attachments: [...prev.attachments, ...files]
+      attachments: [...prev.attachments, ...files],
     }));
   };
 
   const removeAttachment = (index) => {
     setCourseData((prev) => ({
       ...prev,
-      attachments: prev.attachments.filter((_, i) => i !== index)
+      attachments: prev.attachments.filter((_, i) => i !== index),
     }));
   };
 
@@ -449,62 +449,62 @@ const CourseCreator = () => {
                 return {
                   ...q,
                   options: newOptions,
-                  correctAnswer: newCorrectAnswer
+                  correctAnswer: newCorrectAnswer,
                 };
               }
               return q;
-            })
+            }),
           };
         }
         return item;
-      })
+      }),
     }));
   };
   useEffect(() => {
     axios
       .get(`${base_url}/api/auth/categories`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       })
       .then((res) => setAvailableCategories(res.data))
       .catch((err) =>
         toast.error(err.response?.data?.message || "Could not load categories")
       );
   }, []);
-
+  const stripHtmlTags = (html) => {
+    if (!html) return "";
+    // Create a temporary div element
+    const tmp = document.createElement("div");
+    // Set the HTML content
+    tmp.innerHTML = html;
+    // Return the text content without HTML tags
+    return tmp.textContent || tmp.innerText || "";
+  };
   const publishCourse = async () => {
     try {
       // Convert HTML descriptions to plain text
-      const plainTextDescription = courseData.description.replace(
-        /<[^>]*>?/gm,
-        ""
-      );
+      const plainTextDescription = stripHtmlTags(courseData.description);
       const contentWithPlainText = courseData.content.map((item) => {
         const plainTextItem = {
           ...item,
-          description: item.description
-            ? item.description.replace(/<[^>]*>?/gm, "")
-            : ""
+          description: item.description ? stripHtmlTags(item.description) : "",
         };
-
         if (item.type === "quiz") {
           return {
             ...plainTextItem,
             questions: item.questions.map((question) => {
               const plainTextQuestion = {
                 ...question,
-                question: question.question.replace(/<[^>]*>?/gm, "")
+                question: stripHtmlTags(question.question),
               };
 
               if (question.type === "broad-answer") {
                 return {
                   ...plainTextQuestion,
-                  answer: question.answer
-                    ? question.answer.replace(/<[^>]*>?/gm, "")
-                    : ""
+                  answer: question.answer ? stripHtmlTags(question.answer) : "",
                 };
               }
               return plainTextQuestion;
-            })
+            }),
           };
         }
         return plainTextItem;
@@ -604,11 +604,23 @@ const CourseCreator = () => {
       const processedContent = courseData.content.map((item) => {
         const contentItem = {
           ...item,
+          description: item.description ? stripHtmlTags(item.description) : "",
           // Remove the file object from the content
           ...(item.type === "tutorial" && courseType === "premium"
             ? { content: item.contentFile?.name || "" }
-            : {})
+            : {}),
         };
+
+        // For quiz questions, also strip HTML
+        if (item.type === "quiz") {
+          contentItem.questions = item.questions.map((q) => ({
+            ...q,
+            question: stripHtmlTags(q.question),
+            ...(q.type === "broad-answer"
+              ? { answer: stripHtmlTags(q.answer) }
+              : {}),
+          }));
+        }
 
         // Remove the file object before stringifying
         delete contentItem.contentFile;
@@ -642,8 +654,8 @@ const CourseCreator = () => {
         {
           headers: {
             "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${localStorage.getItem("token")}`
-          }
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
       );
 
@@ -660,7 +672,7 @@ const CourseCreator = () => {
         content: [],
         price: "",
         level: "beginner",
-        category: ""
+        category: "",
       });
       setCourseType(null);
       setExpandedSections({});
@@ -740,7 +752,7 @@ const CourseCreator = () => {
                       attachments: [],
                       content: [],
                       price: "",
-                      level: "beginner"
+                      level: "beginner",
                     });
                   }}
                   className="text-gray-500 hover:text-gray-700"
@@ -777,7 +789,7 @@ const CourseCreator = () => {
                       value={courseData.description}
                       onChange={(value) =>
                         handleInputChange({
-                          target: { name: "description", value }
+                          target: { name: "description", value },
                         })
                       }
                       modules={quillModules}
@@ -796,7 +808,7 @@ const CourseCreator = () => {
                         setCourseData((prev) => ({
                           ...prev,
                           category: e.target.value,
-                          categories: [e.target.value] // Also update the categories array
+                          categories: [e.target.value], // Also update the categories array
                         }))
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gray-500"
@@ -854,7 +866,7 @@ const CourseCreator = () => {
                           onClick={() =>
                             setCourseData((prev) => ({
                               ...prev,
-                              thumbnail: null
+                              thumbnail: null,
                             }))
                           }
                           className="text-gray-400 hover:text-red-500 p-3 rounded-full flex items-center justify-center"
@@ -1285,12 +1297,12 @@ const CourseCreator = () => {
                                                             (q) =>
                                                               q.id !==
                                                               question.id
-                                                          )
+                                                          ),
                                                       };
                                                     }
                                                     return contentItem;
                                                   }
-                                                )
+                                                ),
                                               }));
                                             }}
                                             className="text-gray-400 hover:text-red-500"

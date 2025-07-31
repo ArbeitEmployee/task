@@ -10,7 +10,7 @@ import {
   FiBarChart2,
   FiChevronDown,
   FiChevronUp,
-  FiArrowLeft
+  FiArrowLeft,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
@@ -39,8 +39,8 @@ const CourseLearningPage = () => {
           `${base_url}/api/student/courses/${courseId}/content`,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("studentToken")}`
-            }
+              Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+            },
           }
         );
 
@@ -72,7 +72,7 @@ const CourseLearningPage = () => {
   const handleAnswerChange = (questionIndex, answer) => {
     setQuizAnswers((prev) => ({
       ...prev,
-      [questionIndex]: answer
+      [questionIndex]: answer,
     }));
   };
 
@@ -92,8 +92,8 @@ const CourseLearningPage = () => {
         { answers },
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("studentToken")}`
-          }
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+          },
         }
       );
 
@@ -116,7 +116,7 @@ const CourseLearningPage = () => {
   const toggleSection = (index) => {
     setExpandedSections((prev) => ({
       ...prev,
-      [index]: !prev[index]
+      [index]: !prev[index],
     }));
   };
 
@@ -128,8 +128,8 @@ const CourseLearningPage = () => {
         { progress: 100 }, // Mark as 100% completed
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("studentToken")}`
-          }
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+          },
         }
       );
 
@@ -140,8 +140,8 @@ const CourseLearningPage = () => {
           `${base_url}/api/student/courses/${courseId}/content`,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("studentToken")}`
-            }
+              Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+            },
           }
         );
         setCourse(updatedResponse.data.course);
@@ -255,7 +255,7 @@ const CourseLearningPage = () => {
                     <div
                       className="prose max-w-none"
                       dangerouslySetInnerHTML={{
-                        __html: activeContent.content
+                        __html: activeContent.content,
                       }}
                     ></div>
                   )}

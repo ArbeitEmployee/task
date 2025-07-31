@@ -9,7 +9,7 @@ const generateCertificate = async (data) => {
   // Create a PDF document
   const doc = new PDFDocument({
     size: "A4",
-    layout: "landscape"
+    layout: "landscape",
   });
 
   // Generate unique filename
@@ -29,7 +29,7 @@ const generateCertificate = async (data) => {
   // Add certificate content
   doc.image(path.join(__dirname, "../assets/certificate-bg.jpg"), 0, 0, {
     width: 842,
-    height: 595
+    height: 595,
   });
 
   doc
@@ -55,7 +55,7 @@ const generateCertificate = async (data) => {
   doc
     .fontSize(16)
     .text(`Completed on: ${completionDate.toLocaleDateString()}`, {
-      align: "center"
+      align: "center",
     });
 
   // Finalize the PDF

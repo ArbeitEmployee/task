@@ -27,10 +27,7 @@ const TeacherList = () => {
   const fetchTeachers = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:3500/api/admin/teachers", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await axios.get(`${base_url}/api/admin/teachers`);
       setTeachers(res.data.data || []);
       setLoading(false); // Stop loading on success
     } catch (error) {
@@ -61,6 +58,7 @@ const TeacherList = () => {
 
   useEffect(() => {
     fetchTeachers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Filter teachers based on search term

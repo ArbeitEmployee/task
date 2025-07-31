@@ -6,9 +6,9 @@ const rubricItemSchema = new Schema({
   levels: [
     {
       score: { type: Number, required: true },
-      description: { type: String, required: true }
-    }
-  ]
+      description: { type: String, required: true },
+    },
+  ],
 });
 
 const gradingRubricSchema = new Schema(
@@ -19,7 +19,7 @@ const gradingRubricSchema = new Schema(
     title: { type: String, required: true },
     items: [rubricItemSchema],
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    updatedBy: { type: Schema.Types.ObjectId, ref: "User" }
+    updatedBy: { type: Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }
 );

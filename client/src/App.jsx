@@ -27,6 +27,8 @@ import TeacherSettings from "./component/teacher/teacherDashboard/settings/Teach
 import CourseOverview from "./component/student/studentDashboard/courses/courseView/CourseOverview";
 import CoursePlayer from "./component/student/studentDashboard/courses/courseView/CoursePlayer";
 import Editcourse from "./component/admin/adminDashboard/courses/Editcourse";
+import Studentpaper from "./component/teacher/teacherDashboard/paper/Studentpaper";
+import Liveclass from "./component/teacher/teacherDashboard/liveclass/Liveclass";
 
 const isAuthenticated = () => {
   const token = localStorage.getItem("token");
@@ -135,7 +137,8 @@ const App = () => {
         <Route path="/teacher/question-list" element={<CQlist />} />
         <Route path="/teacher/notifications" element={<Notification />} />
         <Route path="/teacher/settings" element={<TeacherSettings />} />
-
+        <Route path="/teacher/student-paper" element={<Studentpaper />} />
+        <Route path="/teacher/live-class" element={<Liveclass />} />
         {/* <Route path="/teacher/course-list" element={<CourseList />} /> */}
 
         {/* ------------------------------teacher-all-route---------------------------------------- */}

@@ -7,54 +7,130 @@ import {
   FiArrowLeft,
   FiCreditCard,
   FiStar,
-  FiCheckCircle
+  FiCheckCircle,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
+import axios from "axios";
 import Checkout from "./Checkout";
 
 const Cart = ({ setActiveView }) => {
   const [cart, setCart] = useState([]);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
-
-  // Load cart from localStorage on component mount
+  const [loading, setLoading] = useState(true);
+  const base_url = import.meta.env.VITE_API_KEY_Base_URL;
+  const studentData = JSON.parse(localStorage.getItem("studentData"));
+  const [hasFreeCourses, setHasFreeCourses] = useState(false);
+  const [hasPremiumCourses, setHasPremiumCourses] = useState(false);
+  // Load cart from API
   useEffect(() => {
-    const loadCart = () => {
+    const fetchCart = async () => {
       try {
-        const savedCart = JSON.parse(localStorage.getItem("courseCart")) || [];
-        setCart(savedCart);
+        const response = await axios.get(`${base_url}/api/student/cart`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+          },
+        });
+
+        if (response.data.success) {
+          // Transform the API response to match the expected format
+          const formattedCart = response.data.cart.items.map((item) => ({
+            id: item.courseId._id,
+            title: item.courseId.title,
+            thumbnail: item.courseId.thumbnail,
+            price: item.price,
+            instructor: item.courseId.instructor,
+            rating: 4.5, // Default value since not in API
+            students: 100, // Default value since not in API
+          }));
+
+          setCart(formattedCart);
+        }
       } catch (error) {
-        console.error("Error loading cart from localStorage:", error);
+        console.error("Error fetching cart:", error);
         toast.error("Failed to load cart");
+      } finally {
+        setLoading(false);
       }
     };
 
-    loadCart();
-
-    // Optional: Add event listener to sync cart across tabs
-    window.addEventListener("storage", (e) => {
-      if (e.key === "courseCart") {
-        loadCart();
-      }
-    });
-
-    return () => {
-      window.removeEventListener("storage", loadCart);
-    };
+    fetchCart();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Remove item from cart and update localStorage
-  const removeFromCart = (courseId) => {
+  // Remove item from cart
+  const removeFromCart = async (courseId) => {
     try {
-      const updatedCart = cart.filter((item) => item.id !== courseId);
-      setCart(updatedCart);
-      localStorage.setItem("courseCart", JSON.stringify(updatedCart));
+      await axios.delete(`${base_url}/api/student/cart/${courseId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+        },
+      });
+
+      // Update local state
+      setCart((prevCart) => prevCart.filter((item) => item.id !== courseId));
       toast.success("Course removed from cart");
     } catch (error) {
       console.error("Error removing item from cart:", error);
       toast.error("Failed to remove course");
     }
   };
+  useEffect(() => {
+    const free = cart.some((item) => item.price === 0);
+    const premium = cart.some((item) => item.price > 0);
+    setHasFreeCourses(free);
+    setHasPremiumCourses(premium);
+  }, [cart]);
+  const handleEnrollFreeCourses = async () => {
+    try {
+      setLoading(true);
 
+      // Filter only free courses
+      const freeCourseIds = cart
+        .filter((item) => item.price === 0)
+        .map((item) => item.id);
+
+      // Call enroll API for each free course
+      await Promise.all(
+        freeCourseIds.map(async (courseId) => {
+          await axios.post(
+            `${base_url}/api/student/${courseId}/enroll`,
+            { user_id: studentData.id },
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+              },
+            }
+          );
+        })
+      );
+
+      // Remove enrolled courses from cart
+      const updatedCart = cart.filter((item) => item.price > 0);
+      setCart(updatedCart);
+
+      if (studentData?.id && localStorage.getItem("studentToken")) {
+        // Update server cart
+        await axios.delete(`${base_url}/api/student/cart/free-courses`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+          },
+        });
+      } else {
+        // Update local storage for guest
+        localStorage.setItem("courseCart", JSON.stringify(updatedCart));
+      }
+
+      toast.success("Successfully enrolled in free courses!");
+      setActiveView("myCourses");
+    } catch (error) {
+      console.error("Enrollment error:", error);
+      toast.error(
+        error.response?.data?.message || "Failed to enroll in courses"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
   // Calculate total
   const total = cart.reduce((sum, item) => sum + (item.price || 0), 0);
 
@@ -71,28 +147,45 @@ const Cart = ({ setActiveView }) => {
   };
 
   // Handle successful checkout
-  const handleCheckoutSuccess = () => {
+  const handleCheckoutSuccess = async () => {
     try {
-      // Add purchased courses to myCourses in localStorage
-      const myCourses = JSON.parse(localStorage.getItem("myCourses")) || [];
-      const newCourses = cart.map((course) => course.id);
-      localStorage.setItem(
-        "myCourses",
-        JSON.stringify([...myCourses, ...newCourses])
+      // Call the checkout API
+      const response = await axios.post(
+        `${base_url}/api/student/cart/checkout`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+          },
+        }
       );
 
-      // Clear cart
-      setCart([]);
-      localStorage.removeItem("courseCart");
-      setShowCheckoutModal(false);
+      if (response.data.success) {
+        // Clear cart
+        setCart([]);
+        setShowCheckoutModal(false);
 
-      toast.success("Payment successful! You are now enrolled in the courses.");
-      setActiveView("myCourses");
+        toast.success(
+          "Payment successful! You are now enrolled in the courses."
+        );
+        setActiveView("myCourses");
+      } else {
+        throw new Error(response.data.message || "Checkout failed");
+      }
     } catch (error) {
       console.error("Error during checkout:", error);
-      toast.error("Failed to complete checkout");
+      toast.error(
+        error.response?.data?.message || "Failed to complete checkout"
+      );
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen text-gray-900">
@@ -145,10 +238,7 @@ const Cart = ({ setActiveView }) => {
                         <div className="flex flex-col sm:flex-row">
                           <div className="flex-shrink-0 mb-4 sm:mb-0 sm:mr-6">
                             <img
-                              src={
-                                course.thumbnail ||
-                                "https://via.placeholder.com/150"
-                              }
+                              src={`${base_url}/courses/${course.thumbnail.path}`}
                               alt={course.title}
                               className="w-full sm:w-40 h-24 object-cover rounded-lg shadow-sm"
                             />
@@ -157,11 +247,11 @@ const Cart = ({ setActiveView }) => {
                           <div className="flex-grow">
                             <div className="flex justify-between items-start">
                               <div>
-                                <h3 className="text-lg font-bold text-gray-900 mb-1">
-                                  {course.title || "Untitled Course"}
-                                </h3>
-                                <p className="text-sm text-gray-600 mb-2">
-                                  By {course.instructor || "Unknown Instructor"}
+                                <h4 className="text-sm font-medium text-gray-900 line-clamp-1">
+                                  {course.title}
+                                </h4>
+                                <p className="text-xs text-gray-500">
+                                  {course.instructor}
                                 </p>
                               </div>
                               <button
@@ -175,7 +265,7 @@ const Cart = ({ setActiveView }) => {
                             <div className="flex items-center text-sm text-gray-500 mb-3">
                               <span className="flex items-center mr-4">
                                 <FiStar className="text-yellow-400 mr-1" />
-                                {course.rating || 4.5} (
+                                {course.rating || 0} (
                                 {(course.students || 0).toLocaleString()})
                               </span>
                             </div>
@@ -218,10 +308,7 @@ const Cart = ({ setActiveView }) => {
                     >
                       <div className="flex items-start">
                         <img
-                          src={
-                            course.thumbnail ||
-                            "https://via.placeholder.com/150"
-                          }
+                          src={`${base_url}/courses/${course.thumbnail.path}`}
                           alt={course.title}
                           className="w-12 h-9 object-cover rounded mr-3"
                         />
@@ -256,15 +343,27 @@ const Cart = ({ setActiveView }) => {
                   </div>
                 </div>
 
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={openCheckoutModal}
-                  className="w-full mt-6 py-3 px-4 bg-gradient-to-r from-gray-600 to-gray-800 text-white rounded-lg shadow-md hover:from-gray-700 hover:to-gray-900 transition-colors flex items-center justify-center"
-                >
-                  <FiCreditCard className="mr-2" />
-                  Proceed to Checkout
-                </motion.button>
+                {hasFreeCourses && !hasPremiumCourses ? (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleEnrollFreeCourses}
+                    className="w-full mt-6 py-3 px-4 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors flex items-center justify-center"
+                  >
+                    <FiCheckCircle className="mr-2" />
+                    Enroll Now
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={openCheckoutModal}
+                    className="w-full mt-6 py-3 px-4 bg-gradient-to-r from-gray-600 to-gray-800 text-white rounded-lg shadow-md hover:from-gray-700 hover:to-gray-900 transition-colors flex items-center justify-center"
+                  >
+                    <FiCreditCard className="mr-2" />
+                    Proceed to Checkout
+                  </motion.button>
+                )}
 
                 <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-start">

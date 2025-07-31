@@ -12,7 +12,7 @@ const gradedAnswerSchema = new Schema({
   maxMarks: { type: Number, required: true },
   teacherFeedback: String,
   gradedBy: { type: Schema.Types.ObjectId, ref: "User" },
-  gradedAt: Date
+  gradedAt: Date,
 });
 
 const quizCompletionSchema = new Schema({
@@ -28,8 +28,8 @@ const quizCompletionSchema = new Schema({
   status: {
     type: String,
     enum: ["submitted", "partially-graded", "fully-graded"],
-    default: "submitted"
-  }
+    default: "submitted",
+  },
 });
 
 const courseCompletionSchema = new Schema(
@@ -48,15 +48,15 @@ const courseCompletionSchema = new Schema(
       letterGrade: String,
       feedback: String,
       gradedBy: { type: Schema.Types.ObjectId, ref: "User" },
-      gradedAt: Date
+      gradedAt: Date,
     },
     status: {
       type: String,
       enum: ["in-progress", "completed", "graded", "certified"],
-      default: "in-progress"
+      default: "in-progress",
     },
     certificateId: String,
-    certificateIssuedAt: Date
+    certificateIssuedAt: Date,
   },
   { timestamps: true }
 );

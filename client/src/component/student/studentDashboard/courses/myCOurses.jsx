@@ -12,7 +12,7 @@ import {
   FiSearch,
   FiFilter,
   FiChevronDown,
-  FiChevronUp
+  FiChevronUp,
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
@@ -91,8 +91,8 @@ const MyCourses = ({ setActiveView }) => {
     const token = localStorage.getItem("authToken");
     return {
       headers: {
-        Authorization: `Bearer ${token}`
-      }
+        Authorization: `Bearer ${token}`,
+      },
     };
   };
 
@@ -171,8 +171,8 @@ const MyCourses = ({ setActiveView }) => {
             accuracy: 0,
             totalMarksObtained: 0,
             totalMaxMarks: 0,
-            overallPercentage: 0
-          }
+            overallPercentage: 0,
+          },
         };
       });
 
@@ -215,7 +215,7 @@ const MyCourses = ({ setActiveView }) => {
             ? {
                 ...course,
                 lastAccessed: new Date().toISOString(),
-                lastActivity: `Last active: ${new Date().toLocaleDateString()}`
+                lastActivity: `Last active: ${new Date().toLocaleDateString()}`,
               }
             : course
         )
@@ -252,7 +252,7 @@ const MyCourses = ({ setActiveView }) => {
         `${base_url}/api/student/certificate/${courseId}/${studentData.id}`,
         {
           ...getAuthHeaders(),
-          responseType: "blob" // Important for file downloads
+          responseType: "blob", // Important for file downloads
         }
       );
 

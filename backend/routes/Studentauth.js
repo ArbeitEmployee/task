@@ -45,7 +45,7 @@ const transporter = nodemailer.createTransport({
 });
 
 // Helper functions
-const generateOTP = () => crypto.randomInt(100000, 999999).toString();
+
 const generateToken = (payload, expiresIn) =>
   jwt.sign(payload, JWT_SECRET, { expiresIn });
 
@@ -85,7 +85,7 @@ Studnetauth.post(
 
       // Send OTP email
       await transporter.sendMail({
-        from: `"Education App" <${process.env.EMAIL_USER}>`,
+        from: `"Northern-Lights" <${process.env.EMAIL_USER}>`,
         to: email,
         subject: "Verify Your Account",
         html: `Your verification OTP is: <strong>${otp}</strong>. It expires in ${OTP_EXPIRY_MINUTES} minutes.`,

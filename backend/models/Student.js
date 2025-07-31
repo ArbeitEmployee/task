@@ -12,151 +12,178 @@ const studentSchema = new mongoose.Schema(
       lowercase: true,
       match: [
         /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-        "Please enter a valid email"
-      ]
+        "Please enter a valid email",
+      ],
     },
     password: {
       type: String,
       required: true,
       minlength: [6, "Password must be at least 6 characters"],
-      select: false
+      select: false,
     },
     full_name: {
       type: String,
       required: [true, "Please enter your full name"],
       trim: true,
-      maxlength: [50, "Name cannot exceed 50 characters"]
+      maxlength: [50, "Name cannot exceed 50 characters"],
     },
     phone: {
       type: String,
-      required: [true, "Please enter your phone number"]
+      required: [true, "Please enter your phone number"],
     },
     date_of_birth: {
       type: String,
       match: [
         /^\d{4}-\d{2}-\d{2}$/,
-        "Date of birth must be in YYYY-MM-DD format"
-      ]
+        "Date of birth must be in YYYY-MM-DD format",
+      ],
     },
     address: {
       type: String,
       trim: true,
-      maxlength: [200, "Address cannot exceed 200 characters"]
+      maxlength: [200, "Address cannot exceed 200 characters"],
     },
     profile_picture: {
-      type: String
+      type: String,
     },
     isVerified: {
       type: Boolean,
-      default: false
+      default: false,
     },
     role: {
       type: String,
       default: "student",
-      enum: ["student", "admin"]
+      enum: ["student", "admin", "instructor"],
     },
     otp: {
-      type: String
+      type: String,
     },
     otpExpires: {
-      type: Date
+      type: Date,
     },
     resetPasswordToken: {
-      type: String
+      type: String,
     },
     resetPasswordExpire: {
-      type: Date
+      type: Date,
     },
     loginAttempts: {
       type: Number,
-      default: 0
+      default: 0,
     },
     lockUntil: {
-      type: Date
+      type: Date,
     },
     enrolledCourses: [
       {
         course: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Course",
-          required: true
+          required: true,
         },
         enrolledAt: {
           type: Date,
-          default: Date.now
+          default: Date.now,
         },
         progress: {
           type: Number,
           default: 0,
           min: 0,
-          max: 100
+          max: 100,
         },
         completed: {
           type: Boolean,
-          default: false
+          default: false,
         },
         lastAccessed: {
-          type: Date
+          type: Date,
         },
         // Track quiz attempts
         quizAttempts: [
           {
             contentItemId: {
               type: mongoose.Schema.Types.ObjectId,
-              required: true
+              required: true,
             },
             attemptDate: {
               type: Date,
-              default: Date.now
+              default: Date.now,
             },
             score: {
               type: Number,
               min: 0,
-              max: 100
+              max: 100,
             },
             answers: [
               {
                 questionId: mongoose.Schema.Types.ObjectId,
                 answer: mongoose.Schema.Types.Mixed,
-                isCorrect: Boolean
-              }
+                isCorrect: Boolean,
+              },
             ],
-            passed: Boolean
-          }
+            passed: Boolean,
+          },
         ],
         // Track completion of individual content items
         contentProgress: [
           {
             contentItemId: {
               type: mongoose.Schema.Types.ObjectId,
-              required: true
+              required: true,
             },
             completed: {
               type: Boolean,
-              default: false
+              default: false,
             },
             lastAccessed: Date,
-            completedAt: Date
-          }
+            completedAt: Date,
+          },
         ],
         certificates: [
           {
             url: String,
             issuedAt: Date,
-            expiresAt: Date
-          }
-        ]
-      }
+            expiresAt: Date,
+          },
+        ],
+      },
     ],
     wishlist: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Course"
-      }
+        ref: "Course",
+      },
     ],
+    cart: {
+      items: [
+        {
+          courseId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Course",
+            required: true,
+          },
+          addedAt: {
+            type: Date,
+            default: Date.now,
+          },
+          price: {
+            type: Number,
+            required: true,
+          },
+        },
+      ],
+      total: {
+        type: Number,
+        default: 0,
+      },
+      lastUpdated: {
+        type: Date,
+        default: Date.now,
+      },
+    },
     learningGoals: {
       type: String,
-      maxlength: [500, "Learning goals cannot exceed 500 characters"]
+      maxlength: [500, "Learning goals cannot exceed 500 characters"],
     },
     education: [
       {
@@ -164,29 +191,89 @@ const studentSchema = new mongoose.Schema(
         degree: String,
         fieldOfStudy: String,
         startYear: Number,
-        endYear: Number
-      }
+        endYear: Number,
+      },
     ],
     skills: [String],
     preferences: {
       notificationEnabled: {
         type: Boolean,
-        default: true
+        default: true,
       },
       darkMode: {
         type: Boolean,
-        default: false
+        default: false,
       },
       language: {
         type: String,
-        default: "english"
-      }
-    }
+        default: "english",
+      },
+    },
+    paymentMethods: [
+      {
+        type: {
+          type: String,
+          enum: ["credit_card", "debit_card", "paypal", "bank_transfer"],
+          required: true,
+        },
+        details: {
+          // Generic field that can store different payment method details
+          type: mongoose.Schema.Types.Mixed,
+        },
+        isDefault: {
+          type: Boolean,
+          default: false,
+        },
+        addedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+    orders: [
+      {
+        orderId: {
+          type: String,
+          required: true,
+        },
+        courses: [
+          {
+            courseId: {
+              type: mongoose.Schema.Types.ObjectId,
+              ref: "Course",
+              required: true,
+            },
+            price: {
+              type: Number,
+              required: true,
+            },
+          },
+        ],
+        totalAmount: {
+          type: Number,
+          required: true,
+        },
+        paymentMethod: {
+          type: String,
+          required: true,
+        },
+        status: {
+          type: String,
+          enum: ["pending", "completed", "failed", "refunded"],
+          default: "pending",
+        },
+        transactionId: String,
+        purchasedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
     toJSON: { virtuals: true },
-    toObject: { virtuals: true }
+    toObject: { virtuals: true },
   }
 );
 
@@ -199,6 +286,9 @@ studentSchema.virtual("enrolledCoursesCount").get(function () {
   return this.enrolledCourses.length;
 });
 
+studentSchema.virtual("cartItemCount").get(function () {
+  return this.cart.items.length;
+});
 // Middleware
 studentSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
@@ -244,7 +334,7 @@ studentSchema.methods.incrementLoginAttempts = function () {
   if (this.lockUntil && this.lockUntil < Date.now()) {
     return this.updateOne({
       $set: { loginAttempts: 1 },
-      $unset: { lockUntil: 1 }
+      $unset: { lockUntil: 1 },
     });
   }
 
@@ -270,7 +360,7 @@ studentSchema.methods.enrollCourse = async function (courseId) {
   this.enrolledCourses.push({
     course: courseId,
     progress: 0,
-    completed: false
+    completed: false,
   });
 
   await this.save();
@@ -321,7 +411,7 @@ studentSchema.methods.recordQuizAttempt = async function (
     contentItemId,
     score,
     answers,
-    passed
+    passed,
   });
 
   // Update content progress
@@ -333,7 +423,7 @@ studentSchema.methods.recordQuizAttempt = async function (
     contentProgress = {
       contentItemId,
       completed: passed,
-      lastAccessed: new Date()
+      lastAccessed: new Date(),
     };
     if (passed) {
       contentProgress.completedAt = new Date();
@@ -395,7 +485,145 @@ studentSchema.methods.removeFromWishlist = async function (courseId) {
   await this.save();
   return this;
 };
+// Cart Methods
+studentSchema.methods.addToCart = async function (courseId, price) {
+  const existingItem = this.cart.items.find(
+    (item) => item.courseId.toString() === courseId.toString()
+  );
 
+  if (existingItem) {
+    throw new Error("Course already in cart");
+  }
+
+  this.cart.items.push({
+    courseId,
+    price,
+  });
+
+  // Recalculate total
+  this.cart.total = this.cart.items.reduce(
+    (total, item) => total + item.price,
+    0
+  );
+  this.cart.lastUpdated = new Date();
+
+  await this.save();
+  return this.cart;
+};
+studentSchema.methods.removeFromCart = async function (courseId) {
+  // Convert courseId to ObjectId if it's a string
+  const courseObjectId = new mongoose.Types.ObjectId(courseId);
+
+  // Filter out the item
+  this.cart.items = this.cart.items.filter(
+    (item) => !item.courseId.equals(courseObjectId)
+  );
+
+  // Mark the array as modified
+  this.markModified("cart.items");
+
+  // Save with validation disabled
+  await this.save({ validateBeforeSave: false });
+};
+
+studentSchema.methods.clearCart = async function () {
+  this.cart = {
+    items: [],
+    total: 0,
+    lastUpdated: new Date(),
+  };
+
+  await this.save();
+  return this.cart;
+};
+studentSchema.methods.checkoutCart = async function (paymentMethodId) {
+  if (this.cart.items.length === 0) {
+    throw new Error("Cart is empty");
+  }
+
+  // Find payment method
+  const paymentMethod = this.paymentMethods.id(paymentMethodId);
+  if (!paymentMethod) {
+    throw new Error("Payment method not found");
+  }
+
+  // Create order
+  const order = {
+    orderId: `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    courses: this.cart.items.map((item) => ({
+      courseId: item.courseId,
+      price: item.price,
+    })),
+    totalAmount: this.cart.total,
+    paymentMethod: paymentMethod.type,
+    status: "completed",
+    transactionId: `TXN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+  };
+
+  // Add to orders
+  this.orders.push(order);
+
+  // Enroll in courses
+  for (const item of this.cart.items) {
+    await this.enrollCourse(item.courseId);
+  }
+
+  // Clear cart
+  await this.clearCart();
+
+  await this.save();
+  return order;
+};
+
+// Payment Methods
+studentSchema.methods.addPaymentMethod = async function (
+  type,
+  details,
+  isDefault = false
+) {
+  // If setting as default, first unset any existing default
+  if (isDefault) {
+    this.paymentMethods.forEach((method) => {
+      method.isDefault = false;
+    });
+  }
+
+  this.paymentMethods.push({
+    type,
+    details,
+    isDefault,
+  });
+
+  await this.save();
+  return this.paymentMethods;
+};
+
+studentSchema.methods.removePaymentMethod = async function (paymentMethodId) {
+  this.paymentMethods = this.paymentMethods.filter(
+    (method) => method._id.toString() !== paymentMethodId.toString()
+  );
+
+  await this.save();
+  return this.paymentMethods;
+};
+
+studentSchema.methods.setDefaultPaymentMethod = async function (
+  paymentMethodId
+) {
+  // First unset any existing default
+  this.paymentMethods.forEach((method) => {
+    method.isDefault = false;
+  });
+
+  // Set the new default
+  const method = this.paymentMethods.id(paymentMethodId);
+  if (method) {
+    method.isDefault = true;
+  }
+
+  await this.save();
+  return this.paymentMethods;
+};
 const Student = mongoose.model("Student", studentSchema);
 
 module.exports = Student;

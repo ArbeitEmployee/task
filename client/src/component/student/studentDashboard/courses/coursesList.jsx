@@ -13,7 +13,7 @@ import {
   FiSearch,
   FiClock,
   FiUsers,
-  FiEye
+  FiEye,
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
@@ -29,40 +29,76 @@ const CourseList = ({ setActiveView }) => {
   const [loading, setLoading] = useState(true);
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [enrolling, setEnrolling] = useState(false);
+  const [cartLoading, setCartLoading] = useState(false);
   const base_url = import.meta.env.VITE_API_KEY_Base_URL;
   const studentData = JSON.parse(localStorage.getItem("studentData"));
-
-  // Fetch courses and enrolled courses
+  const [filterType, setFilterType] = useState("all");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [filterLevel, setFilterLevel] = useState("all");
+  const [categories, setCategories] = useState([]);
+  const [teachers, setTeachers] = useState([]);
+  // Fetch courses, enrolled courses, and cart
   useEffect(() => {
+    // In the fetchData function, modify the formattedCourses mapping:
     const fetchData = async () => {
+      setLoading(true);
+      let teachersList = [];
       try {
-        setLoading(true);
+        const teachersResponse = await axios.get(
+          `${base_url}/api/student/teachers`
+        );
+        if (teachersResponse.data?.success) {
+          teachersList = teachersResponse.data.teachers || [];
+        }
 
         // Fetch all courses
         const coursesResponse = await axios.get(
           `${base_url}/api/student/all-courses`
         );
+        const categoriesResponse = await axios.get(
+          `${base_url}/api/auth/categories`
+        );
+
         if (coursesResponse.data.success) {
           const formattedCourses = coursesResponse.data.courses.map(
-            (course) => ({
-              id: course._id,
-              title: course.title || "Untitled Course",
-              description: course.description || "No description available",
-              thumbnail: course.thumbnail?.filename
-                ? `${base_url}/uploads/courses/${course.thumbnail.filename}`
-                : course.thumbnail ||
-                  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-              instructor: course.instructor || "Unknown Instructor",
-              rating: course.averageRating || 4.5,
-              students: course.studentsEnrolled?.length || 0,
-              duration: course.duration || "Unknown duration",
-              price: course.price || 0,
-              type: course.price > 0 ? "premium" : "free"
-            })
+            (course) => {
+              // Find the instructor by ID - handle both string and ObjectId comparisons
+              const instructor = teachersList.find((teacher) => {
+                const teacherIdStr = teacher._id.toString();
+                const courseInstructorStr = course.instructor?.toString();
+                return teacherIdStr === courseInstructorStr;
+              });
+
+              return {
+                id: course._id,
+                title: course.title || "Untitled Course",
+                description: course.description || "No description available",
+                thumbnail: course.thumbnail?.filename
+                  ? `${base_url}/courses/${course.thumbnail.path}`
+                  : course.thumbnail ||
+                    "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
+                instructor: instructor
+                  ? instructor.full_name
+                  : "Unknown Instructor",
+                rating: course.averageRating || 0,
+                students: course.totalStudents || 0,
+                price: course.price || 0,
+                type: course.price > 0 ? "premium" : "free",
+                categories:
+                  course.categories?.map((cat) =>
+                    typeof cat === "object" ? cat.name : cat
+                  ) || [],
+                level: course.level || "beginner",
+              };
+            }
           );
 
           setCourses(formattedCourses);
           setFilteredCourses(formattedCourses);
+        }
+
+        if (categoriesResponse.data.success) {
+          setCategories(categoriesResponse.data.categories);
         }
 
         // Fetch enrolled courses if student is logged in
@@ -71,8 +107,8 @@ const CourseList = ({ setActiveView }) => {
             `${base_url}/api/student/enrolled-courses/${studentData.id}`,
             {
               headers: {
-                Authorization: `Bearer ${localStorage.getItem("studentToken")}`
-              }
+                Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+              },
             }
           );
 
@@ -82,11 +118,15 @@ const CourseList = ({ setActiveView }) => {
             );
             setEnrolledCourses(enrolledIds);
           }
-        }
 
-        // Load cart from localStorage
-        const savedCart = JSON.parse(localStorage.getItem("courseCart")) || [];
-        setCart(savedCart);
+          // Fetch cart from server if logged in
+          await fetchCart();
+        } else {
+          // Load cart from localStorage if not logged in
+          const savedCart =
+            JSON.parse(localStorage.getItem("courseCart")) || [];
+          setCart(savedCart);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
         toast.error(error.response?.data?.message || "Failed to load data");
@@ -96,7 +136,91 @@ const CourseList = ({ setActiveView }) => {
     };
 
     fetchData();
-  }, [base_url]);
+  }, []);
+
+  useEffect(() => {
+    let results = courses;
+
+    if (searchTerm) {
+      results = results.filter(
+        (course) =>
+          course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (course.instructor &&
+            course.instructor
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase())) ||
+          (course.description &&
+            course.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    if (priceFilter === "free") {
+      results = results.filter((course) => course.price === 0);
+    } else if (priceFilter === "paid") {
+      results = results.filter((course) => course.price > 0);
+    }
+
+    if (filterType !== "all") {
+      results = results.filter((course) => course.type === filterType);
+    }
+
+    if (filterCategory !== "all") {
+      results = results.filter((course) =>
+        course.categories?.some(
+          (cat) => cat.toLowerCase() === filterCategory.toLowerCase()
+        )
+      );
+    }
+
+    if (filterLevel !== "all") {
+      results = results.filter(
+        (course) => course.level?.toLowerCase() === filterLevel.toLowerCase()
+      );
+    }
+
+    setFilteredCourses(results);
+  }, [
+    searchTerm,
+    priceFilter,
+    courses,
+    filterType,
+    filterCategory,
+    filterLevel,
+  ]);
+
+  const categoryOptions = Array.from(
+    new Set(courses.flatMap((c) => c.categories || []).filter(Boolean))
+  );
+  // Fetch cart from server
+  const fetchCart = async () => {
+    try {
+      setCartLoading(true);
+      const response = await axios.get(`${base_url}/api/student/cart`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+        },
+      });
+
+      if (response.data.success) {
+        const serverCart = response.data.cart.items.map((item) => ({
+          id: item.courseId._id,
+          title: item.courseId.title,
+          thumbnail: item.courseId.thumbnail,
+          price: item.price,
+          addedAt: item.addedAt,
+        }));
+
+        setCart(serverCart);
+        // Also sync with localStorage
+        localStorage.setItem("courseCart", JSON.stringify(serverCart));
+      }
+    } catch (error) {
+      console.error("Error fetching cart:", error);
+      toast.error("Failed to load cart");
+    } finally {
+      setCartLoading(false);
+    }
+  };
 
   // Filter courses
   useEffect(() => {
@@ -125,89 +249,180 @@ const CourseList = ({ setActiveView }) => {
   }, [searchTerm, priceFilter, courses]);
 
   // Add to cart function
-  const addToCart = (course) => {
-    if (cart.some((item) => item.id === course.id)) {
+  const addToCart = async (course) => {
+    if (isInCart(course.id)) {
       toast.error("Course already in cart");
       return;
     }
 
-    if (course.price === 0) {
-      enrollCourse(course.id);
-      return;
-    }
+    try {
+      setCartLoading(true);
 
-    const updatedCart = [...cart, course];
-    setCart(updatedCart);
-    localStorage.setItem("courseCart", JSON.stringify(updatedCart));
-    toast.success("Course added to cart");
+      if (studentData?.id && localStorage.getItem("studentToken")) {
+        // Add to cart on server
+        const response = await axios.post(
+          `${base_url}/api/student/cart`,
+          { courseId: course.id },
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+            },
+          }
+        );
+
+        if (response.data.success) {
+          const newCartItem = {
+            id: course.id,
+            title: course.title,
+            thumbnail: course.thumbnail,
+            price: course.price,
+            instructor: course.instructor,
+            addedAt: new Date().toISOString(),
+          };
+
+          setCart((prevCart) => [...prevCart, newCartItem]);
+          toast.success("Course added to cart");
+        }
+      } else {
+        // Guest user - add to localStorage
+        const newCartItem = {
+          id: course.id,
+          title: course.title,
+          thumbnail: course.thumbnail,
+          price: course.price,
+          instructor: course.instructor,
+          addedAt: new Date().toISOString(),
+        };
+
+        setCart((prevCart) => [...prevCart, newCartItem]);
+        localStorage.setItem(
+          "courseCart",
+          JSON.stringify([...cart, newCartItem])
+        );
+        toast.success("Course added to cart");
+      }
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      toast.error(error.response?.data?.message || "Failed to add to cart");
+    } finally {
+      setCartLoading(false);
+    }
   };
 
   // Remove from cart function
-  const removeFromCart = (courseId) => {
-    const updatedCart = cart.filter((item) => item.id !== courseId);
-    setCart(updatedCart);
-    localStorage.setItem("courseCart", JSON.stringify(updatedCart));
-    toast.success("Course removed from cart");
+  const removeFromCart = async (courseId) => {
+    try {
+      if (studentData?.id && localStorage.getItem("studentToken")) {
+        // Remove from server cart
+        await axios.delete(`${base_url}/api/student/cart/${courseId}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+          },
+        });
+      }
+
+      const updatedCart = cart.filter((item) => item.id !== courseId);
+      setCart(updatedCart);
+      localStorage.setItem("courseCart", JSON.stringify(updatedCart));
+      toast.success("Course removed from cart");
+    } catch (error) {
+      console.error("Error removing from cart:", error);
+      toast.error(
+        error.response?.data?.message || "Failed to remove from cart"
+      );
+    }
   };
 
-  // Enroll course function with the new route logic
-  const enrollCourse = async (courseId) => {
-    if (enrolling || !studentData?.id) return;
+  // Clear cart function
+  const clearCart = async () => {
+    try {
+      if (studentData?.id && localStorage.getItem("studentToken")) {
+        // Clear server cart
+        await axios.delete(`${base_url}/api/student/cart`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+          },
+        });
+      }
+
+      setCart([]);
+      localStorage.removeItem("courseCart");
+      toast.success("Cart cleared");
+    } catch (error) {
+      console.error("Error clearing cart:", error);
+      toast.error(error.response?.data?.message || "Failed to clear cart");
+    }
+  };
+
+  // Checkout function
+  const handleCheckout = async () => {
+    if (!studentData?.id || !localStorage.getItem("studentToken")) {
+      toast.error("Please login to checkout");
+      navigate("/student/login");
+      return;
+    }
 
     try {
-      setEnrolling(true);
+      setCartLoading(true);
+      // For this example, we'll use the first payment method
+      const paymentMethodsResponse = await axios.get(
+        `${base_url}/api/student/payment-methods`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+          },
+        }
+      );
 
-      // Check if already enrolled locally first
-      if (enrolledCourses.includes(courseId)) {
-        toast.error("You're already enrolled in this course");
+      if (paymentMethodsResponse.data.length === 0) {
+        toast.error("Please add a payment method first");
         return;
       }
 
-      // Make API call to enroll using the new route
+      const paymentMethodId = paymentMethodsResponse.data[0]._id;
+
       const response = await axios.post(
-        `${base_url}/api/student/${courseId}/enroll`,
-        { user_id: studentData.id }, // Empty body since we're using the token for auth
+        `${base_url}/api/student/cart/checkout`,
+        { paymentMethodId },
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("studentToken")}`
-          }
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+          },
         }
       );
 
       if (response.data.success) {
-        // Update local state
-        setEnrolledCourses([...enrolledCourses, courseId]);
-        toast.success("Successfully enrolled in course!");
+        toast.success(
+          "Checkout successful! You are now enrolled in the courses"
+        );
+        setCart([]);
+        localStorage.removeItem("courseCart");
+        // Refresh enrolled courses
+        const enrolledResponse = await axios.get(
+          `${base_url}/api/student/enrolled-courses/${studentData.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+            },
+          }
+        );
 
-        // If this was a free course that was in cart, remove it
-        const course = courses.find((c) => c.id === courseId);
-        if (course && course.price === 0 && isInCart(courseId)) {
-          removeFromCart(courseId);
+        if (enrolledResponse.data.success) {
+          const enrolledIds = enrolledResponse.data.enrolledCourses.map(
+            (ec) => ec.courseDetails._id
+          );
+          setEnrolledCourses(enrolledIds);
         }
-      } else {
-        toast.error(response.data.message || "Enrollment failed");
       }
     } catch (error) {
-      console.error("Enrollment error:", error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to enroll in course";
-
-      // Handle specific error cases
-      if (error.response?.status === 403) {
-        toast.error("Premium course requires an active subscription");
-      } else if (error.response?.status === 400) {
-        toast.error("You are already enrolled in this course");
-      } else if (error.response?.status === 404) {
-        toast.error("Course not found");
-      } else {
-        toast.error(errorMessage);
-      }
+      console.error("Checkout error:", error);
+      toast.error(error.response?.data?.message || "Checkout failed");
     } finally {
-      setEnrolling(false);
+      setCartLoading(false);
     }
   };
+
+  // Enroll course function
 
   // Check if course is in cart
   const isInCart = (courseId) => cart.some((item) => item.id === courseId);
@@ -217,11 +432,9 @@ const CourseList = ({ setActiveView }) => {
 
   return (
     <div className="min-h-screen text-gray-900 p-0">
-      <Toaster position="top-right" />
-
       {/* Header */}
       <header className="bg-white py-4 sm:py-6 px-4 sm:px-6 lg:px-8 border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="max-w-full mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
           <h1 className="text-xl sm:text-2xl font-bold">Courses</h1>
           <div className="flex items-center space-x-2 sm:space-x-4">
             <button
@@ -253,11 +466,11 @@ const CourseList = ({ setActiveView }) => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-full mx-auto py-6 sm:py-8">
         {/* Search and Filter Section */}
         <div className="mb-6 sm:mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
-            <div className="relative flex-1 max-w-2xl">
+            <div className="relative flex-1 max-w-6xl">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <FiSearch className="text-gray-400" />
               </div>
@@ -270,7 +483,7 @@ const CourseList = ({ setActiveView }) => {
               />
             </div>
 
-            <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <div className="flex items-center">
                 <FiFilter className="text-gray-500 mr-1 sm:mr-2 text-sm sm:text-base" />
                 <select
@@ -282,6 +495,74 @@ const CourseList = ({ setActiveView }) => {
                   <option value="free">Free Courses</option>
                   <option value="paid">Premium Courses</option>
                 </select>
+              </div>
+
+              <div className="relative group">
+                <select
+                  className="block appearance-none w-full bg-white border border-gray-300 hover:border-gray-400 px-4 py-2 pr-8 rounded-lg shadow-sm focus:outline-none focus:border-gray-500 cursor-pointer"
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                >
+                  <option value="all" className="text-gray-400 italic">
+                    All Categories
+                  </option>
+                  {categoryOptions.map((cat) => (
+                    <option
+                      key={cat}
+                      value={cat.toLowerCase()}
+                      className="checked:bg-indigo-50 hover:bg-indigo-100"
+                    >
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M4 6L8 10L12 6"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+              </div>
+
+              <div className="relative group">
+                <select
+                  className="block appearance-none w-full bg-white border border-gray-300 hover:border-gray-400 px-2 sm:px-3 py-1 sm:py-2 pr-8 rounded-lg shadow-sm focus:outline-none focus:border-gray-500 cursor-pointer text-sm sm:text-base"
+                  value={filterLevel}
+                  onChange={(e) => setFilterLevel(e.target.value)}
+                >
+                  <option value="all">All Levels</option>
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M4 6L8 10L12 6"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
@@ -341,17 +622,14 @@ const CourseList = ({ setActiveView }) => {
                     <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 mb-2">
                       <span className="flex items-center">
                         <FiStar className="mr-1 text-yellow-400" />{" "}
-                        {course.rating.toFixed(1)}
+                        {course.rating > 0
+                          ? course.rating.toFixed(1)
+                          : "No ratings"}
                       </span>
                       <span className="flex items-center">
                         <FiUsers className="mr-1" />{" "}
                         {course.students.toLocaleString()}
                       </span>
-                      {course.duration && (
-                        <span className="flex items-center">
-                          <FiClock className="mr-1" /> {course.duration}
-                        </span>
-                      )}
                     </div>
                     <span className="text-xs sm:text-sm text-gray-700 mb-2">
                       By {course.instructor}
@@ -368,24 +646,14 @@ const CourseList = ({ setActiveView }) => {
                   >
                     <FiEye className="mr-1 sm:mr-2" /> Overview
                   </button>
-
-                  {isEnrolled(course.id) ? (
-                    <button
-                      onClick={() => navigate(`/student/learn/${course.id}`)}
-                      className="w-full bg-gray-900 text-white py-1 sm:py-2 rounded-lg text-xs sm:text-sm hover:bg-gray-800 transition-all"
+                  {enrolledCourses.includes(course.id) ? (
+                    <motion.span
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="w-full bg-green-50 text-green-700 py-1 sm:py-2 rounded-lg text-xs sm:text-sm text-center flex items-center justify-center"
                     >
-                      Continue Learning
-                    </button>
-                  ) : course.price === 0 ? (
-                    <button
-                      onClick={() => enrollCourse(course.id)}
-                      disabled={enrolling}
-                      className={`w-full bg-gray-900 text-white py-1 sm:py-2 rounded-lg text-xs sm:text-sm hover:bg-gray-800 transition-all ${
-                        enrolling ? "opacity-50 cursor-not-allowed" : ""
-                      }`}
-                    >
-                      {enrolling ? "Enrolling..." : "Enroll Now"}
-                    </button>
+                      <FiCheck className="mr-1 sm:mr-2" /> Enrolled
+                    </motion.span>
                   ) : isInCart(course.id) ? (
                     <button
                       onClick={() => removeFromCart(course.id)}
