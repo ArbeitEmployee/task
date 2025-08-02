@@ -1,7 +1,13 @@
 /* eslint-disable no-unused-vars */
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { FiCreditCard, FiLock, FiCheckCircle, FiShield } from "react-icons/fi";
+import {
+  FiCreditCard,
+  FiLock,
+  FiCheckCircle,
+  FiShield,
+  FiImage
+} from "react-icons/fi";
 import toast from "react-hot-toast";
 import axios from "axios";
 import Cards from "react-credit-cards";
@@ -16,7 +22,7 @@ const Checkout = ({ cart, onSuccess }) => {
     expiry: "",
     cvc: "",
     name: "",
-    focused: "",
+    focused: ""
   });
   const [billingDetails, setBillingDetails] = useState({
     firstName: "",
@@ -25,58 +31,74 @@ const Checkout = ({ cart, onSuccess }) => {
     address: "",
     city: "",
     country: "BN",
-    zipCode: "",
+    zipCode: ""
   });
 
   // Calculate total
-  const total = cart.reduce((sum, item) => sum + item.price, 0);
+  // Calculate total - Update this part
+  const validCartItems = cart.filter(
+    (item) =>
+      item?.id &&
+      item?.title &&
+      typeof item.price === "number" &&
+      !isNaN(item.price)
+  );
 
+  const total = validCartItems.reduce((sum, item) => sum + item.price, 0);
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Prepare payment data
       const paymentData = {
         paymentMethod,
-        cardDetails: paymentMethod === "card" ? cardDetails : null,
+        cardDetails:
+          paymentMethod === "card"
+            ? {
+                number: cardDetails.number.replace(/\s/g, ""),
+                expiry: cardDetails.expiry,
+                cvc: cardDetails.cvc,
+                name: cardDetails.name
+              }
+            : null,
         billingDetails,
         amount: total,
-        items: cart.map((item) => ({
+        items: validCartItems.map((item) => ({
           id: item.id,
           title: item.title,
-          price: item.price,
-        })),
+          price: item.price
+        }))
       };
 
-      /* 
-      // REAL API INTEGRATION EXAMPLE (uncomment and modify as needed)
-      const response = await axios.post('https://your-api-endpoint.com/payments', paymentData, {
-        headers: {
-          'Authorization': 'Bearer your-auth-token-if-needed',
-          'Content-Type': 'application/json'
+      const response = await axios.post(
+        `${base_url}/api/student/cart/checkout`,
+        paymentData,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`
+          }
         }
-      });
-      
-      // Handle successful payment
-      if (response.data.success) {
+      );
+
+      if (response.data?.success && response.data?.order) {
         toast.success("Payment successful!");
-        onSuccess();
+        if (onSuccess) {
+          onSuccess(response.data);
+        }
       } else {
-        throw new Error(response.data.message || "Payment failed");
+        throw new Error(
+          response.data?.message ||
+            "Payment succeeded but no order data received"
+        );
       }
-      */
-
-      // MOCK API CALL (for testing - remove in production)
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Simulate successful payment
-      toast.success("Payment successful!");
-      onSuccess();
     } catch (error) {
       console.error("Payment error:", error);
-      toast.error(error.message || "Payment failed. Please try again.");
+      toast.error(
+        error.response?.data?.message ||
+          error.message ||
+          "Payment failed. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -250,13 +272,13 @@ const Checkout = ({ cart, onSuccess }) => {
                           onChange={(e) =>
                             setCardDetails({
                               ...cardDetails,
-                              number: e.target.value,
+                              number: e.target.value
                             })
                           }
                           onFocus={() =>
                             setCardDetails({
                               ...cardDetails,
-                              focused: "number",
+                              focused: "number"
                             })
                           }
                           maxLength={19}
@@ -293,13 +315,13 @@ const Checkout = ({ cart, onSuccess }) => {
                           onChange={(e) =>
                             setCardDetails({
                               ...cardDetails,
-                              expiry: e.target.value,
+                              expiry: e.target.value
                             })
                           }
                           onFocus={() =>
                             setCardDetails({
                               ...cardDetails,
-                              focused: "expiry",
+                              focused: "expiry"
                             })
                           }
                           maxLength={5}
@@ -318,9 +340,7 @@ const Checkout = ({ cart, onSuccess }) => {
                           onChange={(e) =>
                             setCardDetails({
                               ...cardDetails,
-                              cvc: e.target.value
-                                .replace(/\D/g, "")
-                                .slice(0, 4),
+                              cvc: e.target.value.replace(/\D/g, "").slice(0, 4)
                             })
                           }
                           onFocus={() =>
@@ -344,7 +364,7 @@ const Checkout = ({ cart, onSuccess }) => {
                         onChange={(e) =>
                           setCardDetails({
                             ...cardDetails,
-                            name: e.target.value,
+                            name: e.target.value
                           })
                         }
                         onFocus={() =>
@@ -382,7 +402,7 @@ const Checkout = ({ cart, onSuccess }) => {
                     onChange={(e) =>
                       setBillingDetails({
                         ...billingDetails,
-                        firstName: e.target.value,
+                        firstName: e.target.value
                       })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-400 transition-all"
@@ -399,7 +419,7 @@ const Checkout = ({ cart, onSuccess }) => {
                     onChange={(e) =>
                       setBillingDetails({
                         ...billingDetails,
-                        lastName: e.target.value,
+                        lastName: e.target.value
                       })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-400 transition-all"
@@ -416,7 +436,7 @@ const Checkout = ({ cart, onSuccess }) => {
                     onChange={(e) =>
                       setBillingDetails({
                         ...billingDetails,
-                        email: e.target.value,
+                        email: e.target.value
                       })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-400 transition-all"
@@ -433,7 +453,7 @@ const Checkout = ({ cart, onSuccess }) => {
                     onChange={(e) =>
                       setBillingDetails({
                         ...billingDetails,
-                        address: e.target.value,
+                        address: e.target.value
                       })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-400 transition-all"
@@ -450,7 +470,7 @@ const Checkout = ({ cart, onSuccess }) => {
                     onChange={(e) =>
                       setBillingDetails({
                         ...billingDetails,
-                        city: e.target.value,
+                        city: e.target.value
                       })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-400 transition-all"
@@ -466,7 +486,7 @@ const Checkout = ({ cart, onSuccess }) => {
                     onChange={(e) =>
                       setBillingDetails({
                         ...billingDetails,
-                        country: e.target.value,
+                        country: e.target.value
                       })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-gray-500 hover:border-gray-400 transition-all appearance-none bg-white bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tZG93biI+PHBhdGggZD0ibTYgOSA2IDYgNi02Ii8+PC9zdmc+')] bg-no-repeat bg-[center_right_1rem]"
@@ -490,7 +510,7 @@ const Checkout = ({ cart, onSuccess }) => {
                     onChange={(e) =>
                       setBillingDetails({
                         ...billingDetails,
-                        zipCode: e.target.value,
+                        zipCode: e.target.value
                       })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-400 transition-all"
@@ -549,50 +569,46 @@ const Checkout = ({ cart, onSuccess }) => {
             <h2 className="text-xl font-bold text-gray-900 mb-6">
               Order Summary
             </h2>
-
             <div className="space-y-4 mb-6 max-h-64 overflow-y-auto">
-              {cart.map((course) => (
-                <div
-                  key={course.id}
-                  className="flex justify-between items-start"
-                >
-                  <div className="flex items-start">
-                    <img
-                      src={`${base_url}/courses/${course.thumbnail.path}`}
-                      alt={course.title}
-                      className="w-12 h-9 object-cover rounded mr-3"
-                    />
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900 line-clamp-1">
-                        {course.title}
-                      </h4>
-                      <p className="text-xs text-gray-500">
-                        {course.instructor}
-                      </p>
+              <div className="space-y-4 mb-6 max-h-64 overflow-y-auto">
+                {validCartItems.map((course) => (
+                  <div
+                    key={course.id}
+                    className="flex justify-between items-start"
+                  >
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 mb-4 sm:mb-0 sm:mr-6">
+                        {course.thumbnail ? (
+                          <img
+                            src={`${base_url}/courses/${course.thumbnail.path}`}
+                            alt={course.title}
+                            className="w-12 h-9 object-cover rounded mr-3"
+                          />
+                        ) : (
+                          <div className="w-12 h-9 bg-gray-200 rounded mr-3 flex items-center justify-center">
+                            <FiImage className="text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900 line-clamp-1">
+                          {course.title}
+                        </h4>
+                      </div>
                     </div>
+                    <span className="text-sm font-medium">
+                      ৳ {course.price.toFixed(2)}
+                    </span>
                   </div>
-                  <span className="text-sm font-medium">
-                    ৳ {course.price.toFixed(2)}
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-
             <div className="space-y-3 border-t border-gray-200 pt-4">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Subtotal</span>
-                <span className="font-medium">৳ {total.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Tax</span>
-                <span className="font-medium">৳ 0.00</span>
-              </div>
               <div className="flex justify-between text-lg font-bold pt-2">
                 <span>Total</span>
                 <span>৳ {total.toFixed(2)}</span>
               </div>
             </div>
-
             <div className="mt-6 p-4 bg-green-50 rounded-lg">
               <div className="flex items-start">
                 <FiShield className="text-green-500 mt-1 mr-3 flex-shrink-0" />

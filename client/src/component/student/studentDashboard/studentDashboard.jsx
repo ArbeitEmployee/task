@@ -3,8 +3,8 @@ import Sidebar from "./sidebar";
 import Settings from "./settings";
 import CourseList from "./courses/coursesList";
 import Cart from "./courses/cart";
-import MyCourses from "./courses/myCourses";
-
+import MyCourses from "./courses/myCOurses";
+import axios from "axios";
 const StudentDashboard = () => {
   const [activeView, setActiveView] = useState(() => {
     const savedView = localStorage.getItem("studentActiveView");
@@ -13,11 +13,46 @@ const StudentDashboard = () => {
 
   const [cart, setCart] = useState([]);
 
-  // Load cart from localStorage on initial render
   useEffect(() => {
-    const savedCart = JSON.parse(localStorage.getItem("courseCart")) || [];
-    setCart(savedCart);
+    const loadAndValidateCart = async () => {
+      try {
+        const savedCart = JSON.parse(localStorage.getItem("courseCart")) || [];
+
+        // If user is authenticated, sync with backend
+        if (localStorage.getItem("studentToken")) {
+          const response = await axios.get(
+            `${import.meta.env.VITE_API_KEY_Base_URL}/api/student/cart`,
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("studentToken")}`
+              }
+            }
+          );
+
+          if (response.data.success) {
+            setCart(response.data.cart.items);
+            return;
+          }
+        }
+
+        // For guest users or if backend fetch fails, use localStorage
+        setCart(savedCart);
+      } catch (error) {
+        console.error("Error loading cart:", error);
+        const savedCart = JSON.parse(localStorage.getItem("courseCart")) || [];
+        setCart(savedCart);
+      }
+    };
+
+    loadAndValidateCart();
   }, []);
+
+  // Update localStorage whenever cart changes (for guest users)
+  useEffect(() => {
+    if (!localStorage.getItem("studentToken")) {
+      localStorage.setItem("courseCart", JSON.stringify(cart));
+    }
+  }, [cart]);
 
   useEffect(() => {
     localStorage.setItem("studentActiveView", activeView);

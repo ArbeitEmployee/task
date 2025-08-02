@@ -13,10 +13,10 @@ import {
   FiSearch,
   FiClock,
   FiUsers,
-  FiEye,
+  FiEye
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import axios from "axios";
 
 const CourseList = ({ setActiveView }) => {
@@ -37,9 +37,9 @@ const CourseList = ({ setActiveView }) => {
   const [filterLevel, setFilterLevel] = useState("all");
   const [categories, setCategories] = useState([]);
   const [teachers, setTeachers] = useState([]);
+
   // Fetch courses, enrolled courses, and cart
   useEffect(() => {
-    // In the fetchData function, modify the formattedCourses mapping:
     const fetchData = async () => {
       setLoading(true);
       let teachersList = [];
@@ -62,7 +62,6 @@ const CourseList = ({ setActiveView }) => {
         if (coursesResponse.data.success) {
           const formattedCourses = coursesResponse.data.courses.map(
             (course) => {
-              // Find the instructor by ID - handle both string and ObjectId comparisons
               const instructor = teachersList.find((teacher) => {
                 const teacherIdStr = teacher._id.toString();
                 const courseInstructorStr = course.instructor?.toString();
@@ -88,7 +87,7 @@ const CourseList = ({ setActiveView }) => {
                   course.categories?.map((cat) =>
                     typeof cat === "object" ? cat.name : cat
                   ) || [],
-                level: course.level || "beginner",
+                level: course.level || "beginner"
               };
             }
           );
@@ -102,34 +101,69 @@ const CourseList = ({ setActiveView }) => {
         }
 
         // Fetch enrolled courses if student is logged in
-        if (studentData?.id && localStorage.getItem("studentToken")) {
-          const enrolledResponse = await axios.get(
-            `${base_url}/api/student/enrolled-courses/${studentData.id}`,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
-              },
-            }
-          );
+        const isAuthenticated =
+          studentData?.id && localStorage.getItem("studentToken");
 
-          if (enrolledResponse.data.success) {
-            const enrolledIds = enrolledResponse.data.enrolledCourses.map(
-              (ec) => ec.courseDetails._id
+        if (isAuthenticated) {
+          try {
+            // Fetch enrolled courses
+            const enrolledResponse = await axios.get(
+              `${base_url}/api/student/enrolled-courses/${studentData.id}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem(
+                    "studentToken"
+                  )}`
+                }
+              }
             );
-            setEnrolledCourses(enrolledIds);
+
+            if (enrolledResponse.data.success) {
+              const enrolledIds = enrolledResponse.data.enrolledCourses
+                .map((ec) => ec?.courseDetails?._id)
+                .filter(Boolean); // Filter out invalid IDs
+              setEnrolledCourses(enrolledIds);
+            }
+          } catch (enrolledError) {
+            console.error("Error fetching enrolled courses:", enrolledError);
+            toast.error("Failed to load enrolled courses");
           }
 
-          // Fetch cart from server if logged in
+          // Fetch cart from server
           await fetchCart();
         } else {
-          // Load cart from localStorage if not logged in
-          const savedCart =
-            JSON.parse(localStorage.getItem("courseCart")) || [];
-          setCart(savedCart);
+          // Load cart from localStorage for guest users
+          try {
+            const savedCart =
+              JSON.parse(localStorage.getItem("courseCart")) || [];
+            // Validate cart items
+            const validCart = savedCart.filter(
+              (item) => item?.id && item?.title && !isNaN(item?.price)
+            );
+            setCart(validCart);
+            // Update localStorage with cleaned cart
+            if (validCart.length !== savedCart.length) {
+              localStorage.setItem("courseCart", JSON.stringify(validCart));
+            }
+          } catch (localStorageError) {
+            console.error(
+              "Error loading cart from localStorage:",
+              localStorageError
+            );
+            localStorage.removeItem("courseCart");
+            setCart([]);
+          }
         }
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error in fetchData:", error);
         toast.error(error.response?.data?.message || "Failed to load data");
+
+        // Reset to empty states if critical error occurs
+        if (error.response?.status === 401) {
+          // Handle unauthorized (logged out) state
+          setEnrolledCourses([]);
+          setCart([]);
+        }
       } finally {
         setLoading(false);
       }
@@ -185,33 +219,34 @@ const CourseList = ({ setActiveView }) => {
     courses,
     filterType,
     filterCategory,
-    filterLevel,
+    filterLevel
   ]);
 
   const categoryOptions = Array.from(
     new Set(courses.flatMap((c) => c.categories || []).filter(Boolean))
   );
-  // Fetch cart from server
+
   const fetchCart = async () => {
     try {
       setCartLoading(true);
       const response = await axios.get(`${base_url}/api/student/cart`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
-        },
+          Authorization: `Bearer ${localStorage.getItem("studentToken")}`
+        }
       });
 
       if (response.data.success) {
-        const serverCart = response.data.cart.items.map((item) => ({
-          id: item.courseId._id,
-          title: item.courseId.title,
-          thumbnail: item.courseId.thumbnail,
-          price: item.price,
-          addedAt: item.addedAt,
-        }));
+        const serverCart = response.data.cart.items
+          .map((item) => ({
+            id: item.courseId?._id,
+            title: item.courseId?.title,
+            thumbnail: item.courseId?.thumbnail,
+            price: item.price,
+            addedAt: item.addedAt
+          }))
+          .filter((item) => item.id && item.title); // Filter out invalid items
 
         setCart(serverCart);
-        // Also sync with localStorage
         localStorage.setItem("courseCart", JSON.stringify(serverCart));
       }
     } catch (error) {
@@ -222,34 +257,17 @@ const CourseList = ({ setActiveView }) => {
     }
   };
 
-  // Filter courses
-  useEffect(() => {
-    let results = courses;
-
-    if (searchTerm) {
-      results = results.filter(
-        (course) =>
-          course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (course.instructor &&
-            course.instructor
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase())) ||
-          (course.description &&
-            course.description.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-    }
-
-    if (priceFilter === "free") {
-      results = results.filter((course) => course.price === 0);
-    } else if (priceFilter === "paid") {
-      results = results.filter((course) => course.price > 0);
-    }
-
-    setFilteredCourses(results);
-  }, [searchTerm, priceFilter, courses]);
-
-  // Add to cart function
   const addToCart = async (course) => {
+    if (!course?.id || !course?.title) {
+      console.error("Invalid course data");
+      return;
+    }
+
+    if (isEnrolled(course.id)) {
+      toast.error("You are already enrolled in this course");
+      return;
+    }
+
     if (isInCart(course.id)) {
       toast.error("Course already in cart");
       return;
@@ -259,14 +277,13 @@ const CourseList = ({ setActiveView }) => {
       setCartLoading(true);
 
       if (studentData?.id && localStorage.getItem("studentToken")) {
-        // Add to cart on server
         const response = await axios.post(
           `${base_url}/api/student/cart`,
           { courseId: course.id },
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
-            },
+              Authorization: `Bearer ${localStorage.getItem("studentToken")}`
+            }
           }
         );
 
@@ -277,21 +294,20 @@ const CourseList = ({ setActiveView }) => {
             thumbnail: course.thumbnail,
             price: course.price,
             instructor: course.instructor,
-            addedAt: new Date().toISOString(),
+            addedAt: new Date().toISOString()
           };
 
           setCart((prevCart) => [...prevCart, newCartItem]);
           toast.success("Course added to cart");
         }
       } else {
-        // Guest user - add to localStorage
         const newCartItem = {
           id: course.id,
           title: course.title,
           thumbnail: course.thumbnail,
           price: course.price,
           instructor: course.instructor,
-          addedAt: new Date().toISOString(),
+          addedAt: new Date().toISOString()
         };
 
         setCart((prevCart) => [...prevCart, newCartItem]);
@@ -308,16 +324,13 @@ const CourseList = ({ setActiveView }) => {
       setCartLoading(false);
     }
   };
-
-  // Remove from cart function
   const removeFromCart = async (courseId) => {
     try {
       if (studentData?.id && localStorage.getItem("studentToken")) {
-        // Remove from server cart
         await axios.delete(`${base_url}/api/student/cart/${courseId}`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
-          },
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`
+          }
         });
       }
 
@@ -332,108 +345,24 @@ const CourseList = ({ setActiveView }) => {
       );
     }
   };
-
-  // Clear cart function
-  const clearCart = async () => {
-    try {
-      if (studentData?.id && localStorage.getItem("studentToken")) {
-        // Clear server cart
-        await axios.delete(`${base_url}/api/student/cart`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
-          },
-        });
-      }
-
-      setCart([]);
-      localStorage.removeItem("courseCart");
-      toast.success("Cart cleared");
-    } catch (error) {
-      console.error("Error clearing cart:", error);
-      toast.error(error.response?.data?.message || "Failed to clear cart");
+  // Add this useEffect hook near your other effects
+  useEffect(() => {
+    // Clean up any invalid items on component mount
+    const cleanCart = cart.filter((item) => item?.id && item?.title);
+    if (cleanCart.length !== cart.length) {
+      setCart(cleanCart);
+      localStorage.setItem("courseCart", JSON.stringify(cleanCart));
     }
-  };
-
-  // Checkout function
-  const handleCheckout = async () => {
-    if (!studentData?.id || !localStorage.getItem("studentToken")) {
-      toast.error("Please login to checkout");
-      navigate("/student/login");
-      return;
-    }
-
-    try {
-      setCartLoading(true);
-      // For this example, we'll use the first payment method
-      const paymentMethodsResponse = await axios.get(
-        `${base_url}/api/student/payment-methods`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
-          },
-        }
-      );
-
-      if (paymentMethodsResponse.data.length === 0) {
-        toast.error("Please add a payment method first");
-        return;
-      }
-
-      const paymentMethodId = paymentMethodsResponse.data[0]._id;
-
-      const response = await axios.post(
-        `${base_url}/api/student/cart/checkout`,
-        { paymentMethodId },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
-          },
-        }
-      );
-
-      if (response.data.success) {
-        toast.success(
-          "Checkout successful! You are now enrolled in the courses"
-        );
-        setCart([]);
-        localStorage.removeItem("courseCart");
-        // Refresh enrolled courses
-        const enrolledResponse = await axios.get(
-          `${base_url}/api/student/enrolled-courses/${studentData.id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
-            },
-          }
-        );
-
-        if (enrolledResponse.data.success) {
-          const enrolledIds = enrolledResponse.data.enrolledCourses.map(
-            (ec) => ec.courseDetails._id
-          );
-          setEnrolledCourses(enrolledIds);
-        }
-      }
-    } catch (error) {
-      console.error("Checkout error:", error);
-      toast.error(error.response?.data?.message || "Checkout failed");
-    } finally {
-      setCartLoading(false);
-    }
-  };
-
-  // Enroll course function
-
-  // Check if course is in cart
+  }, []);
   const isInCart = (courseId) => cart.some((item) => item.id === courseId);
-
-  // Check if course is enrolled
-  const isEnrolled = (courseId) => enrolledCourses.includes(courseId);
+  const isEnrolled = (courseId) => {
+    return enrolledCourses.some((id) => id.toString() === courseId.toString());
+  };
 
   return (
-    <div className="min-h-screen text-gray-900 p-0">
+    <div className="min-h-screen bg-white text-black p-0">
       {/* Header */}
-      <header className="bg-white py-4 sm:py-6 px-4 sm:px-6 lg:px-8 border-b border-gray-200 shadow-sm">
+      <header className="bg-white py-4 px-4 sm:px-6 lg:px-8 border-b border-gray-200 shadow-sm">
         <div className="max-w-full mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
           <h1 className="text-xl sm:text-2xl font-bold">Courses</h1>
           <div className="flex items-center space-x-2 sm:space-x-4">
@@ -444,7 +373,7 @@ const CourseList = ({ setActiveView }) => {
             >
               <FiBookOpen className="text-lg sm:text-xl" />
               {enrolledCourses.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-black text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                   {enrolledCourses.length}
                 </span>
               )}
@@ -456,7 +385,7 @@ const CourseList = ({ setActiveView }) => {
             >
               <FiShoppingCart className="text-lg sm:text-xl" />
               {cart.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-black text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                   {cart.length}
                 </span>
               )}
@@ -466,7 +395,7 @@ const CourseList = ({ setActiveView }) => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-full mx-auto py-6 sm:py-8">
+      <main className="max-w-full mx-auto py-6">
         {/* Search and Filter Section */}
         <div className="mb-6 sm:mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
@@ -477,7 +406,7 @@ const CourseList = ({ setActiveView }) => {
               <input
                 type="text"
                 placeholder="Search courses..."
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white shadow-sm focus:outline-none focus:border-gray-500 hover:border-gray-500 text-sm sm:text-base"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white shadow-sm focus:outline-none focus:border-black hover:border-black text-sm sm:text-base"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -489,7 +418,7 @@ const CourseList = ({ setActiveView }) => {
                 <select
                   value={priceFilter}
                   onChange={(e) => setPriceFilter(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-2 sm:px-3 py-1 sm:py-2 focus:border-gray-500 hover:border-gray-500 text-sm sm:text-base"
+                  className="border border-gray-300 rounded-lg px-2 sm:px-3 py-1 sm:py-2 focus:border-black hover:border-black text-sm sm:text-base"
                 >
                   <option value="all">All Courses</option>
                   <option value="free">Free Courses</option>
@@ -499,7 +428,7 @@ const CourseList = ({ setActiveView }) => {
 
               <div className="relative group">
                 <select
-                  className="block appearance-none w-full bg-white border border-gray-300 hover:border-gray-400 px-4 py-2 pr-8 rounded-lg shadow-sm focus:outline-none focus:border-gray-500 cursor-pointer"
+                  className="block appearance-none w-full bg-white border border-gray-300 hover:border-black px-4 py-2 pr-8 rounded-lg shadow-sm focus:outline-none focus:border-black cursor-pointer"
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
                 >
@@ -510,7 +439,7 @@ const CourseList = ({ setActiveView }) => {
                     <option
                       key={cat}
                       value={cat.toLowerCase()}
-                      className="checked:bg-indigo-50 hover:bg-indigo-100"
+                      className="checked:bg-gray-100 hover:bg-gray-100"
                     >
                       {cat.charAt(0).toUpperCase() + cat.slice(1)}
                     </option>
@@ -537,7 +466,7 @@ const CourseList = ({ setActiveView }) => {
 
               <div className="relative group">
                 <select
-                  className="block appearance-none w-full bg-white border border-gray-300 hover:border-gray-400 px-2 sm:px-3 py-1 sm:py-2 pr-8 rounded-lg shadow-sm focus:outline-none focus:border-gray-500 cursor-pointer text-sm sm:text-base"
+                  className="block appearance-none w-full bg-white border border-gray-300 hover:border-black px-2 sm:px-3 py-1 sm:py-2 pr-8 rounded-lg shadow-sm focus:outline-none focus:border-black cursor-pointer text-sm sm:text-base"
                   value={filterLevel}
                   onChange={(e) => setFilterLevel(e.target.value)}
                 >
@@ -570,27 +499,27 @@ const CourseList = ({ setActiveView }) => {
 
         {/* Course Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {[...Array(6)].map((_, i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
+            {[...Array(8)].map((_, i) => (
               <div
                 key={i}
-                className="bg-gray-100 rounded-lg overflow-hidden animate-pulse"
+                className="bg-gray-100 rounded-xl overflow-hidden animate-pulse"
               >
-                <div className="h-40 sm:h-48 bg-gray-200"></div>
-                <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
-                  <div className="h-5 sm:h-6 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-3 sm:h-4 bg-gray-200 rounded w-full"></div>
-                  <div className="h-3 sm:h-4 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-48 bg-gray-200"></div>
+                <div className="p-4 space-y-3">
+                  <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-full"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
                 </div>
               </div>
             ))}
           </div>
         ) : filteredCourses.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
             {filteredCourses.map((course) => (
               <motion.div
                 key={course.id}
-                className="bg-white rounded-lg shadow border border-gray-200 flex flex-col justify-between hover:shadow-lg transition-all"
+                className="bg-white rounded-xl shadow-md border border-gray-100 flex flex-col justify-between hover:shadow-lg transition-all overflow-hidden"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
@@ -601,25 +530,27 @@ const CourseList = ({ setActiveView }) => {
                     <img
                       src={course.thumbnail}
                       alt={course.title}
-                      className="w-full h-40 sm:h-48 object-cover"
+                      className="w-full h-48 object-cover"
                       onError={(e) => {
                         e.target.src =
                           "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80";
                       }}
                     />
-                    <div className="absolute top-2 right-2 bg-black bg-opacity-80 text-white px-2 py-1 text-xs rounded">
+                    <div className="absolute top-3 right-3 bg-black text-white px-3 py-1 text-xs font-medium rounded-full">
                       {course.price === 0 ? "FREE" : `৳${course.price}`}
                     </div>
                   </div>
-                  <div className="p-3 sm:p-4 flex flex-col flex-grow">
-                    <h3 className="text-base sm:text-lg font-bold mb-1 line-clamp-2">
-                      {course.title}
-                    </h3>
+                  <div className="p-4 flex flex-col flex-grow">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="text-lg font-bold line-clamp-2">
+                        {course.title}
+                      </h3>
+                    </div>
                     <p
-                      className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2"
+                      className="text-sm text-gray-600 mb-3 line-clamp-2"
                       dangerouslySetInnerHTML={{ __html: course.description }}
                     />
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 mb-2">
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 mb-3">
                       <span className="flex items-center">
                         <FiStar className="mr-1 text-yellow-400" />{" "}
                         {course.rating > 0
@@ -631,42 +562,47 @@ const CourseList = ({ setActiveView }) => {
                         {course.students.toLocaleString()}
                       </span>
                     </div>
-                    <span className="text-xs sm:text-sm text-gray-700 mb-2">
+                    <span className="text-sm text-gray-700 mb-3">
                       By {course.instructor}
                     </span>
                   </div>
                 </div>
 
-                <div className="p-3 sm:p-4 pt-0 flex flex-col gap-2">
+                <div className="px-4 pb-4 flex flex-col gap-2">
                   <button
                     onClick={() =>
                       navigate(`/student/course-overview/${course.id}`)
                     }
-                    className="w-full bg-gray-100 text-gray-800 py-1 sm:py-2 rounded-lg text-xs sm:text-sm hover:bg-gray-200 transition-all flex items-center justify-center"
+                    className="w-full bg-white text-black border border-black py-2 rounded-lg text-sm hover:bg-gray-50 transition-all flex items-center justify-center"
                   >
-                    <FiEye className="mr-1 sm:mr-2" /> Overview
+                    <FiEye className="mr-2" /> Overview
                   </button>
-                  {enrolledCourses.includes(course.id) ? (
+
+                  {isEnrolled(course.id) ? (
                     <motion.span
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className="w-full bg-green-50 text-green-700 py-1 sm:py-2 rounded-lg text-xs sm:text-sm text-center flex items-center justify-center"
+                      className="w-full bg-green-50 text-green-700 py-2 rounded-lg text-sm text-center flex items-center justify-center"
                     >
-                      <FiCheck className="mr-1 sm:mr-2" /> Enrolled
+                      <FiCheck className="mr-2" /> Enrolled
                     </motion.span>
                   ) : isInCart(course.id) ? (
                     <button
                       onClick={() => removeFromCart(course.id)}
-                      className="w-full bg-red-100 text-red-700 py-1 sm:py-2 rounded-lg text-xs sm:text-sm hover:bg-red-200 flex items-center justify-center"
+                      className="w-full bg-white text-red-600 border border-red-600 py-2 rounded-lg text-sm hover:bg-red-50 flex items-center justify-center"
                     >
-                      <FiShoppingCart className="mr-1 sm:mr-2" /> Remove
+                      <FiShoppingCart className="mr-2" /> Remove
                     </button>
                   ) : (
                     <button
                       onClick={() => addToCart(course)}
-                      className="w-full bg-gray-900 text-white py-1 sm:py-2 rounded-lg text-xs sm:text-sm hover:bg-gray-800 flex items-center justify-center"
+                      className="w-full bg-black text-white py-2 rounded-lg text-sm hover:bg-gray-800 flex items-center justify-center"
+                      disabled={isEnrolled(course.id)}
                     >
-                      <FiShoppingCart className="mr-1 sm:mr-2" /> Add to Cart
+                      <FiShoppingCart className="mr-2" />
+                      {isEnrolled(course.id)
+                        ? "Already Enrolled"
+                        : "Add to Cart"}
                     </button>
                   )}
                 </div>
@@ -674,14 +610,14 @@ const CourseList = ({ setActiveView }) => {
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 sm:py-12">
-            <div className="mx-auto w-16 h-16 sm:w-24 sm:h-24 bg-gray-100 rounded-full flex items-center justify-center mb-3 sm:mb-4">
-              <FiBookOpen className="text-gray-400 text-2xl sm:text-3xl" />
+          <div className="text-center py-12 sm:py-16">
+            <div className="mx-auto w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <FiBookOpen className="text-gray-400 text-3xl" />
             </div>
-            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-1">
+            <h3 className="text-lg sm:text-xl font-medium text-black mb-2">
               No courses found
             </h3>
-            <p className="text-sm sm:text-base text-gray-500">
+            <p className="text-sm sm:text-base text-gray-500 max-w-md mx-auto">
               Try adjusting your search or filter to find what you're looking
               for.
             </p>
