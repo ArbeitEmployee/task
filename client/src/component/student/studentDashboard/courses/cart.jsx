@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,38 +9,33 @@ import {
   FiCreditCard,
   FiStar,
   FiImage,
-  FiCheckCircle
+  FiCheckCircle,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import axios from "axios";
-import Checkout from "./Checkout";
 
 const Cart = ({ setActiveView }) => {
   const [cart, setCart] = useState([]);
-  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const base_url = import.meta.env.VITE_API_KEY_Base_URL;
   const studentData = JSON.parse(localStorage.getItem("studentData"));
-  const [hasFreeCourses, setHasFreeCourses] = useState(false);
-  const [hasPremiumCourses, setHasPremiumCourses] = useState(false);
 
   useEffect(() => {
     const fetchCart = async () => {
       try {
         const response = await axios.get(`${base_url}/api/student/cart`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("studentToken")}`
-          }
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+          },
         });
 
         if (response.data.success) {
           const formattedCart = response.data.cart.items.map((item) => ({
-            id: item.courseId._id, // Make sure this is the correct path to the ID
+            id: item.courseId._id,
             title: item.courseId.title,
             thumbnail: item.courseId.thumbnail,
-            price: item.price
+            price: item.price,
           }));
-
           setCart(formattedCart);
         }
       } catch (error) {
@@ -51,7 +47,6 @@ const Cart = ({ setActiveView }) => {
     };
 
     fetchCart();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const removeFromCart = async (courseId, silent = false) => {
@@ -65,102 +60,58 @@ const Cart = ({ setActiveView }) => {
       if (studentData?.id && localStorage.getItem("studentToken")) {
         await axios.delete(`${base_url}/api/student/cart/${courseId}`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("studentToken")}`
-          }
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+          },
         });
       }
 
-      setCart((prevCart) => {
-        const updatedCart = prevCart.filter((item) => item?.id !== courseId);
-        if (!localStorage.getItem("studentToken")) {
-          localStorage.setItem("courseCart", JSON.stringify(updatedCart));
-        }
-        return updatedCart;
-      });
-
-      if (!silent) {
-        toast.success("Course removed from cart");
-      }
+      setCart((prevCart) => prevCart.filter((item) => item?.id !== courseId));
+      if (!silent) toast.success("Course removed from cart");
     } catch (error) {
       console.error("Error removing item from cart:", error);
-
-      if (error.response?.status === 404) {
-        setCart((prevCart) => prevCart.filter((item) => item?.id !== courseId));
-        if (!localStorage.getItem("studentToken")) {
-          const localCart =
-            JSON.parse(localStorage.getItem("courseCart")) || [];
-          const updatedCart = localCart.filter((item) => item?.id !== courseId);
-          localStorage.setItem("courseCart", JSON.stringify(updatedCart));
-        }
-      }
-
-      if (!silent) {
-        toast.error(error.response?.data?.message || "Failed to remove course");
-      }
+      if (!silent) toast.error("Failed to remove course");
     }
   };
-  useEffect(() => {
-    const free = cart.some((item) => item.price === 0);
-    const premium = cart.some((item) => item.price > 0);
-    setHasFreeCourses(free);
-    setHasPremiumCourses(premium);
-  }, [cart]);
 
-  const handleEnrollFreeCourses = async () => {
+  const handleEnrollCourses = async () => {
     try {
       setLoading(true);
-      let silentRemove = true; // Flag to suppress removal toasts
 
-      // Process enrollments with retry logic
-      const processCourse = async (courseId, retries = 3) => {
+      // Process enrollments
+      const enrollCourse = async (courseId) => {
         try {
-          // Enroll in course
           await axios.post(
             `${base_url}/api/student/${courseId}/enroll`,
             { user_id: studentData?.id },
             {
               headers: {
-                Authorization: `Bearer ${localStorage.getItem("studentToken")}`
-              }
+                Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+              },
             }
           );
-
-          // Remove from cart with retry
-          let lastError;
-          for (let i = 0; i < retries; i++) {
-            try {
-              await removeFromCart(courseId, silentRemove);
-              return true;
-            } catch (error) {
-              lastError = error;
-              await new Promise((resolve) =>
-                setTimeout(resolve, 300 * (i + 1))
-              );
-            }
-          }
-          throw lastError;
+          await removeFromCart(courseId, true);
+          return true;
         } catch (error) {
-          console.error(`Failed to process course ${courseId}:`, error);
+          console.error(`Failed to enroll in course ${courseId}:`, error);
           return false;
         }
       };
 
-      // Process courses sequentially
-      const results = [];
-      for (const item of cart.filter((item) => item?.price === 0 && item?.id)) {
-        results.push(await processCourse(item.id));
-      }
+      // Process all courses in cart
+      const results = await Promise.all(
+        cart.map((item) => item?.id && enrollCourse(item.id))
+      );
 
       const successCount = results.filter(Boolean).length;
       if (successCount > 0) {
-        toast.success(`Successfully enrolled in ${successCount} free courses!`);
+        toast.success(`Successfully enrolled in ${successCount} courses!`);
         setActiveView("myCourses");
       } else {
         toast.error("Failed to enroll in any courses");
       }
     } catch (error) {
       console.error("Enrollment process error:", error);
-      toast.error("Failed to complete enrollment process");
+      toast.error("Failed to complete enrollment");
     } finally {
       setLoading(false);
     }
@@ -168,71 +119,6 @@ const Cart = ({ setActiveView }) => {
 
   const total = cart.reduce((sum, item) => sum + (item.price || 0), 0);
   const validCartItems = cart.filter((item) => item.id && item.title);
-
-  const openCheckoutModal = () => {
-    if (cart.length === 0) {
-      toast.error("Your cart is empty");
-      return;
-    }
-    setShowCheckoutModal(true);
-  };
-
-  const closeCheckoutModal = () => {
-    setShowCheckoutModal(false);
-  };
-
-  const handleCheckoutSuccess = async (responseData) => {
-    try {
-      setLoading(true);
-
-      // Use the data from Checkout.js response
-      if (responseData?.order) {
-        // Process each course in the cart for removal
-        const retries = 3; // Number of retry attempts
-        const silentRemove = true; // Suppress removal toasts
-        const removalResults = await Promise.all(
-          cart.map(async (item) => {
-            if (!item?.id) return false; // Skip invalid items
-
-            let lastError;
-            for (let i = 0; i < retries; i++) {
-              try {
-                await removeFromCart(item.id, silentRemove);
-                return true;
-              } catch (error) {
-                lastError = error;
-                await new Promise((resolve) =>
-                  setTimeout(resolve, 300 * (i + 1))
-                );
-              }
-            }
-            console.error(`Failed to remove course ${item.id}:`, lastError);
-            return false;
-          })
-        );
-
-        const successCount = removalResults.filter(Boolean).length;
-        if (successCount !== cart.length) {
-          console.warn(
-            `Only removed ${successCount} of ${cart.length} courses`
-          );
-        }
-
-        setShowCheckoutModal(false);
-        toast.success(
-          `Payment successful! Enrolled in ${successCount} courses.`
-        );
-        setActiveView("myCourses");
-      } else {
-        throw new Error("Checkout completed but no order data received");
-      }
-    } catch (error) {
-      console.error("Post-checkout error:", error);
-      toast.error(error.message || "Failed to complete enrollment");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -395,27 +281,15 @@ const Cart = ({ setActiveView }) => {
                   <span className="text-black">৳ {total.toFixed(2)}</span>
                 </div>
 
-                {hasFreeCourses && !hasPremiumCourses ? (
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleEnrollFreeCourses}
-                    className="w-full mt-6 py-3 px-4 bg-black text-white rounded-lg shadow-md hover:bg-gray-900 transition-colors flex items-center justify-center font-bold"
-                  >
-                    <FiCheckCircle className="mr-2" />
-                    Enroll Now
-                  </motion.button>
-                ) : (
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={openCheckoutModal}
-                    className="w-full mt-6 py-3 px-4 bg-black text-white rounded-lg shadow-md hover:bg-gray-900 transition-colors flex items-center justify-center font-bold"
-                  >
-                    <FiCreditCard className="mr-2" />
-                    Proceed to Checkout
-                  </motion.button>
-                )}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleEnrollCourses}
+                  className="w-full mt-6 py-3 px-4 bg-black text-white rounded-lg shadow-md hover:bg-gray-900 transition-colors flex items-center justify-center font-bold"
+                >
+                  <FiCheckCircle className="mr-2" />
+                  Enroll Now
+                </motion.button>
 
                 <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="flex items-start">
@@ -461,44 +335,6 @@ const Cart = ({ setActiveView }) => {
           </motion.div>
         )}
       </main>
-
-      {/* Checkout Modal */}
-      <AnimatePresence>
-        {showCheckoutModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 20 }}
-              className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col"
-            >
-              <div className="p-6 border-b border-gray-200 flex justify-between items-center bg-white">
-                <h2 className="text-2xl font-bold text-black flex items-center">
-                  <FiCreditCard className="mr-3 text-black" />
-                  Secure Checkout
-                </h2>
-                <button
-                  onClick={closeCheckoutModal}
-                  className="text-gray-400 hover:text-black p-1 transition-colors"
-                >
-                  <FiX size={24} />
-                </button>
-              </div>
-              <div className="overflow-y-auto flex-1 bg-white">
-                <Checkout
-                  cart={validCartItems}
-                  onSuccess={handleCheckoutSuccess}
-                />
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

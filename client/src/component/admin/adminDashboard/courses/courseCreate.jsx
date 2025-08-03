@@ -472,11 +472,8 @@ const CourseCreator = () => {
   }, []);
   const stripHtmlTags = (html) => {
     if (!html) return "";
-    // Create a temporary div element
     const tmp = document.createElement("div");
-    // Set the HTML content
     tmp.innerHTML = html;
-    // Return the text content without HTML tags
     return tmp.textContent || tmp.innerText || "";
   };
   const publishCourse = async () => {
@@ -521,8 +518,11 @@ const CourseCreator = () => {
         throw new Error("Please add at least one content item");
       }
 
-      if (courseType === "premium" && !courseData.price) {
-        throw new Error("Please set a price for premium courses");
+      if (
+        (courseType === "premium" || courseType === "live") &&
+        !courseData.price
+      ) {
+        throw new Error("Please set a price for this course");
       }
 
       // Validate content items
@@ -531,7 +531,6 @@ const CourseCreator = () => {
           throw new Error(`Please add a title for all content items`);
         }
 
-        // In the validation section of publishCourse:
         if (item.type === "tutorial") {
           if (courseType === "free" && !item.youtubeLink) {
             throw new Error(
@@ -539,7 +538,6 @@ const CourseCreator = () => {
             );
           }
           if (courseType === "premium" && !item.contentFile) {
-            // Changed from !item.content to !item.contentFile
             throw new Error(
               `Please upload a video for tutorial "${item.title}"`
             );
@@ -599,40 +597,54 @@ const CourseCreator = () => {
       formData.append("categories", JSON.stringify([courseData.category]));
       formData.append("level", courseData.level);
       formData.append("type", courseType);
-      formData.append("price", courseType === "premium" ? courseData.price : 0);
-      formData.append("thumbnail", courseData.thumbnail);
+      formData.append(
+        "price",
+        courseType === "premium" || courseType === "live" ? courseData.price : 0
+      );
+
+      // Append thumbnail
+      if (courseData.thumbnail) {
+        formData.append("thumbnail", courseData.thumbnail);
+      }
+
+      // Process content items
       const processedContent = courseData.content.map((item) => {
         const contentItem = {
           ...item,
           description: item.description ? stripHtmlTags(item.description) : "",
-          // Remove the file object from the content
-          ...(item.type === "tutorial" && courseType === "premium"
-            ? { content: item.contentFile?.name || "" }
-            : {}),
         };
 
-        // For quiz questions, also strip HTML
-        if (item.type === "quiz") {
-          contentItem.questions = item.questions.map((q) => ({
-            ...q,
-            question: stripHtmlTags(q.question),
-            ...(q.type === "broad-answer"
-              ? { answer: stripHtmlTags(q.answer) }
-              : {}),
-          }));
+        // For premium tutorials, include the filename reference
+        if (
+          item.type === "tutorial" &&
+          courseType === "premium" &&
+          item.contentFile
+        ) {
+          contentItem.content = {
+            filename: item.contentFile.name,
+          };
         }
 
-        // Remove the file object before stringifying
+        // For live sessions, include thumbnail filename if exists
+        if (item.type === "live" && item.thumbnail) {
+          contentItem.thumbnail = {
+            filename: item.thumbnail.name,
+          };
+        }
+
+        // Remove the file objects before stringifying
         delete contentItem.contentFile;
         return contentItem;
       });
+
       formData.append("content", JSON.stringify(processedContent));
+
       // Add attachments
       courseData.attachments.forEach((file) => {
         formData.append("attachments", file);
       });
 
-      // Add content files (videos and thumbnails for premium courses)
+      // Add content files (videos for premium courses)
       if (courseType === "premium") {
         courseData.content.forEach((item) => {
           if (item.type === "tutorial" && item.contentFile) {
@@ -701,6 +713,7 @@ const CourseCreator = () => {
                 Create New Course
               </h1>
               <div className="flex gap-6">
+                {/* Free Course Option */}
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -718,6 +731,7 @@ const CourseCreator = () => {
                   </p>
                 </motion.button>
 
+                {/* Premium Course Option */}
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -734,13 +748,37 @@ const CourseCreator = () => {
                     Upload videos and charge for access
                   </p>
                 </motion.button>
+
+                {/* Live Course Option */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setCourseType("live")}
+                  className="bg-white p-8 rounded-xl shadow-md border border-gray-200 hover:border-gray-500 transition-all flex flex-col items-center w-64"
+                >
+                  <div className="bg-gray-100 p-4 rounded-full mb-4">
+                    <FiVideo className="text-gray-600 text-2xl" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-gray-800 mb-2">
+                    Live Course
+                  </h2>
+                  <p className="text-gray-600 text-center">
+                    Schedule live classes with pricing
+                  </p>
+                </motion.button>
               </div>
             </div>
           ) : (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-800">
-                  Create {courseType === "free" ? "Free" : "Premium"} Course
+                  Create{" "}
+                  {courseType === "free"
+                    ? "Free"
+                    : courseType === "premium"
+                    ? "Premium"
+                    : "Live"}
+                  Course
                 </h1>
                 <button
                   onClick={() => {
@@ -934,27 +972,32 @@ const CourseCreator = () => {
                     Course Content
                   </h2>
                   <div className="flex gap-3">
-                    <button
-                      onClick={() => addTutorial(courseType === "premium")}
-                      className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center"
-                    >
-                      <FiPlus className="mr-2" />
-                      Add Tutorial
-                    </button>
-                    <button
-                      onClick={addQuiz}
-                      className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center"
-                    >
-                      <FiPlus className="mr-2" />
-                      Add Quiz
-                    </button>
-                    <button
-                      onClick={addLiveClass}
-                      className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center"
-                    >
-                      <FiPlus className="mr-2" />
-                      Add Live Class
-                    </button>
+                    {courseType === "live" ? (
+                      <button
+                        onClick={addLiveClass}
+                        className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center"
+                      >
+                        <FiPlus className="mr-2" />
+                        Add Live Session
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => addTutorial(courseType === "premium")}
+                          className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center"
+                        >
+                          <FiPlus className="mr-2" />
+                          Add Tutorial
+                        </button>
+                        <button
+                          onClick={addQuiz}
+                          className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center"
+                        >
+                          <FiPlus className="mr-2" />
+                          Add Quiz
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -1535,14 +1578,14 @@ const CourseCreator = () => {
                 </div>
               </div>
 
-              {/* Pricing (for premium courses) */}
-              {courseType === "premium" && (
+              {/* Pricing (for premium and live courses) */}
+              {(courseType === "premium" || courseType === "live") && (
                 <div className="mb-8">
                   <h2 className="text-xl font-semibold text-gray-800 mb-4">
                     Pricing
                   </h2>
                   <div className="flex items-center">
-                    <span className="mr-2 text-gray-700">$</span>
+                    <span className="mr-2 text-gray-700">BDT</span>
                     <input
                       type="number"
                       name="price"
@@ -1567,14 +1610,16 @@ const CourseCreator = () => {
                     !courseData.description ||
                     !courseData.thumbnail ||
                     courseData.content.length === 0 ||
-                    (courseType === "premium" && !courseData.price)
+                    ((courseType === "premium" || courseType === "live") &&
+                      !courseData.price)
                   }
                   className={`px-6 py-3 rounded-lg font-medium text-white ${
                     !courseData.title ||
                     !courseData.description ||
                     !courseData.thumbnail ||
                     courseData.content.length === 0 ||
-                    (courseType === "premium" && !courseData.price)
+                    ((courseType === "premium" || courseType === "live") &&
+                      !courseData.price)
                       ? "bg-gray-400 cursor-not-allowed"
                       : "bg-gray-600 hover:bg-gray-700"
                   } transition-colors`}

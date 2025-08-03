@@ -28,7 +28,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import ReactPlayer from "react-player";
 
-const CoursePlayer = () => {
+const CoursePlayer = ({ courseId, setActiveView }) => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [currentContent, setCurrentContent] = useState(0);
@@ -74,7 +74,7 @@ const CoursePlayer = () => {
     const fetchCourse = async () => {
       try {
         const response = await axios.get(
-          `${base_url}/api/course-player/single-courses/${id}?user_id=${sudentdata.id}`,
+          `${base_url}/api/course-player/single-courses/${courseId}?user_id=${sudentdata.id}`,
           getAuthHeaders()
         );
         setCourse(response.data);
@@ -112,7 +112,7 @@ const CoursePlayer = () => {
           );
         }
       } catch (err) {
-        console.error("Error fetching course:", err);
+        setActiveView("myCourses");
         setError("Failed to load course data");
       } finally {
         setLoading(false);
@@ -120,7 +120,7 @@ const CoursePlayer = () => {
     };
 
     fetchCourse();
-  }, [id, base_url]);
+  }, [id, base_url, setActiveView]);
 
   // Record course access
   useEffect(() => {
@@ -471,10 +471,10 @@ const CoursePlayer = () => {
           <h2 className="text-xl font-bold mb-2">Error Loading Course</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <button
-            onClick={() => navigate(-1)}
-            className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+            onClick={() => setActiveView("myCourses")} // Change this line
+            className="flex items-center text-indigo-600 hover:text-indigo-800 font-medium"
           >
-            Go Back
+            <FiChevronLeft className="mr-1" /> Back to course
           </button>
         </div>
       </div>
@@ -500,20 +500,14 @@ const CoursePlayer = () => {
       <header className="bg-white shadow-sm">
         <div className="max-w-full mx-auto px-6 py-4 flex justify-between items-center">
           <button
-            onClick={() => navigate(`/course/${id}`)}
-            className="flex items-center text-indigo-600 hover:text-indigo-800 font-medium"
+            onClick={() => setActiveView("myCourses")}
+            className="flex items-center text-gray-600 hover:text-gray-800 font-medium"
           >
             <FiChevronLeft className="mr-1" /> Back to course
           </button>
           <div className="flex items-center space-x-4">
             <div className="hidden md:block">
               <h1 className="text-xl font-bold">{course.title}</h1>
-              <p className="text-sm text-gray-600">
-                {course.description.replace(/<[^>]+>/g, "")}
-              </p>
-            </div>
-            <div className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-medium">
-              {overallProgress}% Complete
             </div>
           </div>
         </div>

@@ -12,7 +12,7 @@ import {
   FiSearch,
   FiFilter,
   FiChevronDown,
-  FiChevronUp
+  FiChevronUp,
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -29,7 +29,7 @@ const ProgressStats = ({ course }) => {
       <ProgressBar
         completed={course.progress}
         height="8px"
-        bgColor={course.completed ? "#10B981" : "#6366F1"}
+        bgColor={course.completed ? "#10B981" : "#000"}
         baseBgColor="#E5E7EB"
         isLabelVisible={false}
       />
@@ -50,10 +50,10 @@ const ProgressStats = ({ course }) => {
               <div className="text-red-600">Incorrect</div>
             </div>
             <div className="bg-blue-50 p-2 rounded text-center">
-              <div className="font-bold text-blue-700">
+              <div className="font-bold text-gray-700">
                 {course.stats.accuracy}%
               </div>
-              <div className="text-blue-600">Accuracy</div>
+              <div className="text-gray-600">Accuracy</div>
             </div>
           </div>
 
@@ -79,117 +79,143 @@ const MyCourses = ({ setActiveView }) => {
   const [myCourses, setMyCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortOption, setSortOption] = useState("recent");
-  const [showFilters, setShowFilters] = useState(false);
+  const [filteredCourses, setFilteredCourses] = useState(myCourses);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [priceFilter, setPriceFilter] = useState("all");
+  const [filterType, setFilterType] = useState("all");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [filterLevel, setFilterLevel] = useState("all");
   const [categories, setCategories] = useState([]);
-  const [selectedCategories, setSelectedCategories] = useState([]);
   const studentData = JSON.parse(localStorage.getItem("studentData"));
   const base_url = import.meta.env.VITE_API_KEY_Base_URL;
-
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem("authToken");
-    return {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    };
-  };
 
   const fetchUserCourses = async () => {
     try {
       setLoading(true);
+      let categoriesList = [];
+      try {
+        const categoriesResponse = await axios.get(
+          `${base_url}/api/auth/categories`
+        );
+
+        console.log("Categories API response:", categoriesResponse); // Debug log
+
+        if (categoriesResponse.data && Array.isArray(categoriesResponse.data)) {
+          setCategories(categoriesResponse.data);
+        } else if (categoriesResponse.data?.categories) {
+          setCategories(categoriesResponse.data.categories);
+        } else {
+          toast.error("Failed to load categories - unexpected response");
+        }
+      } catch (categoriesError) {
+        toast.error("Failed to load categories");
+      }
+
       const response = await axios.get(
         `${base_url}/api/student/enrolled-courses/${studentData.id}`,
-        getAuthHeaders()
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+          },
+        }
       );
 
-      const formattedCourses = response.data.enrolledCourses.map((item) => {
-        const course = item.courseDetails || {};
-        const enrollment = item.enrollmentInfo || {};
+      // First fetch all teachers to map instructors
+      const teachersResponse = await axios.get(
+        `${base_url}/api/student/teachers`
+      );
+      const teachersList = teachersResponse.data?.teachers || [];
+      if (response.data.success) {
+        const formattedCourses = response.data.enrolledCourses.map((item) => {
+          const course = item.courseDetails || {};
+          const enrollment = item.enrollmentInfo || {};
+          // Find instructor details from teachers list
+          const instructor = teachersList.find(
+            (teacher) =>
+              teacher._id.toString() === course.instructor?.toString()
+          );
 
-        // Handle thumbnail path
-        let thumbnailPath = "/default-thumbnail.jpg";
-        if (course.thumbnail?.path) {
-          thumbnailPath = course.thumbnail.path.replace(/\\/g, "/");
-          if (thumbnailPath.startsWith("public/")) {
-            thumbnailPath = thumbnailPath.substring(7);
-          }
-        }
-
-        // Calculate progress
-        let progress = enrollment.progress || 0;
-        let completedItems = 0;
-        let totalItems = course.totalContentItems || 0;
-        let isCompleted = enrollment.completed || false;
-
-        if (
-          enrollment.progressDetails &&
-          Array.isArray(enrollment.progressDetails)
-        ) {
-          completedItems = enrollment.progressDetails.filter(
-            (item) => item.completed
-          ).length;
-          if (totalItems > 0) {
-            progress = Math.round((completedItems / totalItems) * 100);
-          }
-          isCompleted = isCompleted || progress === 100;
-        }
-
-        // Extract categories
-        const courseCategories = course.category ? [course.category] : [];
-
-        return {
-          id: course._id,
-          title: course.title,
-          description: course.description,
-          thumbnail: thumbnailPath,
-          instructor: course.instructor,
-          duration: course.duration
-            ? `${Math.floor(course.duration / 60)}h ${course.duration % 60}m`
-            : "N/A",
-          price: course.price || 0,
-          progress: progress,
-          lastAccessed: enrollment.lastAccessed,
-          completed: isCompleted,
-          enrolledAt: enrollment.enrolledAt
-            ? new Date(enrollment.enrolledAt).toLocaleDateString()
-            : "Unknown date",
-          categories: courseCategories,
-          totalItems,
-          completedItems,
-          lastActivity: enrollment.lastAccessed
-            ? `Last active: ${new Date(
-                enrollment.lastAccessed
-              ).toLocaleDateString()}`
-            : "Not started yet",
-          certificate: enrollment.certificate,
-          stats: enrollment.stats || {
-            totalQuestions: 0,
-            correctAnswers: 0,
-            incorrectAnswers: 0,
-            accuracy: 0,
-            totalMarksObtained: 0,
-            totalMaxMarks: 0,
-            overallPercentage: 0
-          }
-        };
-      });
-
-      // Extract all unique categories for filtering
-      const allCategories = new Set();
-      formattedCourses.forEach((course) => {
-        course.categories.forEach((cat) => {
-          if (typeof cat === "object") {
-            allCategories.add(cat.name);
+          // Determine course type (live, premium, free)
+          let courseType;
+          if (course.type === "live") {
+            courseType = "live";
           } else {
-            allCategories.add(cat);
+            courseType = course.price > 0 ? "premium" : "free";
           }
-        });
-      });
-      setCategories(Array.from(allCategories));
 
-      setMyCourses(formattedCourses);
+          // Handle thumbnail path
+          let thumbnailPath = course.thumbnail?.filename
+            ? `${base_url}/courses/${course.thumbnail.path}`
+            : course.thumbnail ||
+              "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80";
+
+          // Calculate progress
+          let progress = enrollment.progress || 0;
+          let completedItems = 0;
+          let totalItems = course.totalContentItems || 0;
+          let isCompleted = enrollment.completed || false;
+
+          if (
+            enrollment.progressDetails &&
+            Array.isArray(enrollment.progressDetails)
+          ) {
+            completedItems = enrollment.progressDetails.filter(
+              (item) => item.completed
+            ).length;
+            if (totalItems > 0) {
+              progress = Math.round((completedItems / totalItems) * 100);
+            }
+            isCompleted = isCompleted || progress === 100;
+          }
+
+          return {
+            id: course._id,
+            title: course.title,
+            description: course.description,
+            thumbnail: thumbnailPath,
+            instructor: instructor
+              ? instructor.full_name
+              : "Unknown Instructor",
+            instructorThumbnail: instructor?.profile_photo
+              ? `${base_url}/uploads/teachers/${instructor?.profile_photo}`
+              : null,
+            price: course.price || 0,
+            type: courseType,
+            progress: progress,
+            lastAccessed: enrollment.lastAccessed,
+            completed: isCompleted,
+            enrolledAt: enrollment.enrolledAt
+              ? new Date(enrollment.enrolledAt).toLocaleDateString()
+              : "Unknown date",
+            categories:
+              course.categories?.map((cat) =>
+                typeof cat === "object" ? cat.name : cat
+              ) || [],
+            level: course.level || "beginner",
+            totalItems,
+            completedItems,
+            lastActivity: enrollment.lastAccessed
+              ? `Last active: ${new Date(
+                  enrollment.lastAccessed
+                ).toLocaleDateString()}`
+              : "Not started yet",
+            certificate: enrollment.certificate,
+            isLive: course.type === "live",
+            stats: enrollment.stats || {
+              totalQuestions: 0,
+              correctAnswers: 0,
+              incorrectAnswers: 0,
+              accuracy: 0,
+              totalMarksObtained: 0,
+              totalMaxMarks: 0,
+              overallPercentage: 0,
+            },
+          };
+        });
+        // 5. Set courses and extract unique categories
+        setMyCourses(formattedCourses);
+        setFilteredCourses(formattedCourses);
+      }
     } catch (error) {
       toast.error("Failed to load courses");
       console.error("Error fetching courses:", error);
@@ -202,20 +228,89 @@ const MyCourses = ({ setActiveView }) => {
     fetchUserCourses();
   }, []);
 
+  useEffect(() => {
+    let results = myCourses;
+
+    if (searchTerm) {
+      results = results.filter(
+        (course) =>
+          course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (course.instructor &&
+            course.instructor
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase())) ||
+          (course.description &&
+            course.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    if (priceFilter === "free") {
+      results = results.filter(
+        (course) => course.price === 0 && !course.isLive
+      );
+    } else if (priceFilter === "paid") {
+      results = results.filter((course) => course.price > 0 && !course.isLive);
+    } else if (priceFilter === "live") {
+      results = results.filter((course) => course.isLive);
+    }
+
+    if (filterType !== "all") {
+      results = results.filter((course) => {
+        if (filterType === "live") {
+          return course.isLive;
+        } else if (filterType === "premium") {
+          return course.type === "premium" && !course.isLive;
+        } else {
+          return course.type === "free" && !course.isLive;
+        }
+      });
+    }
+
+    if (filterCategory !== "all") {
+      results = results.filter((course) =>
+        course.categories?.some((cat) => {
+          const categoryName =
+            typeof cat === "object" ? cat.name || cat.title : cat;
+          return categoryName
+            .toLowerCase()
+            .includes(filterCategory.toLowerCase());
+        })
+      );
+    }
+
+    if (filterLevel !== "all") {
+      results = results.filter(
+        (course) => course.level?.toLowerCase() === filterLevel.toLowerCase()
+      );
+    }
+
+    setFilteredCourses(results);
+  }, [
+    searchTerm,
+    priceFilter,
+    myCourses,
+    filterType,
+    filterCategory,
+    filterLevel,
+  ]);
+
+  const categoryOptions = categories.map((cat) =>
+    typeof cat === "object" ? cat.name : cat
+  );
+  useEffect(() => {
+    setFilteredCourses(myCourses);
+  }, [myCourses]);
+
   const recordCourseAccess = async (courseId) => {
     try {
-      await axios.post(
-        `${base_url}/api/student/${courseId}/access`,
-        {},
-        getAuthHeaders()
-      );
+      await axios.post(`${base_url}/api/student/${courseId}/access`, {});
       setMyCourses((prevCourses) =>
         prevCourses.map((course) =>
           course.id === courseId
             ? {
                 ...course,
                 lastAccessed: new Date().toISOString(),
-                lastActivity: `Last active: ${new Date().toLocaleDateString()}`
+                lastActivity: `Last active: ${new Date().toLocaleDateString()}`,
               }
             : course
         )
@@ -227,7 +322,10 @@ const MyCourses = ({ setActiveView }) => {
 
   const handleStartCourse = async (courseId) => {
     await recordCourseAccess(courseId);
-    navigate(`/student/learn/${courseId}`);
+    setActiveView({
+      view: "videoPlayer",
+      courseId: courseId,
+    });
   };
 
   const handleViewCertificate = async (courseId) => {
@@ -251,8 +349,7 @@ const MyCourses = ({ setActiveView }) => {
       const response = await axios.get(
         `${base_url}/api/student/certificate/${courseId}/${studentData.id}`,
         {
-          ...getAuthHeaders(),
-          responseType: "blob" // Important for file downloads
+          responseType: "blob", // Important for file downloads
         }
       );
 
@@ -286,98 +383,11 @@ const MyCourses = ({ setActiveView }) => {
     }
   };
 
-  const removeCourse = async (courseId) => {
-    try {
-      await axios.delete(
-        `${base_url}/api/student/enrolled-courses/${studentData.id}/${courseId}`,
-        getAuthHeaders()
-      );
-      setMyCourses(myCourses.filter((course) => course.id !== courseId));
-      toast.success("Course removed successfully");
-    } catch (error) {
-      toast.error("Failed to remove course");
-      console.error("Error removing course:", error);
-    }
-  };
-
-  const getInstructorName = (instructor) => {
-    if (typeof instructor === "object" && instructor !== null) {
-      return instructor.full_name || instructor.name || "Unknown Instructor";
-    }
-    return "Unknown Instructor";
-  };
-
-  const toggleCategory = (category) => {
-    setSelectedCategories((prev) =>
-      prev.includes(category)
-        ? prev.filter((c) => c !== category)
-        : [...prev, category]
-    );
-  };
-
-  const sortCourses = (courses) => {
-    switch (sortOption) {
-      case "recent":
-        return [...courses].sort(
-          (a, b) => new Date(b.enrolledAt) - new Date(a.enrolledAt)
-        );
-      case "progress":
-        return [...courses].sort((a, b) => b.progress - a.progress);
-      case "title":
-        return [...courses].sort((a, b) => a.title.localeCompare(b.title));
-      case "duration":
-        return [...courses].sort((a, b) => {
-          const aDuration = parseInt(a.duration) || 0;
-          const bDuration = parseInt(b.duration) || 0;
-          return bDuration - aDuration;
-        });
-      case "performance":
-        return [...courses].sort((a, b) => b.stats.accuracy - a.stats.accuracy);
-      default:
-        return courses;
-    }
-  };
-
-  const filteredCourses = () => {
-    let result = myCourses;
-
-    // Filter by tab
-    if (activeTab !== "all") {
-      result = result.filter((course) =>
-        activeTab === "free" ? course.price === 0 : course.price > 0
-      );
-    }
-
-    // Filter by search
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (course) =>
-          course.title.toLowerCase().includes(query) ||
-          course.description.toLowerCase().includes(query) ||
-          getInstructorName(course.instructor).toLowerCase().includes(query)
-      );
-    }
-
-    // Filter by categories
-    if (selectedCategories.length > 0) {
-      result = result.filter((course) =>
-        course.categories.some((cat) => {
-          const catName = typeof cat === "object" ? cat.name : cat;
-          return selectedCategories.includes(catName);
-        })
-      );
-    }
-
-    // Sort
-    return sortCourses(result);
-  };
-
   return (
     <div className="min-h-screen text-gray-900 bg-gray-50">
       {/* Header */}
       <header className="bg-white py-6 px-4 sm:px-6 lg:px-8 border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-full mx-auto">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
@@ -389,7 +399,7 @@ const MyCourses = ({ setActiveView }) => {
             </div>
             <button
               onClick={() => setActiveView("courseList")}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all shadow-md flex items-center justify-center w-full md:w-auto"
+              className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-all shadow-md flex items-center justify-center w-full md:w-auto"
             >
               <FiBookOpen className="mr-2" />
               Browse More Courses
@@ -399,7 +409,7 @@ const MyCourses = ({ setActiveView }) => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-full mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* Stats Section */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <motion.div
@@ -475,162 +485,145 @@ const MyCourses = ({ setActiveView }) => {
         </div>
 
         {/* Search and Filter Section */}
-        <div className="mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
+            <div className="relative flex-1 max-w-8xl">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <FiSearch className="text-gray-400" />
               </div>
               <input
                 type="text"
                 placeholder="Search courses..."
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:ring-indigo-500 focus:border-indigo-500"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent hover:border-gray-400 text-sm sm:text-base transition-all"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
 
-            <div className="flex gap-2">
-              <button
-                className="flex items-center px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50"
-                onClick={() => setShowFilters(!showFilters)}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <motion.div
+                className="flex items-center cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setSearchTerm("");
+                  setPriceFilter("all");
+                  setFilterType("all");
+                  setFilterCategory("all");
+                  setFilterLevel("all");
+                  toast.success("All filters cleared", {
+                    icon: <FiRefreshCw className="text-green-500" />,
+                  });
+                }}
               >
-                <FiFilter className="mr-2" />
-                Filters
-                {showFilters ? (
-                  <FiChevronUp className="ml-2" />
-                ) : (
-                  <FiChevronDown className="ml-2" />
-                )}
-              </button>
+                <FiFilter className="text-gray-500 text-sm sm:text-base mr-1" />
+                <span className="text-xs sm:text-sm text-gray-600">
+                  Reset Filters
+                </span>
+              </motion.div>
 
-              <select
-                className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                value={sortOption}
-                onChange={(e) => setSortOption(e.target.value)}
-              >
-                <option value="recent">Recently Enrolled</option>
-                <option value="progress">Progress</option>
-                <option value="performance">Performance</option>
-                <option value="title">Course Title</option>
-                <option value="duration">Course Duration</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Expanded Filters */}
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="mt-4 pt-4 border-t border-gray-200"
-            >
-              <h3 className="text-sm font-medium text-gray-700 mb-2">
-                Categories
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {categories.map((category) => (
-                  <button
-                    key={category}
-                    onClick={() => toggleCategory(category)}
-                    className={`px-3 py-1 text-xs rounded-full ${
-                      selectedCategories.includes(category)
-                        ? "bg-indigo-100 text-indigo-800 border border-indigo-300"
-                        : "bg-gray-100 text-gray-800 border border-gray-200 hover:bg-gray-200"
-                    }`}
-                  >
-                    {category}
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-4 flex justify-between items-center">
-                <button
-                  onClick={() => {
-                    setSelectedCategories([]);
-                    setSearchQuery("");
-                  }}
-                  className="text-sm text-indigo-600 hover:text-indigo-800"
+              <div className="relative group">
+                <select
+                  className="block appearance-none w-full bg-white border border-gray-300 hover:border-gray-400 px-3 py-2 pr-8 rounded-lg shadow-sm focus:outline-none focus:border-gray-500 cursor-pointer text-sm sm:text-base transition-all"
+                  value={filterLevel}
+                  onChange={(e) => setFilterLevel(e.target.value)}
                 >
-                  Clear all filters
-                </button>
-
-                <div className="text-sm text-gray-500">
-                  {filteredCourses().length} courses found
+                  <option value="all">All Levels</option>
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M4 6L8 10L12 6"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </div>
               </div>
-            </motion.div>
-          )}
+            </div>
+          </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200 mb-6">
-          <button
-            className={`px-4 py-2 font-medium text-sm flex items-center ${
-              activeTab === "all"
-                ? "text-indigo-600 border-b-2 border-indigo-600"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-            onClick={() => setActiveTab("all")}
-          >
-            All Courses
-            <span className="ml-2 bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">
-              {myCourses.length}
-            </span>
-          </button>
-          <button
-            className={`px-4 py-2 font-medium text-sm flex items-center ${
-              activeTab === "free"
-                ? "text-indigo-600 border-b-2 border-indigo-600"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-            onClick={() => setActiveTab("free")}
-          >
-            Free Courses
-            <span className="ml-2 bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">
-              {myCourses.filter((c) => c.price === 0).length}
-            </span>
-          </button>
-          <button
-            className={`px-4 py-2 font-medium text-sm flex items-center ${
-              activeTab === "premium"
-                ? "text-indigo-600 border-b-2 border-indigo-600"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-            onClick={() => setActiveTab("premium")}
-          >
-            Premium Courses
-            <span className="ml-2 bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">
-              {myCourses.filter((c) => c.price > 0).length}
-            </span>
-          </button>
+        {/* Remove the old tabs section and replace with this filter type selector */}
+        <div className="flex items-center gap-2 mb-6 px-1">
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setFilterType("all")}
+              className={`px-3 py-1 rounded-full ${
+                filterType === "all"
+                  ? "bg-black text-white text-md"
+                  : "bg-gray-100 text-gray-800 text-xs"
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilterType("free")}
+              className={`px-3 py-1 rounded-full ${
+                filterType === "free"
+                  ? "bg-gray-800 text-white text-md"
+                  : "bg-gray-100 text-gray-800 text-xs"
+              }`}
+            >
+              Free
+            </button>
+            <button
+              onClick={() => setFilterType("premium")}
+              className={`px-3 py-1  rounded-full ${
+                filterType === "premium"
+                  ? "bg-yellow-500 text-white text-md"
+                  : "bg-gray-100 text-gray-800 text-xs"
+              }`}
+            >
+              Premium
+            </button>
+            <button
+              onClick={() => setFilterType("live")}
+              className={`px-3 py-1 rounded-full ${
+                filterType === "live"
+                  ? "bg-purple-600 text-white text-md"
+                  : "bg-gray-100 text-gray-800 text-xs"
+              }`}
+            >
+              Live
+            </button>
+          </div>
         </div>
 
         {/* Courses List */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+            {[...Array(10)].map((_, i) => (
               <div
                 key={i}
-                className="bg-white rounded-lg shadow-sm overflow-hidden animate-pulse"
+                className="bg-gray-100 rounded-xl overflow-hidden animate-pulse h-[380px]"
               >
-                <div className="h-48 bg-gray-200 w-full"></div>
+                <div className="h-48 bg-gray-200"></div>
                 <div className="p-4 space-y-3">
-                  <div className="h-5 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-6 bg-gray-200 rounded w-3/4"></div>
                   <div className="h-4 bg-gray-200 rounded w-full"></div>
                   <div className="h-4 bg-gray-200 rounded w-1/2"></div>
                 </div>
               </div>
             ))}
           </div>
-        ) : filteredCourses().length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCourses().map((course) => (
+        ) : filteredCourses.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 px-3">
+            {filteredCourses.map((course) => (
               <motion.div
                 key={course.id}
-                className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 hover:shadow-md transition-all flex flex-col"
+                className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-all overflow-hidden group"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
@@ -638,15 +631,31 @@ const MyCourses = ({ setActiveView }) => {
               >
                 <div className="relative">
                   <img
-                    src={`${base_url}/${course.thumbnail}`}
+                    src={course.thumbnail}
                     alt={course.title}
                     className="w-full h-48 object-cover"
                     onError={(e) => {
-                      e.target.src = `${base_url}/default-thumbnail.jpg`;
+                      e.target.src =
+                        "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80";
                     }}
                   />
-                  <div className="absolute top-2 right-2 bg-black/80 text-white px-2 py-1 text-xs rounded-full">
-                    {course.price === 0 ? "FREE" : `$${course.price}`}
+                  {/* In the course card JSX, add this badge near the price: */}
+                  <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+                    <div
+                      className={`text-white px-2 py-1 text-xs rounded-full ${
+                        course.isLive
+                          ? "bg-purple-600"
+                          : course.price === 0
+                          ? "bg-gray-800"
+                          : "bg-yellow-500"
+                      }`}
+                    >
+                      {course.isLive
+                        ? "LIVE"
+                        : course.price === 0
+                        ? "FREE"
+                        : "PREMIUM"}
+                    </div>
                   </div>
                   {course.completed && (
                     <div className="absolute top-2 left-2 bg-green-600 text-white px-2 py-1 text-xs rounded-full flex items-center">
@@ -660,41 +669,61 @@ const MyCourses = ({ setActiveView }) => {
                     <h3 className="text-lg font-bold text-gray-900 line-clamp-2">
                       {course.title}
                     </h3>
-                    <button
-                      onClick={() => removeCourse(course.id)}
-                      className="text-gray-400 hover:text-red-500 p-1 -mt-1 -mr-1"
-                      aria-label="Remove course"
-                    >
-                      <FiX size={18} />
-                    </button>
                   </div>
 
-                  <p className="text-xs text-gray-500 mb-2">
-                    Instructor: {getInstructorName(course.instructor)}
-                  </p>
-
-                  <div
-                    className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2"
-                    dangerouslySetInnerHTML={{ __html: course.description }}
-                  />
+                  <div className="flex items-center space-x-2 mb-3 py-2 rounded-lg">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-indigo-100 overflow-hidden flex items-center justify-center">
+                        {course.instructorThumbnail ? (
+                          <img
+                            src={course.instructorThumbnail}
+                            alt={course.instructor}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.src =
+                                "https://images.unsplash.com/photo-1633332755192-727a05c4013d?ixlib=rb-1.2.1&auto=format&fit=crop&w=80&q=80";
+                            }}
+                          />
+                        ) : (
+                          <svg
+                            className="w-4 h-4 text-gray-600"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Taught by</p>
+                      <p className="text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors">
+                        {course.instructor}
+                      </p>
+                    </div>
+                  </div>
 
                   <div className="flex flex-wrap gap-2 mb-3">
-                    <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
-                      {course.duration}
-                    </span>
-                    {course.categories.slice(0, 2).map((category, i) => (
-                      <span
-                        key={i}
-                        className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full"
-                      >
-                        {typeof category === "object"
-                          ? category.name
-                          : category}
-                      </span>
-                    ))}
-                    {course.categories.length > 2 && (
+                    {course.categories
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((category, i) => (
+                        <span
+                          key={i}
+                          className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full"
+                        >
+                          {typeof category === "object"
+                            ? category.name
+                            : category}
+                        </span>
+                      ))}
+                    {course.categories.filter(Boolean).length > 2 && (
                       <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
-                        +{course.categories.length - 2} more
+                        +{course.categories.filter(Boolean).length - 2} more
                       </span>
                     )}
                   </div>
@@ -714,7 +743,7 @@ const MyCourses = ({ setActiveView }) => {
                       className={`px-3 py-2 rounded-lg text-sm font-medium ${
                         course.completed
                           ? "bg-green-100 text-green-700 hover:bg-green-200 flex items-center"
-                          : "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 flex items-center"
+                          : "bg-indigo-100 text-gray-700 hover:bg-gray-200 flex items-center"
                       } transition-colors`}
                     >
                       {course.completed ? (
@@ -744,11 +773,13 @@ const MyCourses = ({ setActiveView }) => {
               <FiBookOpen className="text-gray-400 text-4xl" />
             </div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">
-              {activeTab === "all"
+              {filterType === "all"
                 ? "You haven't enrolled in any courses yet"
-                : activeTab === "free"
+                : filterType === "free"
                 ? "No free courses enrolled"
-                : "No premium courses enrolled"}
+                : filterType === "premium"
+                ? "No premium courses enrolled"
+                : "No live courses enrolled"}
             </h3>
             <p className="text-gray-500 max-w-md mx-auto mb-6">
               {activeTab === "all"

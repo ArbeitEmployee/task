@@ -1,41 +1,53 @@
+// models/Order.js
 const mongoose = require("mongoose");
-
 const orderSchema = new mongoose.Schema({
   student: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Student",
-    required: true
+    required: true,
   },
-  courses: [
+  items: [
     {
       course: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Course",
-        required: true
+        required: true,
+      },
+      title: {
+        type: String,
+        required: true,
       },
       price: {
         type: Number,
-        required: true
-      }
-    }
+        required: true,
+      },
+    },
   ],
   total: {
     type: Number,
-    required: true
+    required: true,
   },
   paymentMethod: {
     type: String,
-    required: true
+    required: true,
+  },
+  cardDetails: {
+    type: Object,
+    required: false,
+  },
+  billingDetails: {
+    type: Object,
+    required: false,
   },
   status: {
     type: String,
-    default: "completed",
-    enum: ["pending", "completed", "failed", "refunded"]
+    enum: ["pending", "completed", "failed"],
+    default: "pending",
   },
   createdAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
 module.exports = mongoose.model("Order", orderSchema);

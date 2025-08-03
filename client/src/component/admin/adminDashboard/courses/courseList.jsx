@@ -479,33 +479,71 @@ const CourseList = () => {
     }));
   };
 
+  // In your CourseList component, update the handleInputChange function:
   const handleInputChange = (e) => {
     const { name, value } = e.target;
 
     // When course type changes
     if (name === "type") {
       setCourseData((prev) => {
-        // Transform content items based on new type
-        const updatedContent = prev.content.map((item) => {
-          if (item.type === "tutorial") {
-            if (value === "premium") {
-              // Switching to premium - remove youtubeLink and add content field
-              const { youtubeLink, ...rest } = item;
-              return { ...rest, content: null };
-            } else {
-              // Switching to free - remove content and add youtubeLink
-              const { content, ...rest } = item;
-              return { ...rest, youtubeLink: "" };
-            }
+        let updatedContent = [...prev.content];
+
+        // If switching to live course
+        if (value === "live") {
+          // Remove all non-live content
+          updatedContent = prev.content.filter((item) => item.type === "live");
+
+          // If no live sessions exist, add one by default
+          if (updatedContent.length === 0) {
+            updatedContent = [
+              {
+                id: Date.now(),
+                type: "live",
+                title: "New Live Session",
+                description: "",
+                meetingLink: "",
+                schedule: new Date().toISOString().slice(0, 16),
+                isExpanded: true,
+              },
+            ];
           }
-          return item;
-        });
+        }
+        // If switching from live to another type
+        else if (prev.type === "live") {
+          // Remove all live content
+          updatedContent = prev.content.filter((item) => item.type !== "live");
+        }
+        // If switching between free/premium
+        else {
+          // Transform tutorial content
+          updatedContent = prev.content.map((item) => {
+            if (item.type === "tutorial") {
+              if (value === "premium") {
+                // Switching to premium - remove youtubeLink and ensure contentFile exists
+                const { youtubeLink, ...rest } = item;
+                return {
+                  ...rest,
+                  contentFile: rest.contentFile || null,
+                  content: rest.content || null,
+                };
+              } else {
+                // Switching to free - remove content and ensure youtubeLink exists
+                const { content, contentFile, ...rest } = item;
+                return {
+                  ...rest,
+                  youtubeLink: rest.youtubeLink || "",
+                };
+              }
+            }
+            return item;
+          });
+        }
 
         return {
           ...prev,
           [name]: value,
           content: updatedContent,
-          price: value === "premium" ? prev.price : "",
+          price: value === "premium" || value === "live" ? prev.price : "",
         };
       });
     } else {
@@ -709,10 +747,20 @@ const CourseList = () => {
       }),
     }));
   };
+  const stripHtml = (html) => {
+    // Create a temporary div element
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || "";
+  };
 
+  const convertNewlinesToHtml = (text) => {
+    return text.replace(/\n/g, "<br />");
+  };
   const updateCourse = async () => {
     try {
       // Validate required fields
+
       if (
         !courseData.title ||
         !courseData.description ||
@@ -725,10 +773,23 @@ const CourseList = () => {
         throw new Error("Please add at least one content item");
       }
 
-      if (courseData.type === "premium" && !courseData.price) {
-        throw new Error("Please set a price for premium courses");
+      if (
+        (courseData.type === "premium" || courseData.type === "live") &&
+        !courseData.price
+      ) {
+        throw new Error("Please set a price for this course");
       }
 
+      // Validate content items based on course type
+      if (courseData.type === "live") {
+        // Live courses can only contain live sessions
+        const invalidItems = courseData.content.filter(
+          (item) => item.type !== "live"
+        );
+        if (invalidItems.length > 0) {
+          throw new Error("Live courses can only contain live sessions");
+        }
+      }
       // Transform and validate content items
       const processedContent = courseData.content.map((item) => {
         const contentItem = { ...item };
@@ -755,8 +816,6 @@ const CourseList = () => {
             if (hasNewUpload) {
               contentItem.content = {
                 filename: contentItem.contentFile.name,
-                // The actual file will be appended to formData separately
-                // The path will be generated by the server
                 size: contentItem.contentFile.size,
                 mimetype: contentItem.contentFile.type,
               };
@@ -777,12 +836,22 @@ const CourseList = () => {
         }
 
         // Validate live classes
-        if (contentItem.type === "live" && !contentItem.meetingLink) {
-          throw new Error(
-            `Please add a meeting link for live class "${contentItem.title}"`
-          );
-        }
+        if (contentItem.type === "live") {
+          if (!contentItem.meetingLink) {
+            throw new Error(
+              `Please add a meeting link for live class "${contentItem.title}"`
+            );
+          }
 
+          if (!contentItem.schedule) {
+            throw new Error(
+              `Please set a schedule for live class "${contentItem.title}"`
+            );
+          }
+        }
+        if (contentItem.description) {
+          contentItem.description = stripHtml(contentItem.description);
+        }
         // Validate quizzes
         if (contentItem.type === "quiz") {
           if (contentItem.questions.length === 0) {
@@ -823,7 +892,17 @@ const CourseList = () => {
                   `Please select at least one correct answer for multiple-choice questions in quiz "${contentItem.title}"`
                 );
               }
+              if (
+                question.answer &&
+                ["short-answer", "broad-answer"].includes(question.type)
+              ) {
+                return {
+                  ...question,
+                  answer: stripHtml(question.answer),
+                };
+              }
             }
+            return question;
           });
         }
 
@@ -831,9 +910,10 @@ const CourseList = () => {
       });
 
       // Prepare form data for upload
+      const plainTextDescription = stripHtml(courseData.description);
       const formData = new FormData();
       formData.append("title", courseData.title);
-      formData.append("description", courseData.description);
+      formData.append("description", plainTextDescription);
 
       // Handle thumbnail
       if (courseData.thumbnail) {
@@ -843,7 +923,9 @@ const CourseList = () => {
       formData.append("type", courseData.type);
       formData.append(
         "price",
-        courseData.type === "premium" ? courseData.price : 0
+        courseData.type === "premium" || courseData.type === "live"
+          ? courseData.price
+          : 0
       );
       formData.append("content", JSON.stringify(processedContent));
       formData.append("categories", JSON.stringify([courseData.category]));
@@ -1014,6 +1096,12 @@ const CourseList = () => {
                   className="text-gray-700 hover:bg-indigo-50"
                 >
                   Premium Courses
+                </option>
+                <option
+                  value="livem"
+                  className="text-gray-700 hover:bg-indigo-50"
+                >
+                  Live Courses
                 </option>
               </select>
 
@@ -1372,16 +1460,18 @@ const CourseList = () => {
                                   name="type"
                                   value={courseData.type}
                                   onChange={handleInputChange}
-                                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gray-500 hover:border-gray-500 transition-colors"
+                                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
                                   required
                                 >
                                   <option value="free">Free</option>
                                   <option value="premium">Premium</option>
+                                  <option value="live">Live</option>
                                 </select>
                               </div>
 
                               {/* Pricing (show only for premium courses) */}
-                              {courseData.type === "premium" && (
+                              {(courseData.type === "premium" ||
+                                courseData.type === "live") && (
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Price *
@@ -1518,35 +1608,40 @@ const CourseList = () => {
                             Course Content
                           </h2>
                           <div className="flex gap-3">
-                            <motion.button
-                              onClick={() =>
-                                addTutorial(course.type === "premium")
-                              }
-                              className="bg-theme_color text-white px-4 py-2 rounded-lg flex items-center transition-colors"
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              <FiPlus className="mr-2" />
-                              Add Tutorial
-                            </motion.button>
-                            <motion.button
-                              onClick={addQuiz}
-                              className="bg-theme_color text-white px-4 py-2 rounded-lg flex items-center transition-colors"
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              <FiPlus className="mr-2" />
-                              Add Quiz
-                            </motion.button>
-                            <motion.button
-                              onClick={addLiveClass}
-                              className="bg-theme_color text-white px-4 py-2 rounded-lg flex items-center transition-colors"
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              <FiPlus className="mr-2" />
-                              Add Live Class
-                            </motion.button>
+                            {courseData.type === "live" ? (
+                              <motion.button
+                                onClick={addLiveClass}
+                                className="bg-theme_color text-white px-4 py-2 rounded-lg flex items-center transition-colors"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                <FiPlus className="mr-2" />
+                                Add Live Session
+                              </motion.button>
+                            ) : (
+                              <>
+                                <motion.button
+                                  onClick={() =>
+                                    addTutorial(courseData.type === "premium")
+                                  }
+                                  className="bg-theme_color text-white px-4 py-2 rounded-lg flex items-center transition-colors"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                >
+                                  <FiPlus className="mr-2" />
+                                  Add Tutorial
+                                </motion.button>
+                                <motion.button
+                                  onClick={addQuiz}
+                                  className="bg-theme_color text-white px-4 py-2 rounded-lg flex items-center transition-colors"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                >
+                                  <FiPlus className="mr-2" />
+                                  Add Quiz
+                                </motion.button>
+                              </>
+                            )}
                           </div>
                         </div>
 
@@ -2266,11 +2361,11 @@ const CourseList = () => {
                         {/* Course Thumbnail */}
                         <div className="w-full md:w-48 h-32 rounded-lg overflow-hidden relative group cursor-pointer">
                           {/* Thumbnail Image with hover effects */}
-                          <div className="relative w-full h-full ">
+                          <div className="relative w-full h-full">
                             <img
                               src={`${base_url}/courses/${course.thumbnail.path}`}
                               alt={course.title}
-                              className="w-full h-full object-cover transition-all duration-300 group-hover:scale-105 r"
+                              className="w-full h-full object-cover transition-all duration-300 group-hover:scale-105"
                               onError={(e) => {
                                 e.target.onerror = null;
                                 e.target.src = "/placeholder-image.jpg";
@@ -2285,10 +2380,16 @@ const CourseList = () => {
                               className={`absolute top-2 right-2 px-2 py-1 rounded-md text-xs font-medium ${
                                 course.type === "premium"
                                   ? "bg-yellow-500 text-white"
+                                  : course.type === "live"
+                                  ? "bg-purple-500 text-white"
                                   : "bg-blue-500 text-white"
                               }`}
                             >
-                              {course.type === "premium" ? "Premium" : "Free"}
+                              {course.type === "premium"
+                                ? "Premium"
+                                : course.type === "live"
+                                ? "Live"
+                                : "Free"}
                             </span>
                           </div>
 
@@ -2304,6 +2405,15 @@ const CourseList = () => {
                             <p className="text-white text-sm font-medium truncate">
                               {course.title}
                             </p>
+                            {course.type === "live" &&
+                              course.content?.[0]?.schedule && (
+                                <p className="text-white text-xs mt-1">
+                                  Next session:{" "}
+                                  {new Date(
+                                    course.content[0].schedule
+                                  ).toLocaleString()}
+                                </p>
+                              )}
                           </div>
                         </div>
 
@@ -2322,7 +2432,6 @@ const CourseList = () => {
                                   ),
                                 }}
                               />
-                              {/* In the course details section, replace the level display with this: */}
                               <div className="flex gap-2 mt-2 flex-wrap">
                                 {course.level && (
                                   <span className="bg-black text-white text-xs px-2 py-1 rounded-md">
@@ -2341,6 +2450,11 @@ const CourseList = () => {
                                       {category}
                                     </span>
                                   ))}
+                                {course.type === "live" && (
+                                  <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-md">
+                                    {course.content?.length || 0} Sessions
+                                  </span>
+                                )}
                               </div>
                             </div>
                             <div className="flex gap-2">
@@ -2416,7 +2530,10 @@ const CourseList = () => {
                                 </div>
                               )}
                             </div>
-                            {course.type === "premium" && (
+
+                            {/* Price display for premium and live courses */}
+                            {(course.type === "premium" ||
+                              course.type === "live") && (
                               <div className="text-sm text-gray-500">
                                 <span className="font-medium text-green-600">
                                   ৳{course.price}
@@ -2428,10 +2545,22 @@ const CourseList = () => {
                               {course.totalStudents.toLocaleString()} students
                             </div>
 
-                            <div className="text-sm text-gray-500">
-                              Created:{" "}
-                              {new Date(course.createdAt).toLocaleDateString()}
-                            </div>
+                            {course.type === "live" &&
+                            course.content?.[0]?.schedule ? (
+                              <div className="text-sm text-gray-500">
+                                Next:{" "}
+                                {new Date(
+                                  course.content[0].schedule
+                                ).toLocaleDateString()}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-gray-500">
+                                Created:{" "}
+                                {new Date(
+                                  course.createdAt
+                                ).toLocaleDateString()}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

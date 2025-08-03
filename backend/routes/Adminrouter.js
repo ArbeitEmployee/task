@@ -800,10 +800,11 @@ Adminrouter.post(
         });
       }
 
-      if (type === "premium" && (!price || isNaN(price))) {
+      // Validate price for premium and live courses
+      if ((type === "premium" || type === "live") && (!price || isNaN(price))) {
         return res.status(400).json({
           success: false,
-          message: "Price is required for premium courses",
+          message: "Price is required for premium and live courses",
         });
       }
 
@@ -827,13 +828,22 @@ Adminrouter.post(
       let parsedContent =
         typeof content === "string" ? JSON.parse(content) : content;
 
+      // Create a map of video filenames to their file objects for quick lookup
+      const videoFilesMap = {};
+      if (req.files?.contentVideos) {
+        req.files.contentVideos.forEach((file) => {
+          videoFilesMap[file.originalname] = file;
+        });
+      }
+
+      // Process content items to attach uploaded files
       if (Array.isArray(parsedContent)) {
         parsedContent = parsedContent.map((item) => {
-          // Handle tutorial content for premium courses
-          if (item.type === "tutorial" && type === "premium") {
-            const videoFile = req.files.contentVideos?.find(
-              (f) => f.originalname === item.content?.name
-            );
+          // For premium course tutorials, attach the uploaded video
+          if (item.type === "tutorial" && type === "premium" && item.content) {
+            const videoFilename = item.content.filename;
+            const videoFile = videoFilesMap[videoFilename];
+
             if (videoFile) {
               item.content = {
                 filename: videoFile.originalname,
@@ -842,43 +852,21 @@ Adminrouter.post(
                 mimetype: videoFile.mimetype,
               };
             }
-            // Ensure youtubeLink is removed for premium courses
-            if (item.youtubeLink) {
-              delete item.youtubeLink;
-            }
-            // In your POST /courses route handler:
-            // In your POST /courses route handler:
-            if (item.type === "live" && item.schedule) {
-              const isValidFormat = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(
-                item.schedule
-              );
-              if (!isValidFormat) {
-                throw new Error(
-                  "Invalid schedule format. Use yyyy-MM-ddTHH:mm"
-                );
-              }
-            }
           }
 
-          // Handle tutorial content for free courses
-          if (item.type === "tutorial" && type === "free") {
-            // Ensure content is removed for free courses
-            if (item.content) {
-              delete item.content;
-            }
-          }
-
-          // Handle live class thumbnails
-          if (item.type === "live" && req.files.contentThumbnails) {
-            const thumbFile = req.files.contentThumbnails.find(
-              (f) => f.originalname === item.thumbnail?.name
+          // For live sessions, attach thumbnails if uploaded
+          if (item.type === "live" && item.thumbnail?.filename) {
+            const thumbnailFilename = item.thumbnail.filename;
+            const thumbnailFile = req.files.contentThumbnails?.find(
+              (f) => f.originalname === thumbnailFilename
             );
-            if (thumbFile) {
+
+            if (thumbnailFile) {
               item.thumbnail = {
-                filename: thumbFile.originalname,
-                path: thumbFile.filename,
-                size: thumbFile.size,
-                mimetype: thumbFile.mimetype,
+                filename: thumbnailFile.originalname,
+                path: thumbnailFile.filename,
+                size: thumbnailFile.size,
+                mimetype: thumbnailFile.mimetype,
               };
             }
           }
@@ -916,7 +904,7 @@ Adminrouter.post(
         instructor: req.user_id,
         thumbnail: thumbnailData,
         type,
-        price: type === "premium" ? parseFloat(price) : 0,
+        price: type === "free" ? 0 : parseFloat(price),
         content: parsedContent,
         attachments,
         level,
@@ -935,7 +923,7 @@ Adminrouter.post(
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while creating course",
+        message: error.message || "Server error while creating course",
       });
     }
   }
@@ -1014,7 +1002,7 @@ Adminrouter.put(
       { name: "thumbnail", maxCount: 1 },
       { name: "attachments", maxCount: 10 },
       { name: "contentThumbnails", maxCount: 10 },
-      { name: "contentVideos", maxCount: 10 }, // Reduced from 1000 to 10
+      { name: "contentVideos", maxCount: 10 },
     ]),
   ],
   async (req, res) => {
@@ -1037,6 +1025,57 @@ Adminrouter.put(
           success: false,
           message: "Course not found",
         });
+      }
+
+      // Validate type change
+      if (type && course.type !== type) {
+        // If changing to live course, remove all non-live content
+        if (type === "live") {
+          let parsedContent =
+            typeof content === "string" ? JSON.parse(content) : content;
+          if (Array.isArray(parsedContent)) {
+            parsedContent = parsedContent.filter(
+              (item) => item.type === "live"
+            );
+            if (parsedContent.length === 0) {
+              return res.status(400).json({
+                success: false,
+                message: "Live courses must have at least one live session",
+              });
+            }
+          }
+        }
+        // If changing from live to another type, remove all live content
+        else if (course.type === "live") {
+          let parsedContent =
+            typeof content === "string" ? JSON.parse(content) : content;
+          if (Array.isArray(parsedContent)) {
+            parsedContent = parsedContent.filter(
+              (item) => item.type !== "live"
+            );
+          }
+        }
+        // If changing between free/premium, transform tutorial content
+        else {
+          let parsedContent =
+            typeof content === "string" ? JSON.parse(content) : content;
+          if (Array.isArray(parsedContent)) {
+            parsedContent = parsedContent.map((item) => {
+              if (item.type === "tutorial") {
+                if (type === "premium") {
+                  // Switching to premium - remove youtubeLink
+                  const { youtubeLink, ...rest } = item;
+                  return { ...rest };
+                } else {
+                  // Switching to free - remove content
+                  const { content, ...rest } = item;
+                  return { ...rest, youtubeLink: "" };
+                }
+              }
+              return item;
+            });
+          }
+        }
       }
 
       // Handle thumbnail update
@@ -1073,12 +1112,25 @@ Adminrouter.put(
         typeof content === "string" ? JSON.parse(content) : content;
 
       if (Array.isArray(parsedContent)) {
+        // For live courses, validate all items are live sessions
+        if (type === "live") {
+          const invalidItems = parsedContent.filter(
+            (item) => item.type !== "live"
+          );
+          if (invalidItems.length > 0) {
+            return res.status(400).json({
+              success: false,
+              message: "Live courses can only contain live sessions",
+            });
+          }
+        }
+
         // Track video content items that need processing
         const videoContentItems = parsedContent.filter(
           (item) =>
             item.type === "tutorial" &&
             type === "premium" &&
-            (item.contentFile || item.content) // Include existing content
+            (item.contentFile || item.content)
         );
 
         // Assign videos in order
@@ -1113,20 +1165,39 @@ Adminrouter.put(
             if (item.content) {
               delete item.content;
             }
+            if (!item.youtubeLink) {
+              throw new Error(
+                `YouTube link is required for free tutorial: ${item.title}`
+              );
+            }
           }
 
           // Handle live class thumbnails
-          if (item.type === "live" && req.files.contentThumbnails) {
-            const thumbFile = req.files.contentThumbnails.find(
-              (f) => f.originalname === item.thumbnail?.name
-            );
-            if (thumbFile) {
-              item.thumbnail = {
-                filename: thumbFile.originalname,
-                path: thumbFile.filename,
-                size: thumbFile.size,
-                mimetype: thumbFile.mimetype,
-              };
+          if (item.type === "live") {
+            if (!item.meetingLink) {
+              throw new Error(
+                `Meeting link is required for live class: ${item.title}`
+              );
+            }
+
+            if (!item.schedule) {
+              throw new Error(
+                `Schedule is required for live class: ${item.title}`
+              );
+            }
+
+            if (req.files.contentThumbnails) {
+              const thumbFile = req.files.contentThumbnails.find(
+                (f) => f.originalname === item.thumbnail?.name
+              );
+              if (thumbFile) {
+                item.thumbnail = {
+                  filename: thumbFile.originalname,
+                  path: thumbFile.filename,
+                  size: thumbFile.size,
+                  mimetype: thumbFile.mimetype,
+                };
+              }
             }
           }
 
@@ -1153,7 +1224,20 @@ Adminrouter.put(
       if (title) course.title = title;
       if (description) course.description = description;
       if (type) course.type = type;
-      if (price) course.price = parseFloat(price);
+
+      // Price handling for premium and live courses
+      if (type === "premium" || type === "live") {
+        if (!price || isNaN(price)) {
+          return res.status(400).json({
+            success: false,
+            message: "Price is required for premium and live courses",
+          });
+        }
+        course.price = parseFloat(price);
+      } else {
+        course.price = 0; // Free courses have no price
+      }
+
       if (content) course.content = parsedContent;
       if (categories) {
         course.categories =
@@ -1161,40 +1245,6 @@ Adminrouter.put(
       }
       if (level) course.level = level;
       if (status) course.status = status;
-
-      // Validate before saving
-      if (course.type === "premium" && (!course.price || isNaN(course.price))) {
-        return res.status(400).json({
-          success: false,
-          message: "Price is required for premium courses",
-        });
-      }
-
-      // Validate content items
-      for (const item of course.content) {
-        if (item.type === "tutorial") {
-          if (course.type === "free" && !item.youtubeLink) {
-            return res.status(400).json({
-              success: false,
-              message: `YouTube link is required for free tutorial: ${item.title}`,
-            });
-          }
-
-          if (course.type === "premium" && !item.content) {
-            return res.status(400).json({
-              success: false,
-              message: `Video content is required for premium tutorial: ${item.title}`,
-            });
-          }
-        }
-
-        if (item.type === "live" && !item.meetingLink) {
-          return res.status(400).json({
-            success: false,
-            message: `Meeting link is required for live class: ${item.title}`,
-          });
-        }
-      }
 
       await course.save();
 

@@ -196,7 +196,7 @@ const courseSchema = new Schema(
     type: {
       type: String,
       required: true,
-      enum: ["free", "premium"],
+      enum: ["free", "premium", "live"],
       default: "free",
     },
     status: {
