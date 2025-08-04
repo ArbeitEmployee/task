@@ -51,12 +51,22 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+    const baseName = path.basename(file.originalname, ext);
+    const dir = "./public/uploads/teachers";
+
+    let finalName = file.originalname;
+    let counter = 1;
+
+    while (fs.existsSync(path.join(dir, finalName))) {
+      finalName = `${baseName}(${counter})${ext}`;
+      counter++;
+    }
+
+    cb(null, finalName);
   },
 });
 
-// File filter configuration
+// File filter configuration (unchanged)
 const fileFilter = (req, file, cb) => {
   const filetypes = /pdf|jpeg|jpg|png/;
   const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
@@ -71,7 +81,6 @@ const fileFilter = (req, file, cb) => {
     );
   }
 };
-
 // Configure multer instance with error handling
 const upload = multer({
   storage: storage,

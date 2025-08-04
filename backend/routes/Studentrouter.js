@@ -8,7 +8,6 @@ const Course = require("../models/Course");
 const mongoose = require("mongoose");
 const path = require("path");
 const multer = require("multer");
-
 // Protected route - Get student profile
 Studentrouter.get("/profile/:id", studentAuth, async (req, res) => {
   try {
@@ -487,22 +486,30 @@ function calculateOverallProgress(progressItems) {
 // Track course access (when student clicks Start/Continue)
 Studentrouter.post("/:courseId/access", studentAuth, async (req, res) => {
   try {
-    const course = await Course.findById(req.params.courseId);
+    const courseId = req.params.courseId;
+    const studentId = req.user._id; // Assuming studentAuth middleware sets req.user
+
+    // Validate courseId format
+    if (!mongoose.Types.ObjectId.isValid(courseId)) {
+      return res.status(400).json({ message: "Invalid course ID format" });
+    }
+
+    const course = await Course.findById(courseId);
     if (!course) {
       return res.status(404).json({ message: "Course not found" });
     }
 
     // Find or create enrollment
     let enrollment = course.enrollments.find(
-      (e) => e.studentId.toString() === req.user._id.toString()
+      (e) => e.studentId.toString() === studentId.toString()
     );
 
     const now = new Date();
 
     if (!enrollment) {
-      // If not enrolled, create new enrollment with initialized progress
+      // Create new enrollment if not exists
       enrollment = {
-        studentId: req.user._id,
+        studentId: studentId,
         enrolledAt: now,
         firstAccessedAt: now,
         lastAccessed: now,
@@ -515,28 +522,34 @@ Studentrouter.post("/:courseId/access", studentAuth, async (req, res) => {
         accessHistory: [
           {
             accessedAt: now,
-            duration: 0, // Will be updated when they leave the course
+            duration: 0,
+            contentItemId: null,
+            action: "initial_access",
           },
         ],
       };
       course.enrollments.push(enrollment);
     } else {
-      // Update last accessed time and add to access history
+      // Update existing enrollment
       enrollment.lastAccessed = now;
       enrollment.accessHistory.push({
         accessedAt: now,
         duration: 0,
+        contentItemId: null,
+        action: "accessed",
       });
 
-      // Set first accessed time if not set
       if (!enrollment.firstAccessedAt) {
         enrollment.firstAccessedAt = now;
       }
     }
 
+    // Mark the enrollments array as modified
+    course.markModified("enrollments");
     await course.save();
 
     res.status(200).json({
+      success: true,
       message: "Course access recorded",
       enrollment: {
         _id: enrollment._id,
@@ -545,10 +558,64 @@ Studentrouter.post("/:courseId/access", studentAuth, async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Error in /access:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 });
+Studentrouter.get("/video/:filename", studentAuth, async (req, res) => {
+  try {
+    const { filename } = req.params;
+    const filePath = path.join(__dirname, "../public/courses", filename);
 
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({
+        success: false,
+        message: "Video not found",
+      });
+    }
+
+    // Get file stats
+    const stat = fs.statSync(filePath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+
+    // Handle range requests for streaming
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = end - start + 1;
+      const file = fs.createReadStream(filePath, { start, end });
+      const head = {
+        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": chunksize,
+        "Content-Type": "video/mp4",
+      };
+
+      res.writeHead(206, head);
+      file.pipe(res);
+    } else {
+      const head = {
+        "Content-Length": fileSize,
+        "Content-Type": "video/mp4",
+      };
+      res.writeHead(200, head);
+      fs.createReadStream(filePath).pipe(res);
+    }
+  } catch (error) {
+    console.error("Error streaming video:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error streaming video",
+    });
+  }
+});
 // Get course progress for a student
 Studentrouter.get("/:courseId/progress", studentAuth, async (req, res) => {
   try {

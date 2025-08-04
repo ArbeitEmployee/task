@@ -10,7 +10,7 @@ import {
   FiFileText,
   FiDownload,
   FiClock,
-  FiChevronDown
+  FiChevronDown,
 } from "react-icons/fi";
 
 const Notifications = ({ setNotificationCount }) => {
@@ -33,7 +33,7 @@ const Notifications = ({ setNotificationCount }) => {
       const { data } = await axios.get(
         "http://localhost:3500/api/auth/notifications",
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
@@ -60,7 +60,7 @@ const Notifications = ({ setNotificationCount }) => {
         `http://localhost:3500/api/auth/teacher-status/${teacherId}`,
         { status: "approved" },
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
@@ -87,10 +87,10 @@ const Notifications = ({ setNotificationCount }) => {
         `http://localhost:3500/api/auth/teacher-status/${selectedTeacher.id}`,
         {
           status: "rejected",
-          rejectionReason: rejectionReason || "Not specified"
+          rejectionReason: rejectionReason || "Not specified",
         },
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
@@ -206,25 +206,55 @@ const Notifications = ({ setNotificationCount }) => {
                                 <span className="ml-1 text-sm transition-all duration-300">
                                   ({teacher.certificates.length})
                                 </span>
-                                <FiChevronDown className="mr-1 text-black transition-all duration-300 transform group-hover:rotate-180 group-hover:scale-110" />
+                                <FiChevronDown
+                                  className={`ml-1 text-black transition-all duration-300 ${
+                                    isDropdownOpen ? "rotate-180" : ""
+                                  }`}
+                                />
                               </button>
 
-                              {isDropdownOpen &&
-                                teacher.certificates.length > 0 && (
-                                  <div className="absolute left-0 mt-2 w-48 bg-white shadow-lg rounded-md border border-gray-200 z-10">
-                                    {teacher.certificates.map((cert, index) => (
-                                      <button
-                                        key={index}
-                                        onClick={() =>
-                                          downloadCertificate(cert)
-                                        }
-                                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-200"
-                                      >
-                                        Certificate {index + 1}
-                                      </button>
-                                    ))}
+                              {isDropdownOpen && (
+                                <div className="absolute left-0 mt-2 w-56 bg-white shadow-xl rounded-lg border border-gray-200 z-10 overflow-hidden">
+                                  <div className="max-h-60 overflow-y-auto">
+                                    {teacher.certificates.map((cert, index) => {
+                                      // Extract original filename from the URL/path
+                                      const filename = cert
+                                        .split("/")
+                                        .pop()
+                                        .split(".")
+                                        .slice(0, -1)
+                                        .join(".");
+                                      const extension = cert
+                                        .split(".")
+                                        .pop()
+                                        .toUpperCase();
+
+                                      return (
+                                        <button
+                                          key={index}
+                                          onClick={() =>
+                                            downloadCertificate(cert)
+                                          }
+                                          className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-blue-50 transition-colors duration-200 border-b border-gray-100 last:border-b-0"
+                                        >
+                                          <div className="truncate pr-2">
+                                            <span className="font-medium text-gray-800">
+                                              {filename}
+                                            </span>
+                                            <span className="text-gray-400 ml-1">
+                                              .{extension}
+                                            </span>
+                                          </div>
+                                          <FiDownload className="text-gray-700 flex-shrink-0" />
+                                        </button>
+                                      );
+                                    })}
                                   </div>
-                                )}
+                                  <div className="px-4 py-2 bg-gray-50 text-xs text-gray-500 border-t border-gray-200">
+                                    Click to download any certificate
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

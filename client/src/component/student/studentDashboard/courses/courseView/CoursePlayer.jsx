@@ -57,7 +57,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
   const videoContainerRef = useRef(null);
   const timeTrackingInterval = useRef(null);
   const base_url = import.meta.env.VITE_API_KEY_Base_URL;
-  const sudentdata = JSON.parse(localStorage.getItem("studentData"));
+  const studentdata = JSON.parse(localStorage.getItem("studentData"));
 
   // Get auth headers
   const getAuthHeaders = () => {
@@ -74,7 +74,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
     const fetchCourse = async () => {
       try {
         const response = await axios.get(
-          `${base_url}/api/course-player/single-courses/${courseId}?user_id=${sudentdata.id}`,
+          `${base_url}/api/course-player/single-courses/${courseId}?user_id=${studentdata.id}`,
           getAuthHeaders()
         );
         setCourse(response.data);
@@ -123,22 +123,38 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
   }, [id, base_url, setActiveView]);
 
   // Record course access
+  const isValidId = (id) => {
+    return id && typeof id === "string" && id.length === 24; // Basic MongoDB ID validation
+  };
   useEffect(() => {
-    if (course) {
-      const recordAccess = async () => {
-        try {
-          await axios.post(
-            `${base_url}/api/course-player/${id}/access`,
-            {},
-            getAuthHeaders()
-          );
-        } catch (error) {
-          console.error("Error recording access:", error);
+    const recordAccess = async () => {
+      try {
+        // Validate all required data
+        if (!isValidId(courseId) || !isValidId(studentdata?.id)) {
+          throw new Error("Invalid course or student ID");
         }
-      };
+
+        const response = await axios.post(
+          `${base_url}/api/course-player/${courseId}/access`,
+          { user_id: studentdata.id }, // Add user_id to request body
+          getAuthHeaders()
+        );
+
+        if (!response.data.success) {
+          throw new Error(response.data.message || "Failed to record access");
+        }
+      } catch (error) {
+        console.error("Access recording failed:", error.message);
+        // Optional: Add user feedback
+        toast.error("Couldn't record course access");
+      }
+    };
+
+    // Only run if we have valid data
+    if (course && isValidId(courseId) && isValidId(studentdata?.id)) {
       recordAccess();
     }
-  }, [course, id, base_url]);
+  }, [course, courseId, base_url]);
 
   // Handle quiz content
   useEffect(() => {
@@ -196,25 +212,21 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
       (timeWatched > 0 && timeWatched !== lastTrackedTime);
 
     if (shouldSendUpdate) {
-      const trackTime = async () => {
-        try {
-          await axios.post(
-            `${base_url}/api/course-player/${id}/track-video-time`,
-            {
-              contentItemId: currentItem._id,
-              secondsWatched: timeWatched,
-              totalDuration: currentItem.duration || 0,
-              user_id: sudentdata.id,
-            },
-            getAuthHeaders()
-          );
-          setLastTrackedTime(timeWatched);
-        } catch (error) {
-          console.error("Error tracking watch time:", error);
-        }
+      const trackTime = async (courseId) => {
+        await axios.post(
+          `${base_url}/api/course-player/${courseId}/track-video-time`,
+          {
+            contentItemId: currentItem._id,
+            secondsWatched: timeWatched,
+            totalDuration: currentItem.duration || 0,
+            user_id: studentdata.id,
+          },
+          getAuthHeaders()
+        );
+        setLastTrackedTime(timeWatched);
       };
 
-      trackTime();
+      trackTime(courseId);
     }
   }, [timeWatched, lastTrackedTime, currentContent, course, id, base_url]);
 
@@ -232,7 +244,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                 contentItemId: currentItem._id,
                 secondsWatched: timeWatched,
                 totalDuration: currentItem.duration || 0,
-                user_id: sudentdata.id,
+                user_id: studentdata.id,
               },
               getAuthHeaders()
             )
@@ -269,10 +281,44 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
     }
   };
 
-  const togglePlay = () => {
-    setIsPlaying(!isPlaying);
-  };
+  const togglePlay = async () => {
+    if (!videoRef.current) return;
 
+    try {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        await videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    } catch (error) {
+      console.error("Error toggling play/pause:", error);
+      // Fallback: reload the video source if play fails
+      if (!isPlaying) {
+        videoRef.current.load();
+        setTimeout(() => {
+          videoRef.current
+            .play()
+            .catch((e) => console.error("Retry play failed:", e));
+        }, 300);
+      }
+    }
+  };
+  useEffect(() => {
+    // Reset video state when content changes
+    if (videoRef.current) {
+      videoRef.current.load();
+      setIsPlaying(true);
+      setCurrentTime(0);
+      setTimeWatched(0);
+    }
+
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.pause();
+      }
+    };
+  }, [currentContent]);
   const toggleMute = () => {
     setIsMuted(!isMuted);
   };
@@ -300,7 +346,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
             contentItemId: currentItem._id,
             secondsWatched: timeWatched,
             totalDuration: currentItem.duration || 0,
-            user_id: sudentdata.id,
+            user_id: studentdata.id,
           },
           getAuthHeaders()
         );
@@ -351,7 +397,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
           contentItemId: quiz._id,
           contentItemType: quiz.type,
           answers: quizAnswers,
-          user_id: sudentdata.id,
+          user_id: studentdata.id,
         },
         getAuthHeaders()
       );
@@ -427,10 +473,19 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
     setIsPlaying(!isPlaying);
   };
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  const formatTime = (rawSeconds) => {
+    if (!isFinite(rawSeconds) || rawSeconds < 0) return "00:00:00"; // handle invalid input
+
+    const totalSeconds = Math.floor(rawSeconds);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const hh = String(hours).padStart(2, "0");
+    const mm = String(minutes).padStart(2, "0");
+    const ss = String(seconds).padStart(2, "0");
+
+    return `${hh}:${mm}:${ss}`;
   };
 
   const getYouTubeEmbedUrl = (url) => {
@@ -522,117 +577,228 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
             className="relative max-w-full max-h-full flex items-center justify-center"
           >
             {currentItem.type === "tutorial" && (
-              <div className="w-full max-h-full max-w-full aspect-video bg-black relative">
-                <iframe
-                  ref={videoRef}
-                  src={`${getYouTubeEmbedUrl(
-                    currentItem.youtubeLink
-                  )}?autoplay=${isPlaying ? 1 : 0}&mute=${
-                    isMuted ? 1 : 0
-                  }&controls=0&modestbranding=1&rel=0`}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="w-full h-full"
-                  onClick={handleVideoClick}
-                ></iframe>
+              <div className="w-full max-h-full max-w-full aspect-video relative bg-black rounded-xl overflow-hidden group">
+                {/* Video player */}
+                {currentItem.youtubeLink ? (
+                  <iframe
+                    src={`${getYouTubeEmbedUrl(
+                      currentItem.youtubeLink
+                    )}?autoplay=${isPlaying ? 1 : 0}&mute=${isMuted ? 1 : 0}`}
+                    className="w-full h-full"
+                    frameBorder="0"
+                    allowFullScreen
+                  />
+                ) : currentItem.content?.path ? (
+                  <>
+                    <video
+                      ref={videoRef}
+                      src={`${base_url}/courses/${currentItem.content.path}`}
+                      className="w-full h-full object-cover"
+                      autoPlay={isPlaying}
+                      muted={isMuted}
+                      playsInline
+                      onClick={togglePlay}
+                      onTimeUpdate={(e) => {
+                        setCurrentTime(e.target.currentTime);
+                        setTimeWatched(Math.floor(e.target.currentTime));
+                      }}
+                      onDurationChange={(e) => {
+                        if (!currentItem.duration) {
+                          const updatedItem = {
+                            ...currentItem,
+                            duration: e.target.duration,
+                          };
+                          setCourse((prev) => ({
+                            ...prev,
+                            content: prev.content.map((item) =>
+                              item._id === currentItem._id ? updatedItem : item
+                            ),
+                          }));
+                        }
+                      }}
+                      onWaiting={() => {
+                        setIsPlaying(false);
+                      }}
+                      onPlaying={() => {
+                        setIsPlaying(true);
+                      }}
+                      onEnded={() => {
+                        setProgress((prev) => ({
+                          ...prev,
+                          [currentItem._id]: {
+                            ...prev[currentItem._id],
+                            completed: true,
+                            progress: 100,
+                          },
+                        }));
+                      }}
+                    />
 
-                {/* Overlay controls */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end">
-                  <div className="p-6">
-                    <h2 className="text-2xl font-bold text-white mb-2">
-                      {currentItem.title}
-                    </h2>
-                    <p className="text-gray-300 mb-4">
-                      {currentItem.description.replace(/<[^>]+>/g, "")}
-                    </p>
+                    {/* Loading indicator only when buffering */}
+                    {!isPlaying && videoRef.current?.readyState < 3 && (
+                      <div className="absolute inset-0 flex items-center justify-center z-10">
+                        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-white">
+                    Video content not available
+                  </div>
+                )}
 
-                    {/* Time watched indicator */}
-                    <div className="text-white text-sm bg-black/30 px-3 py-1 rounded-full mb-2 inline-block">
-                      Watched: {formatTime(timeWatched)} /{" "}
+                {/* Custom controls overlay */}
+                <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-4">
+                  {/* Top bar with filename and watch time */}
+                  <div className="flex justify-between items-center mb-2">
+                    {currentItem.content?.filename && (
+                      <div className="text-white text-sm font-medium bg-black/50 px-3 py-1 rounded-full truncate max-w-[70%]">
+                        {currentItem.content.filename}
+                      </div>
+                    )}
+                    <div className="text-white text-sm bg-black/50 px-3 py-1 rounded-full">
+                      Watched: {formatTime(timeWatched)} /
                       {formatTime(currentItem.duration || 0)}
                     </div>
+                  </div>
 
-                    {/* Progress bar */}
-                    <div className="w-full bg-gray-600 h-1 rounded-full mb-4">
-                      <div
-                        className="bg-indigo-500 h-1 rounded-full"
-                        style={{
-                          width: `${
-                            (timeWatched / (currentItem.duration || 1)) * 100
-                          }%`,
+                  {/* Progress bar with hover time preview */}
+                  <div className="relative w-full h-2 bg-gray-600 rounded-full mb-3 group/progress">
+                    <div
+                      className="absolute top-0 left-0 h-full bg-indigo-500 rounded-full"
+                      style={{
+                        width: `${
+                          (currentTime / (currentItem.duration || 1)) * 100
+                        }%`,
+                      }}
+                    ></div>
+                    <div className="absolute top-0 left-0 h-full w-full opacity-0 group-hover/progress:opacity-100">
+                      <input
+                        type="range"
+                        min="0"
+                        max={currentItem.duration || 1}
+                        value={currentTime}
+                        onChange={(e) => {
+                          if (videoRef.current) {
+                            videoRef.current.currentTime = e.target.value;
+                            setCurrentTime(e.target.value);
+                          }
                         }}
-                      ></div>
+                        className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
+                      />
                     </div>
+                  </div>
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
+                  {/* Bottom controls */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      {/* Play/Pause button */}
+                      <button
+                        onClick={() => {
+                          if (videoRef.current) {
+                            isPlaying
+                              ? videoRef.current.pause()
+                              : videoRef.current.play();
+                          }
+                          togglePlay();
+                        }}
+                        className="text-white hover:text-indigo-300 transition-colors p-2"
+                      >
+                        {isPlaying ? (
+                          <FiPause
+                            size={24}
+                            className="hover:scale-110 transition-transform"
+                          />
+                        ) : (
+                          <FiPlay
+                            size={24}
+                            className="hover:scale-110 transition-transform"
+                          />
+                        )}
+                      </button>
+
+                      {/* Volume control */}
+                      <div className="flex items-center group/volume">
                         <button
-                          onClick={togglePlay}
-                          className="text-white hover:text-gray-300 bg-black/30 rounded-full p-3"
-                        >
-                          {isPlaying ? (
-                            <FiPause size={24} />
-                          ) : (
-                            <FiPlay size={24} />
-                          )}
-                        </button>
-                        <button
-                          onClick={toggleMute}
-                          className="text-white hover:text-gray-300 bg-black/30 rounded-full p-3"
+                          onClick={() => {
+                            if (videoRef.current) {
+                              videoRef.current.muted = !isMuted;
+                            }
+                            toggleMute();
+                          }}
+                          className="text-white hover:text-indigo-300 transition-colors p-2"
                         >
                           {isMuted ? (
-                            <FiVolumeX size={20} />
+                            <FiVolumeX
+                              size={20}
+                              className="hover:scale-110 transition-transform"
+                            />
                           ) : (
-                            <FiVolume2 size={20} />
+                            <FiVolume2
+                              size={20}
+                              className="hover:scale-110 transition-transform"
+                            />
                           )}
                         </button>
-                        <div className="text-white text-sm bg-black/30 px-3 py-1 rounded-full">
-                          {formatTime(timeWatched)} /{" "}
-                          {currentItem.duration
-                            ? formatDuration(currentItem.duration)
-                            : "0:00"}
-                        </div>
                       </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          <button
-                            className="text-white text-sm bg-black/30 px-3 py-1 rounded"
-                            onClick={() =>
-                              setVideoQuality(
-                                videoQuality === "Auto" ? "HD" : "Auto"
-                              )
-                            }
-                          >
-                            Quality: {videoQuality}
-                          </button>
-                          <button
-                            className="text-white text-sm bg-black/30 px-3 py-1 rounded"
-                            onClick={() =>
-                              setPlaybackRate(playbackRate === 1 ? 1.5 : 1)
-                            }
-                          >
-                            Speed: {playbackRate}x
-                          </button>
-                        </div>
 
-                        <button
-                          onClick={toggleFullscreen}
-                          className="text-white hover:text-gray-300 bg-black/30 rounded-full p-3"
-                        >
-                          {isFullscreen ? (
-                            <FiMinimize size={20} />
-                          ) : (
-                            <FiMaximize size={20} />
-                          )}
-                        </button>
+                      {/* Current time */}
+                      <div className="text-white text-sm font-mono">
+                        {formatTime(currentTime)} /{" "}
+                        {formatTime(currentItem.duration || 0)}
                       </div>
+                    </div>
+
+                    <div className="flex items-center space-x-4">
+                      {/* Playback speed */}
+                      <div className="relative group/speed">
+                        <button className="text-white text-sm bg-black/50 hover:bg-black/70 px-3 py-1 rounded transition-colors">
+                          {playbackRate}x
+                        </button>
+                        <div className="absolute bottom-full left-0 mb-2 bg-gray-800 rounded-lg shadow-lg p-2 hidden group-hover/speed:block">
+                          {[0.5, 0.75, 1, 1.25, 1.5, 2].map((speed) => (
+                            <button
+                              key={speed}
+                              onClick={() => {
+                                setPlaybackRate(speed);
+                                if (videoRef.current) {
+                                  videoRef.current.playbackRate = speed;
+                                }
+                              }}
+                              className={`block w-full text-left px-3 py-1 rounded ${
+                                playbackRate === speed
+                                  ? "bg-indigo-600 text-white"
+                                  : "text-gray-300 hover:bg-gray-700"
+                              }`}
+                            >
+                              {speed}x
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Fullscreen button */}
+                      <button
+                        onClick={toggleFullscreen}
+                        className="text-white hover:text-indigo-300 transition-colors p-2"
+                      >
+                        {isFullscreen ? (
+                          <FiMinimize
+                            size={20}
+                            className="hover:scale-110 transition-transform"
+                          />
+                        ) : (
+                          <FiMaximize
+                            size={20}
+                            className="hover:scale-110 transition-transform"
+                          />
+                        )}
+                      </button>
                     </div>
                   </div>
                 </div>
               </div>
             )}
-
             {currentItem.type === "live" && (
               <div className="w-full max-h-full max-w-full aspect-video bg-gray-900 relative flex flex-col items-center justify-center p-6">
                 <div className="text-center max-w-2xl">
@@ -652,7 +818,16 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                         <FiCalendar className="text-indigo-600 mr-2" />
                         <span className="font-medium">
                           Scheduled:{" "}
-                          {new Date(currentItem.schedule).toLocaleString()}
+                          {new Date(currentItem.schedule).toLocaleString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }
+                          )}
                         </span>
                       </div>
                     </div>
@@ -804,7 +979,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                             : item.type === "live"
                             ? "Live Session"
                             : item.duration
-                            ? formatDuration(item.duration)
+                            ? formatTime(item.duration)
                             : "0:00"}
                           {item.timeSpent > 0 && item.type !== "quiz" && (
                             <span className="ml-2">

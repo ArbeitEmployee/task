@@ -97,9 +97,6 @@ const MyCourses = ({ setActiveView }) => {
         const categoriesResponse = await axios.get(
           `${base_url}/api/auth/categories`
         );
-
-        console.log("Categories API response:", categoriesResponse); // Debug log
-
         if (categoriesResponse.data && Array.isArray(categoriesResponse.data)) {
           setCategories(categoriesResponse.data);
         } else if (categoriesResponse.data?.categories) {
@@ -294,38 +291,71 @@ const MyCourses = ({ setActiveView }) => {
     filterLevel,
   ]);
 
-  const categoryOptions = categories.map((cat) =>
-    typeof cat === "object" ? cat.name : cat
-  );
   useEffect(() => {
     setFilteredCourses(myCourses);
   }, [myCourses]);
 
   const recordCourseAccess = async (courseId) => {
     try {
-      await axios.post(`${base_url}/api/student/${courseId}/access`, {});
-      setMyCourses((prevCourses) =>
-        prevCourses.map((course) =>
-          course.id === courseId
-            ? {
-                ...course,
-                lastAccessed: new Date().toISOString(),
-                lastActivity: `Last active: ${new Date().toLocaleDateString()}`,
-              }
-            : course
-        )
+      const response = await axios.post(
+        `${base_url}/api/student/${courseId}/access`,
+        {}, // Empty body
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+            "Content-Type": "application/json",
+          },
+          validateStatus: (status) => status < 500, // Don't throw for 4xx errors
+        }
       );
+
+      if (response.data.success) {
+        console.log("Access recorded:", response.data);
+        setMyCourses((prevCourses) =>
+          prevCourses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  lastAccessed: new Date().toISOString(),
+                  lastActivity: `Last active: ${new Date().toLocaleDateString()}`,
+                }
+              : course
+          )
+        );
+        return true;
+      } else {
+        console.error("Failed to record access:", response.data.message);
+        toast.error(response.data.message || "Failed to record course access");
+        return false;
+      }
     } catch (error) {
-      console.error("Error recording course access:", error);
+      console.error("Error recording access:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+
+      const errorMsg =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to record course access";
+
+      toast.error(errorMsg);
+      return false;
     }
   };
 
   const handleStartCourse = async (courseId) => {
-    await recordCourseAccess(courseId);
-    setActiveView({
-      view: "videoPlayer",
-      courseId: courseId,
-    });
+    try {
+      // await recordCourseAccess(courseId);
+      setActiveView({
+        view: "videoPlayer",
+        courseId: courseId,
+      });
+    } catch (error) {
+      toast.error("Failed to start course");
+      console.error("Start course error:", error);
+    }
   };
 
   const handleViewCertificate = async (courseId) => {

@@ -25,8 +25,20 @@ const storage = multer.diskStorage({
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    // Reconstruct the upload path to make it available in this scope
+    const uploadPath = path.join(__dirname, "../public/courses");
+    const fileExt = path.extname(file.originalname);
+    const baseName = path.basename(file.originalname, fileExt);
+
+    let finalName = file.originalname;
+    let counter = 1;
+
+    while (fs.existsSync(path.join(uploadPath, finalName))) {
+      finalName = `${baseName}(${counter})${fileExt}`;
+      counter++;
+    }
+
+    cb(null, finalName);
   },
 });
 
@@ -398,8 +410,20 @@ const studentstorage = multer.diskStorage({
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    // Reconstruct the upload path in filename function
+    const uploadPath = path.join(__dirname, "../public/students");
+    const ext = path.extname(file.originalname);
+    const baseName = path.basename(file.originalname, ext);
+
+    let finalName = file.originalname;
+    let counter = 1;
+
+    while (fs.existsSync(path.join(uploadPath, finalName))) {
+      finalName = `${baseName}(${counter})${ext}`;
+      counter++;
+    }
+
+    cb(null, finalName);
   },
 });
 

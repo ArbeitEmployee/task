@@ -310,7 +310,7 @@ Courseplayer.post("/:courseId/track-tutorial-time", async (req, res) => {
 });
 
 // Track video watch time in seconds
-// Track video watch time in seconds
+
 Courseplayer.post("/:courseId/track-video-time", async (req, res) => {
   try {
     const { contentItemId, secondsWatched, totalDuration } = req.body;

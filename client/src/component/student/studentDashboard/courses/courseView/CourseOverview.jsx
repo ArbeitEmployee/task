@@ -7,6 +7,7 @@ import {
   FiUsers,
   FiClock,
   FiBookOpen,
+  FiFile,
   FiChevronDown,
   FiChevronUp,
   FiVideo,
@@ -321,14 +322,61 @@ const CourseOverview = ({ courseId, setActiveView }) => {
 
         {/* Sidebar */}
         <div className="lg:col-span-1 space-y-6">
+          {course.attachments && course.attachments.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="font-semibold text-lg mb-4">Course Attachments</h3>
+              <div className="space-y-3">
+                {course.attachments.map((file) => (
+                  <div
+                    key={file._id}
+                    className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                  >
+                    <div className="flex items-center">
+                      <div className="p-2 bg-gray-100 rounded-lg mr-3">
+                        <FiFile className="text-gray-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{file.filename}</p>
+                        <p className="text-xs text-gray-500">
+                          {(file.size / (1024 * 1024)).toFixed(1)} MB
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Instructor Card */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-6">
             <h3 className="font-semibold text-lg mb-4">Instructor</h3>
             <div className="flex items-center">
-              <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center mr-4">
-                <span className="text-lg font-medium text-indigo-800">
-                  {instructor?.full_name?.charAt(0) || "I"}
-                </span>
+              <div className="w-12 h-12 rounded-full bg-indigo-100 overflow-hidden flex items-center justify-center mr-4">
+                {instructor?.profile_photo ? (
+                  <img
+                    src={`${base_url}/uploads/teachers/${instructor.profile_photo}`}
+                    alt={instructor.full_name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src =
+                        "https://images.unsplash.com/photo-1633332755192-727a05c4013d?ixlib=rb-1.2.1&auto=format&fit=crop&w=80&q=80";
+                    }}
+                  />
+                ) : (
+                  <svg
+                    className="w-6 h-6 text-gray-600"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                )}
               </div>
               <div>
                 <h4 className="font-medium text-gray-900">
