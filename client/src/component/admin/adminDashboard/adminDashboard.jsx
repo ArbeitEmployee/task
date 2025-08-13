@@ -12,6 +12,8 @@ import CourseCreator from "./courses/courseCreate";
 import CourseList from "./courses/courseList";
 import Category from "./courses/category";
 import CategoryList from "./courses/categoryList";
+import HeroForm from "./Home/HeroForm";
+import HeroModify from "./Home/HeroModify";
 
 const AdminDashboard = () => {
   const [activeView, setActiveView] = useState(() => {
@@ -32,6 +34,10 @@ const AdminDashboard = () => {
         return <SubadminCreate />;
       case "subadminList":
         return <SubadminList />;
+      case "createHero":
+        return <HeroForm />;
+      case "modifyHero":
+        return <HeroModify />;
       case "TeacherRegistration":
         return (
           <TeacherRegistration setNotificationCount={setNotificationCount} />

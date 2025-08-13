@@ -21,7 +21,7 @@ import {
   FiUser,
   FiUsers,
   FiCalendar,
-  FiAlertCircle,
+  FiAlertCircle
 } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
@@ -64,8 +64,8 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
     const token = localStorage.getItem("authToken");
     return {
       headers: {
-        Authorization: `Bearer ${token}`,
-      },
+        Authorization: `Bearer ${token}`
+      }
     };
   };
 
@@ -87,7 +87,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
           initialProgress[item._id] = {
             completed: item.completed || false,
             progress: item.progress || 0,
-            timeSpent: item.timeSpent || 0,
+            timeSpent: item.timeSpent || 0
           };
 
           if (item.type === "quiz" && item.answers) {
@@ -219,7 +219,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
             contentItemId: currentItem._id,
             secondsWatched: timeWatched,
             totalDuration: currentItem.duration || 0,
-            user_id: studentdata.id,
+            user_id: studentdata.id
           },
           getAuthHeaders()
         );
@@ -244,7 +244,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                 contentItemId: currentItem._id,
                 secondsWatched: timeWatched,
                 totalDuration: currentItem.duration || 0,
-                user_id: studentdata.id,
+                user_id: studentdata.id
               },
               getAuthHeaders()
             )
@@ -346,7 +346,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
             contentItemId: currentItem._id,
             secondsWatched: timeWatched,
             totalDuration: currentItem.duration || 0,
-            user_id: studentdata.id,
+            user_id: studentdata.id
           },
           getAuthHeaders()
         );
@@ -363,8 +363,8 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
         [currentItem._id]: {
           ...prev[currentItem._id],
           completed: true,
-          progress: 100,
-        },
+          progress: 100
+        }
       }));
     }
   };
@@ -381,7 +381,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
   const handleAnswerChange = (questionId, answer) => {
     setQuizAnswers((prev) => ({
       ...prev,
-      [questionId]: answer,
+      [questionId]: answer
     }));
   };
 
@@ -397,7 +397,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
           contentItemId: quiz._id,
           contentItemType: quiz.type,
           answers: quizAnswers,
-          user_id: studentdata.id,
+          user_id: studentdata.id
         },
         getAuthHeaders()
       );
@@ -428,8 +428,8 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
         [quiz._id]: {
           ...prev[quiz._id],
           completed: true,
-          progress: 100,
-        },
+          progress: 100
+        }
       }));
 
       toast.success(
@@ -606,13 +606,13 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                         if (!currentItem.duration) {
                           const updatedItem = {
                             ...currentItem,
-                            duration: e.target.duration,
+                            duration: e.target.duration
                           };
                           setCourse((prev) => ({
                             ...prev,
                             content: prev.content.map((item) =>
                               item._id === currentItem._id ? updatedItem : item
-                            ),
+                            )
                           }));
                         }
                       }}
@@ -628,8 +628,8 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                           [currentItem._id]: {
                             ...prev[currentItem._id],
                             completed: true,
-                            progress: 100,
-                          },
+                            progress: 100
+                          }
                         }));
                       }}
                     />
@@ -669,7 +669,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                       style={{
                         width: `${
                           (currentTime / (currentItem.duration || 1)) * 100
-                        }%`,
+                        }%`
                       }}
                     ></div>
                     <div className="absolute top-0 left-0 h-full w-full opacity-0 group-hover/progress:opacity-100">
@@ -825,7 +825,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                               day: "numeric",
                               year: "numeric",
                               hour: "2-digit",
-                              minute: "2-digit",
+                              minute: "2-digit"
                             }
                           )}
                         </span>

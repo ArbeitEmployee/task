@@ -9,7 +9,7 @@ const Teaceherrouter = require("./routes/Teacherrouter");
 const Studentrouter = require("./routes/Studentrouter");
 const Courserouter = require("./routes/Courserouter");
 const Courseplayer = require("./routes/coursePlayer");
-
+const heroSectionRoutes = require("./routes/heroSection");
 const app = express();
 const PORT = process.env.PORT || 3500;
 
@@ -32,6 +32,7 @@ app.use("/api/teacher", Teaceherrouter);
 app.use("/api/course", Courserouter);
 app.use("/api/course-player", Courseplayer);
 app.use(express.static("public"));
+app.use("/api/hero", heroSectionRoutes);
 // DB Connection
 connectDB();
 

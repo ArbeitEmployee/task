@@ -1,7 +1,11 @@
 import React, { useState } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate
+} from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-
 import AdminLogin from "./component/admin/adminLogin";
 import ForgotPassword from "./component/admin/ForgotPassword";
 import ResetPassword from "./component/admin/ResetPassword";
@@ -29,6 +33,7 @@ import CoursePlayer from "./component/student/studentDashboard/courses/courseVie
 import Editcourse from "./component/admin/adminDashboard/courses/Editcourse";
 import Studentpaper from "./component/teacher/teacherDashboard/paper/Studentpaper";
 import Liveclass from "./component/teacher/teacherDashboard/liveclass/Liveclass";
+import AppRoutes from "./component/Home/App";
 
 const isAuthenticated = () => {
   const token = localStorage.getItem("token");
@@ -50,7 +55,7 @@ const App = () => {
         position="top-center"
         containerStyle={{
           position: "fixed",
-          zIndex: 9999, // Higher than your modal's z-index
+          zIndex: 9999 // Higher than your modal's z-index
         }}
         toastOptions={{
           className:
@@ -62,94 +67,97 @@ const App = () => {
             boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
             borderRadius: "1rem",
             fontSize: "1rem",
-            padding: "1.2rem 1.5rem",
+            padding: "1.2rem 1.5rem"
           },
           success: {
             iconTheme: {
               primary: "#000",
-              secondary: "#ecfdf5",
-            },
+              secondary: "#ecfdf5"
+            }
           },
           error: {
             iconTheme: {
               primary: "#ef4444",
-              secondary: "#fef2f2",
-            },
-          },
+              secondary: "#fef2f2"
+            }
+          }
         }}
       />
-      <Routes>
-        <Route path="/admin" element={<AdminLogin />} />
+      <Router>
+        <Routes>
+          <Route path="/*" element={<AppRoutes />} />
+          <Route path="/admin" element={<AdminLogin />} />
 
-        <Route path="/admin/forgotPassword" element={<ForgotPassword />} />
-        <Route path="/admin/reset-password" element={<ResetPassword />} />
+          <Route path="/admin/forgotPassword" element={<ForgotPassword />} />
+          <Route path="/admin/reset-password" element={<ResetPassword />} />
 
-        <Route
-          path="/admin/dashboard"
-          element={
-            isAuthenticated() ? (
-              <AdminDashboard />
-            ) : (
-              <Navigate to="/admin" replace />
-            )
-          }
-        />
+          <Route
+            path="/admin/dashboard"
+            element={
+              isAuthenticated() ? (
+                <AdminDashboard />
+              ) : (
+                <Navigate to="/admin" replace />
+              )
+            }
+          />
 
-        {/* Teacher route */}
-        <Route
-          path="/teacher"
-          element={
-            <TeacherAuth authMode={authMode} setAuthMode={setAuthMode} />
-          }
-        />
-        <Route
-          path="/teacher/forgotPassword"
-          element={<ForgotPasswordTeacher setAuthMode={setAuthMode} />}
-        />
-        <Route
-          path="/teacher/reset-password"
-          element={<ResetPasswordTeacher />}
-        />
-        <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
-        {/* Student route */}
-        <Route
-          path="/student"
-          element={
-            <StudentAuth authMode={authMode} setAuthMode={setAuthMode} />
-          }
-        />
-        <Route
-          path="/student/forgotPassword"
-          element={<ForgotPasswordStudent setAuthMode={setAuthMode} />}
-        />
-        <Route
-          path="/student/reset-password"
-          element={<ResetPasswordStudent setAuthMode={setAuthMode} />}
-        />
-        <Route path="/student/dashboard" element={<StudentDashboard />} />
-        <Route path="/admin/courses/edit/:id" element={<Editcourse />} />
-        {/* ------------------------------teacher-all-route---------------------------------------- */}
-        <Route path="/teacher/courses/create" element={<CreateCourse />} />
-        <Route path="/teacher/course-list" element={<CourseList />} />
-        <Route path="/teacher/create-mcq" element={<Createmcq />} />
-        <Route path="/teacher/mcq-list" element={<Mcqlist />} />
-        <Route path="/teacher/create-question" element={<Createquestion />} />
-        <Route path="/teacher/question-list" element={<CQlist />} />
-        <Route path="/teacher/notifications" element={<Notification />} />
-        <Route path="/teacher/settings" element={<TeacherSettings />} />
-        <Route path="/teacher/student-paper" element={<Studentpaper />} />
-        <Route path="/teacher/live-class" element={<Liveclass />} />
-        {/* <Route path="/teacher/course-list" element={<CourseList />} /> */}
+          {/* Teacher route */}
+          <Route
+            path="/teacher"
+            element={
+              <TeacherAuth authMode={authMode} setAuthMode={setAuthMode} />
+            }
+          />
+          <Route
+            path="/teacher/forgotPassword"
+            element={<ForgotPasswordTeacher setAuthMode={setAuthMode} />}
+          />
+          <Route
+            path="/teacher/reset-password"
+            element={<ResetPasswordTeacher />}
+          />
+          <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
+          {/* Student route */}
+          <Route
+            path="/student"
+            element={
+              <StudentAuth authMode={authMode} setAuthMode={setAuthMode} />
+            }
+          />
+          <Route
+            path="/student/forgotPassword"
+            element={<ForgotPasswordStudent setAuthMode={setAuthMode} />}
+          />
+          <Route
+            path="/student/reset-password"
+            element={<ResetPasswordStudent setAuthMode={setAuthMode} />}
+          />
+          <Route path="/student/dashboard" element={<StudentDashboard />} />
+          <Route path="/admin/courses/edit/:id" element={<Editcourse />} />
+          {/* ------------------------------teacher-all-route---------------------------------------- */}
+          <Route path="/teacher/courses/create" element={<CreateCourse />} />
+          <Route path="/teacher/course-list" element={<CourseList />} />
+          <Route path="/teacher/create-mcq" element={<Createmcq />} />
+          <Route path="/teacher/mcq-list" element={<Mcqlist />} />
+          <Route path="/teacher/create-question" element={<Createquestion />} />
+          <Route path="/teacher/question-list" element={<CQlist />} />
+          <Route path="/teacher/notifications" element={<Notification />} />
+          <Route path="/teacher/settings" element={<TeacherSettings />} />
+          <Route path="/teacher/student-paper" element={<Studentpaper />} />
+          <Route path="/teacher/live-class" element={<Liveclass />} />
+          {/* <Route path="/teacher/course-list" element={<CourseList />} /> */}
 
-        {/* ------------------------------teacher-all-route---------------------------------------- */}
+          {/* ------------------------------teacher-all-route---------------------------------------- */}
 
-        {/* ----------------------------------student-all-route---------------------------------- */}
-        <Route
-          path="/student/course-overview/:id"
-          element={<CourseOverview />}
-        />
-        <Route path="/student/learn/:id" element={<CoursePlayer />} />
-      </Routes>
+          {/* ----------------------------------student-all-route---------------------------------- */}
+          <Route
+            path="/student/course-overview/:id"
+            element={<CourseOverview />}
+          />
+          <Route path="/student/learn/:id" element={<CoursePlayer />} />
+        </Routes>
+      </Router>
     </>
   );
 };

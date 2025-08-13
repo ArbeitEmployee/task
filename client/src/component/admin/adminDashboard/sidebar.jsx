@@ -61,6 +61,14 @@ const Sidebar = ({
   const baseNavItems = [
     { name: "dashboard", icon: <FiHome />, component: "dashboard" },
     {
+      name: "Homepage",
+      icon: <FiHome />,
+      children: [
+        { name: "Create Hero ", component: "createHero" },
+        { name: "Modify Hero ", component: "modifyHero" }
+      ]
+    },
+    {
       name: "Teachers",
       icon: <FiUsers />,
       children: [

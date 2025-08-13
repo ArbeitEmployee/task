@@ -6,7 +6,6 @@
   --color-theme_color: #101828;
 }
 * {
-  transition: all 0.2s ease;
   font-family: "Nunito", sans-serif;
 }
 input:focus,
