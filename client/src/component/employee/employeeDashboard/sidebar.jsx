@@ -1,147 +1,92 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from "react";
 import {
   FiHome,
   FiSettings,
   FiChevronLeft,
   FiChevronRight,
-  FiUsers,
-  FiBell,
   FiChevronDown,
   FiChevronUp,
   FiLogOut,
-  FiUser,
   FiLayers,
+  FiUsers,
   FiBook,
+  FiCalendar,
 } from "react-icons/fi";
 import axios from "axios";
 import { toast } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useAdmin } from "../../../context/useAdmin";
 
-const Sidebar = ({
-  activeView,
-  setActiveView,
-  notificationCount = 0,
-  setNotificationCount,
-}) => {
+const EmployeeSidebar = ({ activeView, setActiveView }) => {
   const base_url = import.meta.env.VITE_API_KEY_Base_URL;
   const [isOpen, setIsOpen] = useState(true);
+  const [employeeData, setEmployeeData] = useState({
+    username: "",
+    email: "",
+    phoneNumber: "",
+    avatarColor: "bg-gradient-to-r from-purple-500 to-pink-500",
+  });
+  const [loading, setLoading] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState({});
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const role = localStorage.getItem("role") || ""; // Default empty string
   const navigate = useNavigate();
-  const admin_info = JSON.parse(localStorage.getItem("admin") || "null"); // Safe parsing
-  const { userData = {}, loading, error, fetchUserProfile } = useAdmin();
-  const token = localStorage.getItem("token");
 
   useEffect(() => {
-    if (admin_info?._id && token) {
-      fetchUserProfile();
-    }
-  }, []);
-  useEffect(() => {
-    const fetchNotificationCount = async () => {
-      const response = await axios.get(
-        `${base_url}/api/admin/notifications/count`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      setNotificationCount(response.data.count);
+    const fetchEmployeeData = async () => {
+      try {
+        const token = localStorage.getItem("empToken");
+        if (!token) throw new Error("No token found");
+        const response = await axios.get(`${base_url}/api/employee/me`, {
+          headers: {
+            "x-auth-token": token,
+          },
+        });
+
+        const gradients = [
+          "bg-gradient-to-r from-purple-500 to-pink-500",
+          "bg-gradient-to-r from-blue-500 to-teal-400",
+          "bg-gradient-to-r from-amber-500 to-pink-500",
+          "bg-gradient-to-r from-emerald-500 to-blue-500",
+          "bg-gradient-to-r from-violet-500 to-fuchsia-500",
+        ];
+        const randomGradient =
+          gradients[Math.floor(Math.random() * gradients.length)];
+
+        setEmployeeData({
+          username: response.data.employee.username,
+          email: response.data.employee.email,
+          phoneNumber: response.data.employee.phoneNumber,
+          avatarColor: randomGradient,
+        });
+        setLoading(false);
+      } catch (err) {
+        toast.error("Failed to load employee data");
+        setLoading(false);
+      }
     };
-    // Initial fetch
-    fetchNotificationCount();
-    // Set up polling every 15 seconds
-    const intervalId = setInterval(fetchNotificationCount, 15000);
-    return () => clearInterval(intervalId);
-  }, [token, setNotificationCount]);
+
+    fetchEmployeeData();
+  }, []);
+
+  const employeeInitial = employeeData.username.charAt(0).toUpperCase();
 
   const baseNavItems = [
     { name: "dashboard", icon: <FiHome />, component: "dashboard" },
     {
-      name: "Homepage",
-      icon: <FiHome />,
-      children: [
-        { name: "Create Hero ", component: "createHero" },
-        { name: "Modify Hero ", component: "modifyHero" },
-      ],
-    },
-    {
-      name: "Teachers",
-      icon: <FiUsers />,
-      children: [
-        { name: "Create Teacher", component: "TeacherRegistration" },
-        { name: "Teachers List ", component: "teacherList" },
-      ],
-    },
-    {
-      name: "Students",
-      icon: <FiUsers />,
-      children: [
-        { name: "Create Student", component: "StudentRegistration" },
-        { name: "Students List", component: "studentList" },
-      ],
-    },
-    {
-      name: "Courses",
-      icon: <FiLayers />,
-      children: [
-        { name: "Create Category ", component: "createCategory" },
-        { name: "Modify & list Categories ", component: "modifyCategory" },
-        { name: "Create Courses", component: "createCourse" },
-        { name: "Course List", component: "courseList" },
-      ],
-    },
-    {
-      name: "Employees",
-      icon: <FiUser />,
-      children: [
-        { name: "Create Employee", component: "employeeRegistration" },
-        { name: "Employee List", component: "employeeList" },
-      ],
-    },
-    {
       name: "Consultancy",
       icon: <FiBook />,
-      children: [
-        { name: "Consultancy Mangement", component: "consultancyMangement" },
-      ],
+      children: [{ name: "My Consultancy", component: "myConsultancy" }],
     },
     {
-      name: "notifications",
-      icon: (
-        <div className="relative">
-          <FiBell />
-          {notificationCount > 0 && (
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs text-white"
-            >
-              {Math.min(notificationCount, 99)}
-            </motion.span>
-          )}
-        </div>
-      ),
-      component: "notifications",
+      name: "Schedule",
+      icon: <FiCalendar />,
+      component: "schedule",
     },
     { name: "settings", icon: <FiSettings />, component: "settings" },
   ];
 
-  // Safely add Subadmin menu only for Admins
-  if (role === "admin") {
-    baseNavItems.splice(1, 0, {
-      name: "subadmin",
-      icon: <FiUsers />,
-      children: [
-        { name: "create subadmin", component: "subadminCreate" },
-        { name: "list subadmin", component: "subadminList" },
-      ],
-    });
-  }
   const toggleMenu = (menuName) => {
     setExpandedMenus((prev) => ({
       ...prev,
@@ -161,16 +106,11 @@ const Sidebar = ({
   };
 
   const confirmLogout = () => {
-    // Remove all authentication-related items
     localStorage.removeItem("token");
-    localStorage.removeItem("admin");
-    localStorage.removeItem("role");
-    // Add this line to remove the active view
-    localStorage.removeItem("adminActiveView");
-
+    localStorage.removeItem("employeeData");
     toast.success("Logout successful!");
     setTimeout(() => {
-      navigate("/admin", { replace: true });
+      navigate("/employee/login", { replace: true });
     }, 800);
   };
 
@@ -189,24 +129,21 @@ const Sidebar = ({
             animate={{ opacity: 1, x: 0 }}
             className="text-xl font-bold text-black"
           >
-            {role === "admin" ? "Admin Portal" : "Sub Admin Portal"}
+            Employee Portal
           </motion.h1>
         ) : (
           <div
-            className={`w-8 h-8 rounded-full ${
-              userData?.avatarColor ||
-              (role === "admin" ? "bg-gray-800" : "bg-gray-900")
-            } text-white flex items-center justify-center font-bold shadow-md`}
+            className={`w-8 h-8 rounded-full ${employeeData.avatarColor} text-white flex items-center justify-center font-bold shadow-md`}
           >
-            {userData?.username?.charAt(0)?.toUpperCase() ||
-              (role === "admin" ? "A" : "S")}
+            {employeeInitial}
           </div>
         )}
+
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           onClick={handleToggleSidebar}
-          className="p-0.7 rounded-lg hover:bg-gray-200 cursor-pointer text-gray-600 transition-colors"
+          className="p-0.7 rounded-lg hover:bg-gray-200 text-gray-600 transition-colors"
         >
           {isOpen ? <FiChevronLeft /> : <FiChevronRight />}
         </motion.button>
@@ -223,9 +160,9 @@ const Sidebar = ({
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => toggleMenu(item.name)}
-                    className={`flex items-center cursor-pointer justify-between w-full mb-[10px] px-4 py-2.5 rounded-md ${
+                    className={`flex items-center justify-between w-full p-4 rounded-xl ${
                       expandedMenus[item.name]
-                        ? "bg-gray-300 text-gray-900"
+                        ? "bg-gray-200 text-gray-900"
                         : "text-gray-700 hover:bg-gray-200"
                     } transition-colors`}
                   >
@@ -260,7 +197,7 @@ const Sidebar = ({
                           <motion.li key={child.name} whileHover={{ x: 5 }}>
                             <button
                               onClick={() => setActiveView(child.component)}
-                              className={`text-sm py-2.5 cursor-pointer px-8 w-full text-left rounded-md transition-colors ${
+                              className={`text-sm py-2.5 px-8 w-full text-left rounded-md transition-colors ${
                                 activeView === child.component
                                   ? "bg-gray-800 text-white font-medium shadow-sm"
                                   : "text-gray-600 hover:bg-gray-100"
@@ -279,7 +216,7 @@ const Sidebar = ({
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setActiveView(item.component)}
-                  className={`flex items-center w-full px-4 cursor-pointer py-2.5 mb-[10px] rounded-md transition-all ${
+                  className={`flex items-center w-full p-4 rounded-xl transition-all ${
                     activeView === item.component
                       ? "bg-gray-900 text-white shadow-md"
                       : "text-gray-700 hover:bg-gray-200"
@@ -301,30 +238,26 @@ const Sidebar = ({
       </nav>
 
       {/* Footer Profile */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50">
+      <div className="p-4 border-t border-gray-200">
         <motion.div
-          className="flex items-center gap-3"
-          whileHover={{ scale: isOpen ? 1 : 1.02 }}
+          className="flex items-center"
+          whileHover={isOpen ? { scale: 1.005 } : {}}
         >
           <div
-            className={`w-10 h-10 rounded-full text-white flex items-center justify-center font-bold shadow-md flex-shrink-0 ${
-              userData?.avatarColor ||
-              (role === "admin" ? "bg-gray-800" : "bg-gray-900")
-            }`}
+            className={`w-10 h-10 rounded-full ${employeeData.avatarColor} text-white flex items-center justify-center font-bold shadow-md`}
           >
-            {userData?.username?.charAt(0)?.toUpperCase() ||
-              (role === "admin" ? "A" : "S")}
+            {employeeInitial}
           </div>
 
           {isOpen && (
             <motion.div
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="flex-1 min-w-0"
+              className="flex-1 min-w-0 ml-3"
             >
               <div className="flex items-center justify-between">
                 <p className="text-sm font-[700] text-gray-900 truncate">
-                  {userData?.username}
+                  {employeeData.username}
                 </p>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -337,12 +270,13 @@ const Sidebar = ({
                 </motion.button>
               </div>
               <p className="text-xs text-gray-600 font-[600] truncate mt-0.5">
-                {userData?.email || "No email found"}
+                {employeeData.email || "No email found"}
               </p>
             </motion.div>
           )}
         </motion.div>
       </div>
+
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
         <motion.div
@@ -398,4 +332,4 @@ const Sidebar = ({
   );
 };
 
-export default Sidebar;
+export default EmployeeSidebar;

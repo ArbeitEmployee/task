@@ -14,6 +14,9 @@ import Category from "./courses/category";
 import CategoryList from "./courses/categoryList";
 import HeroForm from "./Home/HeroForm";
 import HeroModify from "./Home/HeroModify";
+import EmployeeCreate from "./Employee/EmployeeCreate";
+import ConsultationManagement from "./consultancy/ConsultationManagement";
+import EmployeeList from "./Employee/EmployeeList";
 
 const AdminDashboard = () => {
   const [activeView, setActiveView] = useState(() => {
@@ -56,6 +59,12 @@ const AdminDashboard = () => {
         return <Category />;
       case "modifyCategory":
         return <CategoryList />;
+      case "employeeRegistration":
+        return <EmployeeCreate />;
+      case "employeeList":
+        return <EmployeeList />;
+      case "consultancyMangement":
+        return <ConsultationManagement />;
       case "notifications":
         return <Notifications setNotificationCount={setNotificationCount} />;
       case "settings":

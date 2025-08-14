@@ -3,7 +3,7 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  Navigate
+  Navigate,
 } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import AdminLogin from "./component/admin/adminLogin";
@@ -34,6 +34,8 @@ import Editcourse from "./component/admin/adminDashboard/courses/Editcourse";
 import Studentpaper from "./component/teacher/teacherDashboard/paper/Studentpaper";
 import Liveclass from "./component/teacher/teacherDashboard/liveclass/Liveclass";
 import AppRoutes from "./component/Home/App";
+import EmployeeLogin from "./component/employee/EmployeeLogin";
+import EmployeeDashboard from "./component/employee/employeeDashboard/employeeDashboard";
 
 const isAuthenticated = () => {
   const token = localStorage.getItem("token");
@@ -55,7 +57,7 @@ const App = () => {
         position="top-center"
         containerStyle={{
           position: "fixed",
-          zIndex: 9999 // Higher than your modal's z-index
+          zIndex: 9999, // Higher than your modal's z-index
         }}
         toastOptions={{
           className:
@@ -67,20 +69,20 @@ const App = () => {
             boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
             borderRadius: "1rem",
             fontSize: "1rem",
-            padding: "1.2rem 1.5rem"
+            padding: "1.2rem 1.5rem",
           },
           success: {
             iconTheme: {
               primary: "#000",
-              secondary: "#ecfdf5"
-            }
+              secondary: "#ecfdf5",
+            },
           },
           error: {
             iconTheme: {
               primary: "#ef4444",
-              secondary: "#fef2f2"
-            }
-          }
+              secondary: "#fef2f2",
+            },
+          },
         }}
       />
       <Router>
@@ -148,8 +150,9 @@ const App = () => {
           <Route path="/teacher/live-class" element={<Liveclass />} />
           {/* <Route path="/teacher/course-list" element={<CourseList />} /> */}
 
-          {/* ------------------------------teacher-all-route---------------------------------------- */}
-
+          {/* ------------------------------Employee-all-route---------------------------------------- */}
+          <Route path="/employee/login" element={<EmployeeLogin />} />
+          <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
           {/* ----------------------------------student-all-route---------------------------------- */}
           <Route
             path="/student/course-overview/:id"

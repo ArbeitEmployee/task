@@ -14,7 +14,8 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const Admin = require("../models/Admin");
-
+const Employee = require("../models/Employee");
+const Consultation = require("../models/Consultation");
 // Configure storage for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -1668,4 +1669,216 @@ Adminrouter.get(
     }
   }
 );
+
+// ---------------------------Employee Routes----------------------------
+
+Adminrouter.post(
+  "/employee",
+  authenticateToken,
+  authorizeSubAdmin,
+  async (req, res) => {
+    const { username, email, password, phoneNumber } = req.body;
+
+    // Validate input
+    if (!username || !email || !password || !phoneNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide all required fields",
+      });
+    }
+
+    try {
+      // Check if employee exists
+      let employee = await Employee.findOne({
+        $or: [{ email }, { username }, { phoneNumber }],
+      });
+
+      if (employee) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Employee with this email, username, or phone number already exists",
+        });
+      }
+
+      employee = new Employee({
+        username,
+        email,
+        password,
+        phoneNumber,
+      });
+
+      await employee.save();
+
+      res.status(201).json({
+        success: true,
+        message: "Employee created successfully",
+      });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).json({
+        success: false,
+        message: "Server Error",
+      });
+    }
+  }
+);
+Adminrouter.get(
+  "/employees",
+  authenticateToken,
+  authorizeSubAdmin,
+  async (req, res) => {
+    try {
+      const { status, username, email } = req.query;
+      const filter = {};
+
+      if (status) filter.status = status;
+      if (username) filter.username = username;
+      if (email) filter.email = email;
+
+      // Fetch employees with optional filters
+      const employees = await Employee.find(filter).sort({ createdAt: -1 });
+
+      res.json({
+        success: true,
+        count: employees.length,
+        data: employees,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({
+        success: false,
+        message: "Server error while fetching employees",
+      });
+    }
+  }
+);
+Adminrouter.delete(
+  "/employees/:id",
+  authenticateToken,
+  authorizeAdmin, // Only admin can delete employees
+  async (req, res) => {
+    try {
+      const employee = await Employee.findByIdAndDelete(req.params.id);
+
+      if (!employee) {
+        return res.status(404).json({
+          success: false,
+          message: "Employee not found",
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Employee deleted successfully",
+      });
+    } catch (err) {
+      console.error(err.message);
+
+      // Handle CastError for invalid ID format
+      if (err.name === "CastError") {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid employee ID",
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        message: "Server Error",
+      });
+    }
+  }
+);
+//----------------------------------Consultancy routes----------------------------------------
+Adminrouter.post("/consultancy", async (req, res) => {
+  try {
+    const consultation = await Consultation.create(req.body);
+
+    res.status(201).json({
+      success: true,
+      data: consultation,
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+});
+Adminrouter.get(
+  "/consultancy",
+  authenticateToken,
+  authorizeSubAdmin,
+  async (req, res) => {
+    try {
+      const consultations = await Consultation.find()
+        .populate("assignedTo", "username email phoneNumber")
+        .sort({ createdAt: -1 });
+
+      res.status(200).json({
+        success: true,
+        count: consultations.length,
+        data: consultations,
+      });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).json({
+        success: false,
+        message: "Server Error",
+      });
+    }
+  }
+);
+Adminrouter.put(
+  "/consultancy/:id/assign",
+  authenticateToken,
+  authorizeSubAdmin,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { employeeId } = req.body;
+
+      // Check if employee exists and is a consultant
+      const employee = await Employee.findOne({
+        _id: employeeId,
+        role: "consultant",
+      });
+
+      if (!employee) {
+        return res.status(404).json({
+          success: false,
+          message: "Consultant employee not found",
+        });
+      }
+
+      // Check if consultation exists
+      const consultation = await Consultation.findById(id);
+      if (!consultation) {
+        return res.status(404).json({
+          success: false,
+          message: "Consultation not found",
+        });
+      }
+
+      // Update consultation
+      consultation.assignedTo = employeeId;
+      consultation.status = "assigned";
+      await consultation.save();
+
+      res.status(200).json({
+        success: true,
+        data: consultation,
+      });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).json({
+        success: false,
+        message: "Server Error",
+      });
+    }
+  }
+);
+
 module.exports = Adminrouter;

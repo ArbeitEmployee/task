@@ -173,18 +173,7 @@ const Settings = () => {
         }
       );
 
-      toast.success("Password changed successfully!", {
-        style: {
-          background: "#fff",
-          color: "#000",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-        },
-        iconTheme: {
-          primary: "#000",
-          secondary: "#fff",
-        },
-      });
+      toast.success("Password changed successfully!");
       setPasswordData({
         currentPassword: "",
         newPassword: "",
@@ -192,18 +181,7 @@ const Settings = () => {
       });
       setShowPasswordChange(false);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to change password", {
-        style: {
-          background: "#fff",
-          color: "#000",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-        },
-        iconTheme: {
-          primary: "#ff0000", // bright red
-          secondary: "#ffffff", // white
-        },
-      });
+      toast.error(err.response?.data?.message || "Failed to change password");
     } finally {
       setLoading(false);
     }

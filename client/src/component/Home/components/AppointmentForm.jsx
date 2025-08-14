@@ -2,12 +2,34 @@
 import React, { useRef, useEffect, useState } from "react";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
+import axios from "axios";
+import { toast } from "react-hot-toast";
 const AppointmentForm = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
   const sectionRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    country: "",
+    countryOther: "",
+    studyLevel: "",
+    studyLevelOther: "",
+    intake: "",
+    intakeOther: "",
+    sponsor: "",
+    sponsorOther: "",
+    message: "",
+    status: "pending",
+    assignedTo: null,
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -33,33 +55,97 @@ const AppointmentForm = () => {
     "Diploma",
     "Language Course",
     "PhD",
-    "Other"
+    "Other",
   ];
   const intakes = [
     "September 2025",
     "January 2026",
     "May 2026",
     "September 2026",
-    "Other"
-  ];
-  const timeSlots = [
-    "12:00 - 12:30",
-    "12:30 - 01:00",
-    "03:00 - 03:30",
-    "03:30 - 04:00",
-    "04:00 - 04:30",
-    "04:30 - 05:00",
-    "05:00 - 05:30",
-    "05:30 - 06:00",
-    "06:00 - 06:30",
-    "06:30 - 07:00"
+    "Other",
   ];
   const sponsors = ["Self-Funded", "Guardian", "Scholarship", "Other"];
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    try {
+      // Prepare final data
+      const submissionData = {
+        ...formData,
+        country:
+          formData.country === "Other"
+            ? formData.countryOther
+            : formData.country,
+        studyLevel:
+          formData.studyLevel === "Other"
+            ? formData.studyLevelOther
+            : formData.studyLevel,
+        intake:
+          formData.intake === "Other" ? formData.intakeOther : formData.intake,
+        sponsor:
+          formData.sponsor === "Other"
+            ? formData.sponsorOther
+            : formData.sponsor,
+      };
+
+      // Remove the "Other" fields
+      delete submissionData.countryOther;
+      delete submissionData.studyLevelOther;
+      delete submissionData.intakeOther;
+      delete submissionData.sponsorOther;
+
+      const response = await axios.post(
+        "http://localhost:3500/api/admin/consultancy",
+        submissionData
+      );
+
+      if (response.data.success) {
+        setSubmitSuccess(true);
+        toast.success("Consultation request submitted successfully!");
+        // Reset form
+        setFormData({
+          fullName: "",
+          email: "",
+          phone: "",
+          country: "",
+          countryOther: "",
+          studyLevel: "",
+          studyLevelOther: "",
+          intake: "",
+          intakeOther: "",
+          sponsor: "",
+          sponsorOther: "",
+          message: "",
+          status: "pending",
+          assignedTo: null,
+        });
+      }
+    } catch (error) {
+      toast.error("Submission error:", error);
+      setSubmitError(
+        error.response?.data?.message ||
+          "Failed to submit form. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <section
       ref={sectionRef}
-      className={`py-40  transition-opacity duration-1000 ${
+      className={`py-34 transition-opacity duration-1000 ${
         isVisible ? "opacity-100" : "opacity-0"
       }`}
     >
@@ -86,210 +172,282 @@ const AppointmentForm = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Form Section */}
           <div
-            className={`bg-white p-8 rounded-2xl shadow-xl border border-gray-100 transition-all duration-700 delay-100 ${
-              isVisible
-                ? "opacity-100 translate-y-0"
-                : "opacity-0 translate-y-10"
+            className={`${
+              submitSuccess
+                ? "bg-white flex justify-center items-center h-full p-8 rounded-2xl shadow-xl border border-gray-100 transition-all duration-700 delay-100"
+                : "opacity-100 translate-y-0 bg-white p-8 rounded-2xl shadow-xl border border-gray-100 transition-all duration-700 delay-100"
             }`}
           >
-            <form className="space-y-6">
-              {/* Full Name */}
-              <div className="space-y-2">
-                <label
-                  htmlFor="fullName"
-                  className="text-sm font-medium text-gray-700"
+            {/* Success Message */}
+            {submitSuccess ? (
+              <div className="text-center py-10 flex flex-col justify-center items-center space-y-4">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-16 w-16 text-green-500 mx-auto mb-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
                 >
-                  Full Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="fullName"
-                  name="fullName"
-                  className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#004080] focus:border-transparent transition-all duration-300"
-                  placeholder="John Doe"
-                  required
-                />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  Thank You!
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Your consultation request has been submitted successfully.
+                </p>
               </div>
+            ) : (
+              <form className="space-y-6" onSubmit={handleSubmit}>
+                {/* Full Name */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="fullName"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="fullName"
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#004080] focus:border-gray-500 transition-all duration-300"
+                    placeholder="John Doe"
+                    required
+                  />
+                </div>
 
-              {/* Email */}
-              <div className="space-y-2">
-                <label
-                  htmlFor="email"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Email Address <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#004080] focus:border-transparent transition-all duration-300"
-                  placeholder="john@example.com"
-                  required
-                />
-              </div>
+                {/* Email */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="email"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#004080] focus:border-gray-500 transition-all duration-300"
+                    placeholder="john@example.com"
+                    required
+                  />
+                </div>
 
-              {/* Phone */}
-              <div className="space-y-2">
-                <label
-                  htmlFor="phone"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Phone Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#004080] focus:border-transparent transition-all duration-300"
-                  placeholder="+880 1234 567890"
-                  required
-                />
-              </div>
+                {/* Phone */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="phone"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#004080] focus:border-gray-500 transition-all duration-300"
+                    placeholder="+880 1234 567890"
+                    required
+                  />
+                </div>
 
-              {/* Country */}
-              <div className="space-y-2">
-                <label
-                  htmlFor="country"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Preferred Country <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="country"
-                  name="country"
-                  className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#004080] focus:border-transparent transition-all duration-300 appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiAjdjQgdjYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSI+PC9wb2x5bGluZT48L3N2Zz4=')] bg-no-repeat bg-[center_right_1rem] bg-[length:1.5rem]"
-                  required
-                >
-                  <option value="">Select Country</option>
-                  {countries.map((country) => (
-                    <option key={country} value={country}>
-                      {country}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                {/* Country */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="country"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Preferred Country <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="country"
+                    name="country"
+                    value={formData.country}
+                    onChange={handleChange}
+                    className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#004080] transition-all duration-300 appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiAjdjQgdjYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSI+PC9wb2x5bGluZT48L3N2Zz4=')] bg-no-repeat bg-[center_right_1rem] bg-[length:1.5rem]"
+                    required
+                  >
+                    <option value="">Select Country</option>
+                    {countries.map((country) => (
+                      <option key={country} value={country}>
+                        {country}
+                      </option>
+                    ))}
+                  </select>
+                  {formData.country === "Other" && (
+                    <input
+                      type="text"
+                      name="countryOther"
+                      value={formData.countryOther}
+                      onChange={handleChange}
+                      className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#004080] transition-all duration-300 mt-2"
+                      placeholder="Please specify country"
+                      required
+                    />
+                  )}
+                </div>
 
-              {/* Study Level */}
-              <div className="space-y-2">
-                <label
-                  htmlFor="studyLevel"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Study Level <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="studyLevel"
-                  name="studyLevel"
-                  className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#004080] focus:border-transparent transition-all duration-300 appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiAjdjQgdjYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSI+PC9wb2x5bGluZT48L3N2Zz4=')] bg-no-repeat bg-[center_right_1rem] bg-[length:1.5rem]"
-                  required
-                >
-                  <option value="">Select Study Level</option>
-                  {studyLevels.map((level) => (
-                    <option key={level} value={level}>
-                      {level}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                {/* Study Level */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="studyLevel"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Study Level <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="studyLevel"
+                    name="studyLevel"
+                    value={formData.studyLevel}
+                    onChange={handleChange}
+                    className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#004080]  transition-all duration-300 appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiAjdjQgdjYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSI+PC9wb2x5bGluZT48L3N2Zz4=')] bg-no-repeat bg-[center_right_1rem] bg-[length:1.5rem]"
+                    required
+                  >
+                    <option value="">Select Study Level</option>
+                    {studyLevels.map((level) => (
+                      <option key={level} value={level}>
+                        {level}
+                      </option>
+                    ))}
+                  </select>
+                  {formData.studyLevel === "Other" && (
+                    <input
+                      type="text"
+                      name="studyLevelOther"
+                      value={formData.studyLevelOther}
+                      onChange={handleChange}
+                      className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#004080]  transition-all duration-300 mt-2"
+                      placeholder="Please specify study level"
+                      required
+                    />
+                  )}
+                </div>
 
-              {/* Intake */}
-              <div className="space-y-2">
-                <label
-                  htmlFor="intake"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Intended Intake <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="intake"
-                  name="intake"
-                  className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#004080] focus:border-transparent transition-all duration-300 appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiAjdjQgdjYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSI+PC9wb2x5bGluZT48L3N2Zz4=')] bg-no-repeat bg-[center_right_1rem] bg-[length:1.5rem]"
-                  required
-                >
-                  <option value="">Select Intake</option>
-                  {intakes.map((intake) => (
-                    <option key={intake} value={intake}>
-                      {intake}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                {/* Intake */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="intake"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Intended Intake <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="intake"
+                    name="intake"
+                    value={formData.intake}
+                    onChange={handleChange}
+                    className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#004080] transition-all duration-300 appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiAjdjQgdjYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSI+PC9wb2x5bGluZT48L3N2Zz4=')] bg-no-repeat bg-[center_right_1rem] bg-[length:1.5rem]"
+                    required
+                  >
+                    <option value="">Select Intake</option>
+                    {intakes.map((intake) => (
+                      <option key={intake} value={intake}>
+                        {intake}
+                      </option>
+                    ))}
+                  </select>
+                  {formData.intake === "Other" && (
+                    <input
+                      type="text"
+                      name="intakeOther"
+                      value={formData.intakeOther}
+                      onChange={handleChange}
+                      className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#004080]  transition-all duration-300 mt-2"
+                      placeholder="Please specify intake"
+                      required
+                    />
+                  )}
+                </div>
 
-              {/* Time Slot */}
-              <div className="space-y-2">
-                <label
-                  htmlFor="timeSlot"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Preferred Time Slot <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="timeSlot"
-                  name="timeSlot"
-                  className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#004080] focus:border-transparent transition-all duration-300 appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiAjdjQgdjYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSI+PC9wb2x5bGluZT48L3N2Zz4=')] bg-no-repeat bg-[center_right_1rem] bg-[length:1.5rem]"
-                  required
-                >
-                  <option value="">Select Time Slot</option>
-                  {timeSlots.map((slot) => (
-                    <option key={slot} value={slot}>
-                      {slot}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                {/* Sponsor */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="sponsor"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Sponsor <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="sponsor"
+                    name="sponsor"
+                    value={formData.sponsor}
+                    onChange={handleChange}
+                    className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#004080] transition-all duration-300 appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiAjdjQgdjYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSI+PC9wb2x5bGluZT48L3N2Zz4=')] bg-no-repeat bg-[center_right_1rem] bg-[length:1.5rem]"
+                    required
+                  >
+                    <option value="">Select Sponsor</option>
+                    {sponsors.map((sponsor) => (
+                      <option key={sponsor} value={sponsor}>
+                        {sponsor}
+                      </option>
+                    ))}
+                  </select>
+                  {formData.sponsor === "Other" && (
+                    <input
+                      type="text"
+                      name="sponsorOther"
+                      value={formData.sponsorOther}
+                      onChange={handleChange}
+                      className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#004080] transition-all duration-300 mt-2"
+                      placeholder="Please specify sponsor"
+                      required
+                    />
+                  )}
+                </div>
 
-              {/* Sponsor */}
-              <div className="space-y-2">
-                <label
-                  htmlFor="sponsor"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Sponsor <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="sponsor"
-                  name="sponsor"
-                  className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#004080] focus:border-transparent transition-all duration-300 appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiAjdjQgdjYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSI+PC9wb2x5bGluZT48L3N2Zz4=')] bg-no-repeat bg-[center_right_1rem] bg-[length:1.5rem]"
-                  required
-                >
-                  <option value="">Select Sponsor</option>
-                  {sponsors.map((sponsor) => (
-                    <option key={sponsor} value={sponsor}>
-                      {sponsor}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                {/* Message */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="message"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Additional Message (Optional)
+                  </label>
+                  <textarea
+                    id="message"
+                    name="message"
+                    rows="3"
+                    value={formData.message}
+                    onChange={handleChange}
+                    className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#004080] focus:border-gray-500 transition-all duration-300"
+                    placeholder="Tell us more about your requirements..."
+                  ></textarea>
+                </div>
 
-              {/* Message */}
-              <div className="space-y-2">
-                <label
-                  htmlFor="message"
-                  className="text-sm font-medium text-gray-700"
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full bg-[#ffd700] text-black py-4 px-6 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:opacity-90 transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  Additional Message (Optional)
-                </label>
-                <textarea
-                  id="message"
-                  name="message"
-                  rows="3"
-                  className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#004080] focus:border-transparent transition-all duration-300"
-                  placeholder="Tell us more about your requirements..."
-                ></textarea>
-              </div>
+                  {isSubmitting
+                    ? "Submitting..."
+                    : "Book Your Free Consultation"}
+                </button>
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                className="w-full bg-[#ffd700] text-black py-4 px-6 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:opacity-90 transition-all duration-300 transform hover:-translate-y-1"
-              >
-                Book Your Free Consultation
-              </button>
-            </form>
+                {submitError && (
+                  <div className="text-red-500 text-center mt-4">
+                    {submitError}
+                  </div>
+                )}
+              </form>
+            )}
           </div>
 
-          {/* Info Section */}
+          {/* Info Section (same as before) */}
           <div
             className={`space-y-8 transition-all duration-700 delay-200 ${
               isVisible
@@ -322,7 +480,7 @@ const AppointmentForm = () => {
                   "University shortlisting with best-fit recommendations",
                   "Visa process guidance for your destination",
                   "Scholarship and funding opportunity insights",
-                  "Application strategy and document review"
+                  "Application strategy and document review",
                 ].map((item, index) => (
                   <li key={index} className="flex items-start">
                     <svg
@@ -366,8 +524,7 @@ const AppointmentForm = () => {
                 {[
                   ["Duration", "30 minutes (extendable if needed)"],
                   ["Available Days", "Saturday to Thursday (Friday closed)"],
-                  ["Time Slots", "12:00 PM - 07:00 PM (10 slots daily)"],
-                  ["Preparation", "Have academic documents and passport ready"]
+                  ["Preparation", "Have academic documents and passport ready"],
                 ].map(([title, desc], index) => (
                   <div key={index} className="flex">
                     <div className="bg-[#004080]/10 p-2 rounded-lg mr-4">

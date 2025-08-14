@@ -10,6 +10,7 @@ const Studentrouter = require("./routes/Studentrouter");
 const Courserouter = require("./routes/Courserouter");
 const Courseplayer = require("./routes/coursePlayer");
 const heroSectionRoutes = require("./routes/heroSection");
+const employeeRoutes = require("./routes/Employee");
 const app = express();
 const PORT = process.env.PORT || 3500;
 
@@ -18,7 +19,7 @@ const corsOptions = {
   origin: ["http://localhost:5173", "http://localhost:5174"], // Allow only this origin
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   credentials: true, // Allow cookies/session to be sent
-  optionsSuccessStatus: 204 // For legacy browser support
+  optionsSuccessStatus: 204, // For legacy browser support
 };
 
 // Middleware
@@ -33,6 +34,7 @@ app.use("/api/course", Courserouter);
 app.use("/api/course-player", Courseplayer);
 app.use(express.static("public"));
 app.use("/api/hero", heroSectionRoutes);
+app.use("/api/employee", employeeRoutes);
 // DB Connection
 connectDB();
 

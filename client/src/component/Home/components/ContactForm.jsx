@@ -26,9 +26,9 @@ const ContactForm = () => {
       opacity: 1,
       transition: {
         staggerChildren: 0.2,
-        when: "beforeChildren"
-      }
-    }
+        when: "beforeChildren",
+      },
+    },
   };
 
   const itemVariants = {
@@ -38,9 +38,9 @@ const ContactForm = () => {
       opacity: 1,
       transition: {
         duration: 0.6,
-        ease: "easeOut"
-      }
-    }
+        ease: "easeOut",
+      },
+    },
   };
 
   const formItemVariants = {
@@ -50,9 +50,9 @@ const ContactForm = () => {
       opacity: 1,
       transition: {
         duration: 0.5,
-        ease: "backOut"
-      }
-    }
+        ease: "backOut",
+      },
+    },
   };
 
   return (
@@ -188,29 +188,6 @@ const ContactForm = () => {
                 <div>
                   <strong>Email:</strong>
                   <p>northernlightsic22@gmail.com</p>
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              className="bg-white p-6 rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300"
-              variants={itemVariants}
-            >
-              <h3 className="text-xl font-bold mb-4 text-black">
-                Office Hours
-              </h3>
-              <div className="text-black text-sm space-y-2">
-                <div className="flex justify-between">
-                  <span>Saturday - Thursday</span>
-                  <span className="bg-[#ffd700] text-[#004080] px-3 py-1 rounded-full text-xs font-medium">
-                    12:00 PM - 07:00 PM
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Friday</span>
-                  <span className="bg-gray-200 text-gray-800 px-3 py-1 rounded-full text-xs font-medium">
-                    Closed
-                  </span>
                 </div>
               </div>
             </motion.div>

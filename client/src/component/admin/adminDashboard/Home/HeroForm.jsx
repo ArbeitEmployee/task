@@ -6,9 +6,9 @@ import toast from "react-hot-toast";
 
 const HeroForm = () => {
   const [heroItems, setHeroItems] = useState([
-    { description: "", image: null }
+    { description: "", image: null },
   ]);
-  const [errors, setErrors] = useState([]);
+  const [errors, setErrors] = useState({ description: "", image: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileSizeError, setFileSizeError] = useState(false);
 
@@ -18,6 +18,9 @@ const HeroForm = () => {
     const newHeroItems = [...heroItems];
     newHeroItems[index].description = e.target.value;
     setHeroItems(newHeroItems);
+
+    // Clear error when typing
+    setErrors((prev) => ({ ...prev, description: "" }));
   };
 
   const handleFileChange = (index, e) => {
@@ -33,6 +36,9 @@ const HeroForm = () => {
     const newHeroItems = [...heroItems];
     newHeroItems[index].image = file;
     setHeroItems(newHeroItems);
+
+    // Clear error when a valid file is uploaded
+    setErrors((prev) => ({ ...prev, image: "" }));
   };
 
   const removeHeroItem = (index) => {
@@ -43,22 +49,28 @@ const HeroForm = () => {
 
   const resetForm = () => {
     setHeroItems([{ description: "", image: null }]);
-    setErrors([]);
+    setErrors({ description: "", image: "" });
     setFileSizeError(false);
   };
 
+  // Custom validation for the hero form
   const validateForm = () => {
-    const newErrors = [];
+    const newErrors = { description: "", image: "" };
+
     heroItems.forEach((item, index) => {
       if (!item.description.trim()) {
-        newErrors.push(`Description for Hero Item ${index + 1} is required`);
+        newErrors.description = `Description for Hero Item ${
+          index + 1
+        } is required`;
       }
+
       if (!item.image) {
-        newErrors.push(`Image for Hero Item ${index + 1} is required`);
+        newErrors.image = `Image for Hero Item ${index + 1} is required`;
       }
     });
+
     setErrors(newErrors);
-    return newErrors.length === 0;
+    return newErrors.description === "" && newErrors.image === "";
   };
 
   const handleSubmit = async (e) => {
@@ -74,7 +86,7 @@ const HeroForm = () => {
       try {
         const response = await fetch("http://localhost:3500/api/hero/upload", {
           method: "POST",
-          body: formData
+          body: formData,
         });
 
         if (!response.ok) {
@@ -109,23 +121,6 @@ const HeroForm = () => {
 
       <div className="w-full">
         <form onSubmit={handleSubmit} className="mx-auto">
-          {errors.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-8 p-4 bg-red-50 rounded-lg border border-red-200"
-            >
-              <h3 className="text-sm font-medium text-red-800">
-                Please fix the following errors:
-              </h3>
-              <ul className="mt-2 text-sm text-red-700 list-disc pl-5 space-y-1">
-                {errors.map((error, index) => (
-                  <li key={index}>{error}</li>
-                ))}
-              </ul>
-            </motion.div>
-          )}
-
           <div className="space-y-8">
             {heroItems.map((item, index) => (
               <motion.div
@@ -159,6 +154,7 @@ const HeroForm = () => {
                   </div>
 
                   <div className="mt-6 space-y-6">
+                    {/* Description Field */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Description *
@@ -168,11 +164,21 @@ const HeroForm = () => {
                         value={item.description}
                         onChange={(e) => handleDescriptionChange(index, e)}
                         placeholder="Enter a compelling description for your hero section..."
-                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-gray-500 transition-all shadow-sm"
+                        className={`w-full px-4 py-3 rounded-lg border ${
+                          errors.description
+                            ? "border-red-500"
+                            : "border-gray-300"
+                        } focus:border-gray-500 transition-all shadow-sm`}
                         rows="4"
                       />
+                      {errors.description && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {errors.description}
+                        </p>
+                      )}
                     </div>
 
+                    {/* Image Field */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Hero Image *
@@ -227,7 +233,7 @@ const HeroForm = () => {
                               type="button"
                               onClick={() => {
                                 handleFileChange(index, {
-                                  target: { files: [] }
+                                  target: { files: [] },
                                 });
                                 setFileSizeError(false);
                               }}
@@ -296,6 +302,11 @@ const HeroForm = () => {
                           </label>
                         )}
                       </div>
+                      {errors.image && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {errors.image}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

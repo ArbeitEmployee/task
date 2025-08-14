@@ -24,8 +24,8 @@ const Career = () => {
               start: "top top",
               end: "+=300",
               scrub: 0.6,
-              invalidateOnRefresh: true
-            }
+              invalidateOnRefresh: true,
+            },
           }
         );
       });
@@ -42,8 +42,8 @@ const Career = () => {
               start: "top top",
               end: "+=400",
               scrub: 0.6,
-              invalidateOnRefresh: true
-            }
+              invalidateOnRefresh: true,
+            },
           }
         );
       });
@@ -59,13 +59,13 @@ const Career = () => {
     email: "",
     phone: "",
     position: "General Application",
-    file: null
+    file: null,
   });
   const [submitted, setSubmitted] = useState(false);
   const [showCvDrop, setShowCvDrop] = useState(false);
   const [ref, inView] = useInView({
     threshold: 0.1,
-    triggerOnce: true
+    triggerOnce: true,
   });
 
   const formRef = useRef(null);
@@ -74,7 +74,7 @@ const Career = () => {
     const { name, value, files } = e.target;
     setFormData({
       ...formData,
-      [name]: files ? files[0] : value
+      [name]: files ? files[0] : value,
     });
   };
 
@@ -88,7 +88,7 @@ const Career = () => {
       email: "",
       phone: "",
       position: "General Application",
-      file: null
+      file: null,
     });
     setTimeout(() => setSubmitted(false), 5000);
   };
@@ -104,23 +104,23 @@ const Career = () => {
     {
       role: "Visa Processing Officer",
       department: "Operations",
-      deadline: "Aug 31, 2025"
+      deadline: "Aug 31, 2025",
     },
     {
       role: "IELTS Instructor",
       department: "Academics",
-      deadline: "Sept 15, 2025"
+      deadline: "Sept 15, 2025",
     },
     {
       role: "Student Counselor",
       department: "Admissions",
-      deadline: "Sept 30, 2025"
+      deadline: "Sept 30, 2025",
     },
     {
       role: "Marketing Specialist",
       department: "Marketing",
-      deadline: "Oct 15, 2025"
-    }
+      deadline: "Oct 15, 2025",
+    },
   ];
 
   // Animation variants
@@ -130,9 +130,9 @@ const Career = () => {
       opacity: 1,
       transition: {
         staggerChildren: 0.1,
-        when: "beforeChildren"
-      }
-    }
+        when: "beforeChildren",
+      },
+    },
   };
 
   const itemVariants = {
@@ -143,9 +143,9 @@ const Career = () => {
       transition: {
         type: "spring",
         stiffness: 100,
-        damping: 10
-      }
-    }
+        damping: 10,
+      },
+    },
   };
 
   const fadeIn = {
@@ -153,14 +153,14 @@ const Career = () => {
     visible: {
       opacity: 1,
       transition: {
-        duration: 0.6
-      }
-    }
+        duration: 0.6,
+      },
+    },
   };
 
   // Floating CV Drop Button Component
   const FloatingCvDrop = () => (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-6 left-6 z-50">
       <motion.button
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
@@ -189,7 +189,7 @@ const Career = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
-          className="absolute bottom-16 right-0 w-80 bg-white rounded-lg shadow-xl p-4"
+          className="absolute bottom-16 left-0 w-80 bg-white rounded-lg shadow-xl p-4"
         >
           <div className="flex justify-between items-center">
             <h3 className="font-bold text-lg mb-2 text-gray-800">
@@ -343,7 +343,7 @@ const Career = () => {
                 ),
                 title: "Flexible Work Options",
                 description:
-                  "Remote and hybrid work arrangements to suit your lifestyle"
+                  "Remote and hybrid work arrangements to suit your lifestyle",
               },
               {
                 icon: (
@@ -364,7 +364,7 @@ const Career = () => {
                 ),
                 title: "Professional Development",
                 description:
-                  "$1,000 annual fund for courses, certifications, and conferences"
+                  "$1,000 annual fund for courses, certifications, and conferences",
               },
               {
                 icon: (
@@ -384,8 +384,8 @@ const Career = () => {
                   </svg>
                 ),
                 title: "Top Rated Workplace",
-                description: "4.8/5 Glassdoor rating from our team members"
-              }
+                description: "4.8/5 Glassdoor rating from our team members",
+              },
             ].map((feature, index) => (
               <motion.div
                 key={index}
