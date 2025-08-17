@@ -14,6 +14,7 @@ import {
   FiUser,
   FiLayers,
   FiBook,
+  FiGlobe
 } from "react-icons/fi";
 import axios from "axios";
 import { toast } from "react-hot-toast";
@@ -25,7 +26,7 @@ const Sidebar = ({
   activeView,
   setActiveView,
   notificationCount = 0,
-  setNotificationCount,
+  setNotificationCount
 }) => {
   const base_url = import.meta.env.VITE_API_KEY_Base_URL;
   const [isOpen, setIsOpen] = useState(true);
@@ -47,7 +48,7 @@ const Sidebar = ({
       const response = await axios.get(
         `${base_url}/api/admin/notifications/count`,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token}` }
         }
       );
       setNotificationCount(response.data.count);
@@ -66,24 +67,24 @@ const Sidebar = ({
       icon: <FiHome />,
       children: [
         { name: "Create Hero ", component: "createHero" },
-        { name: "Modify Hero ", component: "modifyHero" },
-      ],
+        { name: "Modify Hero ", component: "modifyHero" }
+      ]
     },
     {
       name: "Teachers",
       icon: <FiUsers />,
       children: [
         { name: "Create Teacher", component: "TeacherRegistration" },
-        { name: "Teachers List ", component: "teacherList" },
-      ],
+        { name: "Teachers List ", component: "teacherList" }
+      ]
     },
     {
       name: "Students",
       icon: <FiUsers />,
       children: [
         { name: "Create Student", component: "StudentRegistration" },
-        { name: "Students List", component: "studentList" },
-      ],
+        { name: "Students List", component: "studentList" }
+      ]
     },
     {
       name: "Courses",
@@ -92,23 +93,28 @@ const Sidebar = ({
         { name: "Create Category ", component: "createCategory" },
         { name: "Modify & list Categories ", component: "modifyCategory" },
         { name: "Create Courses", component: "createCourse" },
-        { name: "Course List", component: "courseList" },
-      ],
+        { name: "Course List", component: "courseList" }
+      ]
     },
     {
       name: "Employees",
       icon: <FiUser />,
       children: [
         { name: "Create Employee", component: "employeeRegistration" },
-        { name: "Employee List", component: "employeeList" },
-      ],
+        { name: "Employee List", component: "employeeList" }
+      ]
     },
     {
       name: "Consultancy",
       icon: <FiBook />,
       children: [
-        { name: "Consultancy Mangement", component: "consultancyMangement" },
-      ],
+        { name: "Consultancy Mangement", component: "consultancyMangement" }
+      ]
+    },
+    {
+      name: "Visa Processing",
+      icon: <FiGlobe />,
+      children: [{ name: "Visa Requests", component: "visaRequests" }]
     },
     {
       name: "notifications",
@@ -126,9 +132,9 @@ const Sidebar = ({
           )}
         </div>
       ),
-      component: "notifications",
+      component: "notifications"
     },
-    { name: "settings", icon: <FiSettings />, component: "settings" },
+    { name: "settings", icon: <FiSettings />, component: "settings" }
   ];
 
   // Safely add Subadmin menu only for Admins
@@ -138,14 +144,14 @@ const Sidebar = ({
       icon: <FiUsers />,
       children: [
         { name: "create subadmin", component: "subadminCreate" },
-        { name: "list subadmin", component: "subadminList" },
-      ],
+        { name: "list subadmin", component: "subadminList" }
+      ]
     });
   }
   const toggleMenu = (menuName) => {
     setExpandedMenus((prev) => ({
       ...prev,
-      [menuName]: !prev[menuName],
+      [menuName]: !prev[menuName]
     }));
   };
 

@@ -7,6 +7,8 @@ import MyCourses from "./courses/myCOurses";
 import axios from "axios";
 import CourseOverview from "./courses/courseView/CourseOverview";
 import CoursePlayer from "./courses/courseView/CoursePlayer";
+import VisaStatus from "./visa/VisaStatus";
+import VisaRequestForm from "./visa/VisaRequestForm";
 
 const StudentDashboard = () => {
   // Initialize state with proper structure from localStorage
@@ -31,8 +33,8 @@ const StudentDashboard = () => {
             `${import.meta.env.VITE_API_KEY_Base_URL}/api/student/cart`,
             {
               headers: {
-                Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
-              },
+                Authorization: `Bearer ${localStorage.getItem("studentToken")}`
+              }
             }
           );
 
@@ -105,6 +107,10 @@ const StudentDashboard = () => {
             setActiveView={setActiveView}
           />
         );
+      case "visaRequest":
+        return <VisaRequestForm setActiveView={setActiveView} />;
+      case "visaStatus":
+        return <VisaStatus setActiveView={setActiveView} />;
       default:
         return (
           <div className="p-6">

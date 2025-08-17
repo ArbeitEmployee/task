@@ -6,11 +6,11 @@ import {
   FiSettings,
   FiChevronLeft,
   FiChevronRight,
-  FiBell,
+  FiGlobe,
   FiChevronDown,
   FiChevronUp,
   FiLogOut,
-  FiLayers,
+  FiLayers
 } from "react-icons/fi";
 import axios from "axios";
 import { toast } from "react-hot-toast";
@@ -26,7 +26,7 @@ const Sidebar = ({ activeView, setActiveView }) => {
     name: "",
     email: "",
     avatarColor: "bg-gradient-to-r from-purple-500 to-pink-500",
-    profile_picture: null,
+    profile_picture: null
   });
   const [loading, setLoading] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState({});
@@ -41,8 +41,8 @@ const Sidebar = ({ activeView, setActiveView }) => {
           `${base_url}/api/student/profile/${studentdata.id}`, // Use your actual backend URL
           {
             headers: {
-              Authorization: `Bearer ${studentToken}`,
-            },
+              Authorization: `Bearer ${studentToken}`
+            }
           }
         );
 
@@ -51,7 +51,7 @@ const Sidebar = ({ activeView, setActiveView }) => {
           "bg-gradient-to-r from-blue-500 to-teal-400",
           "bg-gradient-to-r from-amber-500 to-pink-500",
           "bg-gradient-to-r from-emerald-500 to-blue-500",
-          "bg-gradient-to-r from-violet-500 to-fuchsia-500",
+          "bg-gradient-to-r from-violet-500 to-fuchsia-500"
         ];
         const randomGradient =
           gradients[Math.floor(Math.random() * gradients.length)];
@@ -62,7 +62,7 @@ const Sidebar = ({ activeView, setActiveView }) => {
           avatarColor: randomGradient,
           profile_picture: response.data.student.profile_picture, // Add this line
           // Add additional student data you want to display
-          ...response.data.student,
+          ...response.data.student
         });
 
         setLoading(false);
@@ -85,16 +85,24 @@ const Sidebar = ({ activeView, setActiveView }) => {
       children: [
         { name: "Course List", component: "courseList" },
         { name: "Course Cart", component: "cart" },
-        { name: "My Courses", component: "myCourses" },
-      ],
+        { name: "My Courses", component: "myCourses" }
+      ]
     },
-    { name: "settings", icon: <FiSettings />, component: "settings" },
+    {
+      name: "Visa Processing",
+      icon: <FiGlobe />,
+      children: [
+        { name: "Request Visa", component: "visaRequest" },
+        { name: "Visa Status", component: "visaStatus" }
+      ]
+    },
+    { name: "settings", icon: <FiSettings />, component: "settings" }
   ];
 
   const toggleMenu = (menuName) => {
     setExpandedMenus((prev) => ({
       ...prev,
-      [menuName]: !prev[menuName],
+      [menuName]: !prev[menuName]
     }));
   };
 

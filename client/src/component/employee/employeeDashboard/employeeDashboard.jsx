@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Sidebar from "./sidebar";
 import Settings from "./settings";
 import EmployeeConsultationManagement from "./consultancy/EmployeeConsultationManagement";
+import VisaManagement from "./visa/VisaManagement";
 
 const EmployeeDashboard = () => {
   // Initialize state with proper structure from localStorage
@@ -30,6 +31,8 @@ const EmployeeDashboard = () => {
     switch (currentView) {
       case "myConsultancy":
         return <EmployeeConsultationManagement />;
+      case "visaManagement":
+        return <VisaManagement />;
       case "settings":
         return <Settings />;
       default:

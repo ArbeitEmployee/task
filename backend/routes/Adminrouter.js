@@ -4,7 +4,7 @@ const {
   authenticateToken,
   authorizeAdmin,
   authorizeSubAdmin,
-  checkAccountStatus,
+  checkAccountStatus
 } = require("../middleware/auth"); // Update the path accordingly
 const Teacher = require("../models/Teacher");
 const bcrypt = require("bcryptjs");
@@ -16,6 +16,8 @@ const fs = require("fs");
 const Admin = require("../models/Admin");
 const Employee = require("../models/Employee");
 const Consultation = require("../models/Consultation");
+const VisaRequest = require("../models/VisaRequest");
+const uploads = require("../utils/upload");
 // Configure storage for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -40,12 +42,12 @@ const storage = multer.diskStorage({
     }
 
     cb(null, finalName);
-  },
+  }
 });
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
+  limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit
 });
 
 Adminrouter.get("/profile/:id", authenticateToken, async (req, res) => {
@@ -58,7 +60,7 @@ Adminrouter.get("/profile/:id", authenticateToken, async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: "User not found",
+        message: "User not found"
       });
     }
 
@@ -69,19 +71,19 @@ Adminrouter.get("/profile/:id", authenticateToken, async (req, res) => {
       email: user.email,
       role: user.role,
       status: user.status,
-      createdAt: user.createdAt,
+      createdAt: user.createdAt
     };
 
     res.json({
       success: true,
       message: "Profile retrieved successfully",
-      profile: profileData,
+      profile: profileData
     });
   } catch (error) {
     console.error("Profile fetch error:", error);
     res.status(500).json({
       success: false,
-      message: "Error fetching profile",
+      message: "Error fetching profile"
     });
   }
 });
@@ -95,12 +97,12 @@ Adminrouter.get("/teachers", async (req, res) => {
     res.json({
       success: true,
       count: teachers.length,
-      data: teachers,
+      data: teachers
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Server error while fetching teachers",
+      message: "Server error while fetching teachers"
     });
   }
 });
@@ -115,19 +117,19 @@ Adminrouter.get("/teachers/:id", authenticateToken, async (req, res) => {
     if (!teacher) {
       return res.status(404).json({
         success: false,
-        message: "Teacher not found",
+        message: "Teacher not found"
       });
     }
 
     res.json({
       success: true,
-      data: teacher,
+      data: teacher
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({
       success: false,
-      message: "Server error while fetching teacher",
+      message: "Server error while fetching teacher"
     });
   }
 });
@@ -145,7 +147,7 @@ Adminrouter.put(
       if (updates.password) {
         return res.status(400).json({
           success: false,
-          message: "Use the password reset route to change password",
+          message: "Use the password reset route to change password"
         });
       }
 
@@ -153,7 +155,7 @@ Adminrouter.put(
         req.params.id,
         {
           ...updates,
-          last_updated: Date.now(),
+          last_updated: Date.now()
         },
         { new: true, runValidators: true }
       ).select("-password -__v");
@@ -161,20 +163,20 @@ Adminrouter.put(
       if (!updatedTeacher) {
         return res.status(404).json({
           success: false,
-          message: "Teacher not found",
+          message: "Teacher not found"
         });
       }
 
       res.json({
         success: true,
         message: "Teacher updated successfully",
-        data: updatedTeacher,
+        data: updatedTeacher
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while updating teacher",
+        message: "Server error while updating teacher"
       });
     }
   }
@@ -190,21 +192,21 @@ Adminrouter.put(
       if (!newPassword) {
         return res.status(400).json({
           success: false,
-          message: "New password is required",
+          message: "New password is required"
         });
       }
 
       if (newPassword.length < 8) {
         return res.status(400).json({
           success: false,
-          message: "Password must be at least 8 characters",
+          message: "Password must be at least 8 characters"
         });
       }
 
       if (!/\d/.test(newPassword) || !/[!@#$%^&*]/.test(newPassword)) {
         return res.status(400).json({
           success: false,
-          message: "Password must contain a number and a special character",
+          message: "Password must contain a number and a special character"
         });
       }
 
@@ -215,7 +217,7 @@ Adminrouter.put(
         req.params.id,
         {
           password: hashedPassword,
-          last_updated: Date.now(),
+          last_updated: Date.now()
         },
         { new: true }
       ).select("-password -__v");
@@ -223,20 +225,20 @@ Adminrouter.put(
       if (!updatedTeacher) {
         return res.status(404).json({
           success: false,
-          message: "Teacher not found",
+          message: "Teacher not found"
         });
       }
 
       res.json({
         success: true,
         message: "Teacher password updated successfully",
-        data: updatedTeacher,
+        data: updatedTeacher
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while updating password",
+        message: "Server error while updating password"
       });
     }
   }
@@ -255,14 +257,14 @@ Adminrouter.put(
       if (!status || !["pending", "approved", "rejected"].includes(status)) {
         return res.status(400).json({
           success: false,
-          message: "Status is required and must be pending/approved/rejected",
+          message: "Status is required and must be pending/approved/rejected"
         });
       }
 
       if (status === "rejected" && !rejection_reason) {
         return res.status(400).json({
           success: false,
-          message: "Rejection reason is required",
+          message: "Rejection reason is required"
         });
       }
 
@@ -271,7 +273,7 @@ Adminrouter.put(
         status,
         last_updated: Date.now(),
         ...(status === "rejected" && { rejection_reason }),
-        ...(status !== "rejected" && { rejection_reason: undefined }),
+        ...(status !== "rejected" && { rejection_reason: undefined })
       };
 
       const updatedTeacher = await Teacher.findByIdAndUpdate(
@@ -283,7 +285,7 @@ Adminrouter.put(
       if (!updatedTeacher) {
         return res.status(404).json({
           success: false,
-          message: "Teacher not found",
+          message: "Teacher not found"
         });
       }
 
@@ -296,15 +298,15 @@ Adminrouter.put(
         data: {
           teacher: updatedTeacher,
           notifications: {
-            pending_count: pendingCount,
-          },
-        },
+            pending_count: pendingCount
+          }
+        }
       });
     } catch (error) {
       console.error("Teacher status update error:", error);
       res.status(500).json({
         success: false,
-        message: "Server error while updating teacher status",
+        message: "Server error while updating teacher status"
       });
     }
   }
@@ -321,7 +323,7 @@ Adminrouter.get(
       console.error("Error getting notification count:", error);
       res.status(500).json({
         success: false,
-        message: "Failed to get notification count",
+        message: "Failed to get notification count"
       });
     }
   }
@@ -338,19 +340,19 @@ Adminrouter.delete(
       if (!deletedTeacher) {
         return res.status(404).json({
           success: false,
-          message: "Teacher not found",
+          message: "Teacher not found"
         });
       }
 
       res.json({
         success: true,
-        message: "Teacher deleted successfully",
+        message: "Teacher deleted successfully"
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while deleting teacher",
+        message: "Server error while deleting teacher"
       });
     }
   }
@@ -372,7 +374,7 @@ Adminrouter.delete(
       ) {
         return res.status(400).json({
           success: false,
-          message: "Please provide an array of teacher IDs to delete",
+          message: "Please provide an array of teacher IDs to delete"
         });
       }
 
@@ -381,19 +383,19 @@ Adminrouter.delete(
       if (result.deletedCount === 0) {
         return res.status(404).json({
           success: false,
-          message: "No teachers found to delete",
+          message: "No teachers found to delete"
         });
       }
 
       res.json({
         success: true,
-        message: `${result.deletedCount} teacher(s) deleted successfully`,
+        message: `${result.deletedCount} teacher(s) deleted successfully`
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while deleting teachers",
+        message: "Server error while deleting teachers"
       });
     }
   }
@@ -425,12 +427,12 @@ const studentstorage = multer.diskStorage({
     }
 
     cb(null, finalName);
-  },
+  }
 });
 
 const studentupload = multer({
   storage: studentstorage,
-  limits: { fileSize: 2 * 1024 * 1024 }, // 100MB limit
+  limits: { fileSize: 2 * 1024 * 1024 } // 100MB limit
 });
 // Get all students
 Adminrouter.get(
@@ -444,13 +446,13 @@ Adminrouter.get(
       res.json({
         success: true,
         count: students.length,
-        data: students,
+        data: students
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while fetching students",
+        message: "Server error while fetching students"
       });
     }
   }
@@ -470,19 +472,19 @@ Adminrouter.get(
       if (!student) {
         return res.status(404).json({
           success: false,
-          message: "Student not found",
+          message: "Student not found"
         });
       }
 
       res.json({
         success: true,
-        data: student,
+        data: student
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while fetching student",
+        message: "Server error while fetching student"
       });
     }
   }
@@ -504,7 +506,7 @@ Adminrouter.post(
       if (existingStudent) {
         return res.status(400).json({
           success: false,
-          message: "Student with this email already exists",
+          message: "Student with this email already exists"
         });
       }
 
@@ -516,7 +518,7 @@ Adminrouter.post(
         phone,
         date_of_birth,
         address,
-        isVerified: true,
+        isVerified: true
       };
 
       if (profilePhoto) {
@@ -535,20 +537,20 @@ Adminrouter.post(
         data: {
           ...newStudent.toObject(),
           password: undefined, // Remove password
-          profile_picture: newStudent.profile_picture, // Ensure this has the uploaded filename
-        },
+          profile_picture: newStudent.profile_picture // Ensure this has the uploaded filename
+        }
       });
     } catch (error) {
       console.error(error);
       if (error.name === "ValidationError") {
         return res.status(400).json({
           success: false,
-          message: Object.values(error.errors).map((val) => val.message),
+          message: Object.values(error.errors).map((val) => val.message)
         });
       }
       res.status(500).json({
         success: false,
-        message: "Server error while creating student",
+        message: "Server error while creating student"
       });
     }
   }
@@ -566,7 +568,7 @@ Adminrouter.put(
       if (updates.password) {
         return res.status(400).json({
           success: false,
-          message: "Use the password update route to change password",
+          message: "Use the password update route to change password"
         });
       }
 
@@ -579,26 +581,26 @@ Adminrouter.put(
       if (!updatedStudent) {
         return res.status(404).json({
           success: false,
-          message: "Student not found",
+          message: "Student not found"
         });
       }
 
       res.json({
         success: true,
         message: "Student updated successfully",
-        data: updatedStudent,
+        data: updatedStudent
       });
     } catch (error) {
       console.error(error);
       if (error.name === "ValidationError") {
         return res.status(400).json({
           success: false,
-          message: Object.values(error.errors).map((val) => val.message),
+          message: Object.values(error.errors).map((val) => val.message)
         });
       }
       res.status(500).json({
         success: false,
-        message: "Server error while updating student",
+        message: "Server error while updating student"
       });
     }
   }
@@ -616,21 +618,21 @@ Adminrouter.put(
       if (!newPassword) {
         return res.status(400).json({
           success: false,
-          message: "New password is required",
+          message: "New password is required"
         });
       }
 
       if (newPassword.length < 8) {
         return res.status(400).json({
           success: false,
-          message: "Password must be at least 8 characters",
+          message: "Password must be at least 8 characters"
         });
       }
 
       if (!/\d/.test(newPassword) || !/[!@#$%^&*]/.test(newPassword)) {
         return res.status(400).json({
           success: false,
-          message: "Password must contain a number and a special character",
+          message: "Password must contain a number and a special character"
         });
       }
 
@@ -641,7 +643,7 @@ Adminrouter.put(
         req.params.id,
         {
           password: hashedPassword,
-          password_changed_at: Date.now(),
+          password_changed_at: Date.now()
         },
         { new: true }
       ).select("-password -__v");
@@ -649,20 +651,20 @@ Adminrouter.put(
       if (!updatedStudent) {
         return res.status(404).json({
           success: false,
-          message: "Student not found",
+          message: "Student not found"
         });
       }
 
       res.json({
         success: true,
         message: "Student password updated successfully",
-        data: updatedStudent,
+        data: updatedStudent
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while updating password",
+        message: "Server error while updating password"
       });
     }
   }
@@ -680,7 +682,7 @@ Adminrouter.put(
       if (typeof is_active !== "boolean") {
         return res.status(400).json({
           success: false,
-          message: "is_active must be a boolean value",
+          message: "is_active must be a boolean value"
         });
       }
 
@@ -688,7 +690,7 @@ Adminrouter.put(
         req.params.id,
         {
           is_active,
-          last_login: is_active ? Date.now() : undefined,
+          last_login: is_active ? Date.now() : undefined
         },
         { new: true }
       ).select("-password -__v");
@@ -696,7 +698,7 @@ Adminrouter.put(
       if (!updatedStudent) {
         return res.status(404).json({
           success: false,
-          message: "Student not found",
+          message: "Student not found"
         });
       }
 
@@ -705,13 +707,13 @@ Adminrouter.put(
         message: `Student status changed to ${
           is_active ? "active" : "inactive"
         }`,
-        data: updatedStudent,
+        data: updatedStudent
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while updating student status",
+        message: "Server error while updating student status"
       });
     }
   }
@@ -729,19 +731,19 @@ Adminrouter.delete(
       if (!deletedStudent) {
         return res.status(404).json({
           success: false,
-          message: "Student not found",
+          message: "Student not found"
         });
       }
 
       res.json({
         success: true,
-        message: "Student deleted successfully",
+        message: "Student deleted successfully"
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while deleting student",
+        message: "Server error while deleting student"
       });
     }
   }
@@ -763,7 +765,7 @@ Adminrouter.delete(
       ) {
         return res.status(400).json({
           success: false,
-          message: "Please provide an array of student IDs to delete",
+          message: "Please provide an array of student IDs to delete"
         });
       }
 
@@ -772,19 +774,19 @@ Adminrouter.delete(
       if (result.deletedCount === 0) {
         return res.status(404).json({
           success: false,
-          message: "No students found to delete",
+          message: "No students found to delete"
         });
       }
 
       res.json({
         success: true,
-        message: `${result.deletedCount} student(s) deleted successfully`,
+        message: `${result.deletedCount} student(s) deleted successfully`
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while deleting students",
+        message: "Server error while deleting students"
       });
     }
   }
@@ -802,8 +804,8 @@ Adminrouter.post(
       { name: "thumbnail", maxCount: 1 },
       { name: "attachments", maxCount: 10 },
       { name: "contentThumbnails", maxCount: 10 },
-      { name: "contentVideos", maxCount: 1000 },
-    ]),
+      { name: "contentVideos", maxCount: 1000 }
+    ])
   ],
   async (req, res) => {
     try {
@@ -814,14 +816,14 @@ Adminrouter.post(
         price,
         content,
         level = "beginner",
-        categories,
+        categories
       } = req.body;
 
       // Validate required fields
       if (!title || !description || !type || !content) {
         return res.status(400).json({
           success: false,
-          message: "Title, description, type, and content are required",
+          message: "Title, description, type, and content are required"
         });
       }
 
@@ -829,7 +831,7 @@ Adminrouter.post(
       if ((type === "premium" || type === "live") && (!price || isNaN(price))) {
         return res.status(400).json({
           success: false,
-          message: "Price is required for premium and live courses",
+          message: "Price is required for premium and live courses"
         });
       }
 
@@ -837,7 +839,7 @@ Adminrouter.post(
       if (!req.files?.thumbnail) {
         return res.status(400).json({
           success: false,
-          message: "Course thumbnail is required",
+          message: "Course thumbnail is required"
         });
       }
 
@@ -846,7 +848,7 @@ Adminrouter.post(
         filename: thumbnailFile.originalname,
         path: thumbnailFile.filename,
         size: thumbnailFile.size,
-        mimetype: thumbnailFile.mimetype,
+        mimetype: thumbnailFile.mimetype
       };
 
       // Parse and process content
@@ -874,7 +876,7 @@ Adminrouter.post(
                 filename: videoFile.originalname,
                 path: videoFile.filename,
                 size: videoFile.size,
-                mimetype: videoFile.mimetype,
+                mimetype: videoFile.mimetype
               };
             }
           }
@@ -891,7 +893,7 @@ Adminrouter.post(
                 filename: thumbnailFile.originalname,
                 path: thumbnailFile.filename,
                 size: thumbnailFile.size,
-                mimetype: thumbnailFile.mimetype,
+                mimetype: thumbnailFile.mimetype
               };
             }
           }
@@ -906,7 +908,7 @@ Adminrouter.post(
           filename: file.originalname,
           path: file.filename,
           size: file.size,
-          mimetype: file.mimetype,
+          mimetype: file.mimetype
         })) || [];
 
       // Parse categories
@@ -917,7 +919,7 @@ Adminrouter.post(
         } catch (e) {
           return res.status(400).json({
             success: false,
-            message: "Invalid categories format",
+            message: "Invalid categories format"
           });
         }
       }
@@ -934,7 +936,7 @@ Adminrouter.post(
         attachments,
         level,
         status: "active",
-        categories: categoryList,
+        categories: categoryList
       });
 
       await newCourse.save();
@@ -942,13 +944,13 @@ Adminrouter.post(
       res.status(201).json({
         success: true,
         message: "Course created successfully",
-        data: newCourse,
+        data: newCourse
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: error.message || "Server error while creating course",
+        message: error.message || "Server error while creating course"
       });
     }
   }
@@ -973,13 +975,13 @@ Adminrouter.get(
       res.json({
         success: true,
         count: courses.length,
-        data: courses,
+        data: courses
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while fetching courses",
+        message: "Server error while fetching courses"
       });
     }
   }
@@ -999,19 +1001,19 @@ Adminrouter.get(
       if (!course) {
         return res.status(404).json({
           success: false,
-          message: "Course not found",
+          message: "Course not found"
         });
       }
 
       res.json({
         success: true,
-        data: course,
+        data: course
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while fetching course",
+        message: "Server error while fetching course"
       });
     }
   }
@@ -1027,8 +1029,8 @@ Adminrouter.put(
       { name: "thumbnail", maxCount: 1 },
       { name: "attachments", maxCount: 10 },
       { name: "contentThumbnails", maxCount: 10 },
-      { name: "contentVideos", maxCount: 10 },
-    ]),
+      { name: "contentVideos", maxCount: 10 }
+    ])
   ],
   async (req, res) => {
     try {
@@ -1041,14 +1043,14 @@ Adminrouter.put(
         categories,
         level,
         status,
-        existingAttachments = "[]",
+        existingAttachments = "[]"
       } = req.body;
 
       const course = await Course.findById(req.params.id);
       if (!course) {
         return res.status(404).json({
           success: false,
-          message: "Course not found",
+          message: "Course not found"
         });
       }
 
@@ -1065,7 +1067,7 @@ Adminrouter.put(
             if (parsedContent.length === 0) {
               return res.status(400).json({
                 success: false,
-                message: "Live courses must have at least one live session",
+                message: "Live courses must have at least one live session"
               });
             }
           }
@@ -1110,7 +1112,7 @@ Adminrouter.put(
           filename: thumbnailFile.originalname,
           path: thumbnailFile.filename,
           size: thumbnailFile.size,
-          mimetype: thumbnailFile.mimetype,
+          mimetype: thumbnailFile.mimetype
         };
       }
 
@@ -1127,7 +1129,7 @@ Adminrouter.put(
           filename: file.originalname,
           path: file.filename,
           size: file.size,
-          mimetype: file.mimetype,
+          mimetype: file.mimetype
         })) || [];
 
       course.attachments = [...existingAttachmentsArray, ...newAttachments];
@@ -1145,7 +1147,7 @@ Adminrouter.put(
           if (invalidItems.length > 0) {
             return res.status(400).json({
               success: false,
-              message: "Live courses can only contain live sessions",
+              message: "Live courses can only contain live sessions"
             });
           }
         }
@@ -1171,7 +1173,7 @@ Adminrouter.put(
                 filename: videoFiles[videoIndex].originalname,
                 path: videoFiles[videoIndex].filename,
                 size: videoFiles[videoIndex].size,
-                mimetype: videoFiles[videoIndex].mimetype,
+                mimetype: videoFiles[videoIndex].mimetype
               };
               videoIndex++;
             } else if (item.content && !item.contentFile) {
@@ -1220,7 +1222,7 @@ Adminrouter.put(
                   filename: thumbFile.originalname,
                   path: thumbFile.filename,
                   size: thumbFile.size,
-                  mimetype: thumbFile.mimetype,
+                  mimetype: thumbFile.mimetype
                 };
               }
             }
@@ -1240,7 +1242,7 @@ Adminrouter.put(
             success: false,
             message: `Missing video files for ${
               expectedVideos - videoIndex
-            } tutorials`,
+            } tutorials`
           });
         }
       }
@@ -1255,7 +1257,7 @@ Adminrouter.put(
         if (!price || isNaN(price)) {
           return res.status(400).json({
             success: false,
-            message: "Price is required for premium and live courses",
+            message: "Price is required for premium and live courses"
           });
         }
         course.price = parseFloat(price);
@@ -1276,13 +1278,13 @@ Adminrouter.put(
       res.json({
         success: true,
         message: "Course updated successfully",
-        data: course,
+        data: course
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: error.message || "Server error while updating course",
+        message: error.message || "Server error while updating course"
       });
     }
   }
@@ -1300,7 +1302,7 @@ Adminrouter.put(
       if (!["active", "inactive"].includes(status)) {
         return res.status(400).json({
           success: false,
-          message: "Invalid status value",
+          message: "Invalid status value"
         });
       }
 
@@ -1313,20 +1315,20 @@ Adminrouter.put(
       if (!course) {
         return res.status(404).json({
           success: false,
-          message: "Course not found",
+          message: "Course not found"
         });
       }
 
       res.json({
         success: true,
         message: `Course status changed to ${status}`,
-        data: course,
+        data: course
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while updating course status",
+        message: "Server error while updating course status"
       });
     }
   }
@@ -1344,7 +1346,7 @@ Adminrouter.delete(
       if (!course) {
         return res.status(404).json({
           success: false,
-          message: "Course not found",
+          message: "Course not found"
         });
       }
 
@@ -1352,13 +1354,13 @@ Adminrouter.delete(
 
       res.json({
         success: true,
-        message: "Course deleted successfully",
+        message: "Course deleted successfully"
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while deleting course",
+        message: "Server error while deleting course"
       });
     }
   }
@@ -1378,7 +1380,7 @@ Adminrouter.get(
       if (!course) {
         return res.status(404).json({
           success: false,
-          message: "Course not found",
+          message: "Course not found"
         });
       }
 
@@ -1388,7 +1390,7 @@ Adminrouter.get(
         totalRatings: course.ratings.length,
         ratingDistribution: [1, 2, 3, 4, 5].map((star) => ({
           star,
-          count: course.ratings.filter((r) => r.rating === star).length,
+          count: course.ratings.filter((r) => r.rating === star).length
         })),
         recentStudents: course.studentsEnrolled.slice(0, 5),
         recentReviews: course.ratings
@@ -1398,19 +1400,19 @@ Adminrouter.get(
             user: r.user,
             rating: r.rating,
             review: r.review,
-            date: r.createdAt,
-          })),
+            date: r.createdAt
+          }))
       };
 
       res.json({
         success: true,
-        data: analytics,
+        data: analytics
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while fetching course analytics",
+        message: "Server error while fetching course analytics"
       });
     }
   }
@@ -1428,7 +1430,7 @@ Adminrouter.get(
       if (!["active", "inactive"].includes(status)) {
         return res.status(400).json({
           success: false,
-          message: "Invalid status value",
+          message: "Invalid status value"
         });
       }
 
@@ -1439,13 +1441,13 @@ Adminrouter.get(
       res.json({
         success: true,
         count: courses.length,
-        data: courses,
+        data: courses
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while fetching courses by status",
+        message: "Server error while fetching courses by status"
       });
     }
   }
@@ -1463,7 +1465,7 @@ Adminrouter.put(
       if (!course) {
         return res.status(404).json({
           success: false,
-          message: "Course not found",
+          message: "Course not found"
         });
       }
 
@@ -1473,13 +1475,13 @@ Adminrouter.put(
       res.json({
         success: true,
         message: "Course published successfully",
-        data: course,
+        data: course
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while publishing course",
+        message: "Server error while publishing course"
       });
     }
   }
@@ -1497,14 +1499,14 @@ Adminrouter.put(
       if (!course) {
         return res.status(404).json({
           success: false,
-          message: "Course not found",
+          message: "Course not found"
         });
       }
 
       if (course.status !== "active") {
         return res.status(400).json({
           success: false,
-          message: "Only active courses can be unpublished",
+          message: "Only active courses can be unpublished"
         });
       }
 
@@ -1514,13 +1516,13 @@ Adminrouter.put(
       res.json({
         success: true,
         message: "Course unpublished successfully",
-        data: course,
+        data: course
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while unpublishing course",
+        message: "Server error while unpublishing course"
       });
     }
   }
@@ -1537,7 +1539,7 @@ Adminrouter.put(
       if (!newInstructorId) {
         return res.json({
           success: false,
-          message: "New instructor ID is required",
+          message: "New instructor ID is required"
         });
       }
       const course = await Course.findById(courseId);
@@ -1549,7 +1551,7 @@ Adminrouter.put(
         course.previousInstructors.push({
           instructor: course.instructor,
           changedAt: new Date(),
-          changedBy: changedBy,
+          changedBy: changedBy
         });
       }
 
@@ -1559,7 +1561,7 @@ Adminrouter.put(
 
       res.json({
         success: true,
-        message: "Course instructor updated successfully",
+        message: "Course instructor updated successfully"
       });
     } catch (error) {
       console.error("Error reassigning teacher:", error);
@@ -1585,7 +1587,7 @@ Adminrouter.put(
       if (!newInstructorId || !changedBy) {
         return res.status(400).json({
           success: false,
-          message: "Both newInstructorId and changedBy are required",
+          message: "Both newInstructorId and changedBy are required"
         });
       }
 
@@ -1594,7 +1596,7 @@ Adminrouter.put(
       if (!course) {
         return res.status(404).json({
           success: false,
-          message: "Course not found",
+          message: "Course not found"
         });
       }
 
@@ -1603,7 +1605,7 @@ Adminrouter.put(
       if (!newInstructor) {
         return res.status(404).json({
           success: false,
-          message: "New instructor not found",
+          message: "New instructor not found"
         });
       }
 
@@ -1612,7 +1614,7 @@ Adminrouter.put(
       if (!adminMakingChange) {
         return res.status(404).json({
           success: false,
-          message: "Admin making the change not found",
+          message: "Admin making the change not found"
         });
       }
 
@@ -1621,7 +1623,7 @@ Adminrouter.put(
         course.previousInstructors.push({
           instructor: course.instructor,
           changedAt: new Date(),
-          changedBy: changedBy,
+          changedBy: changedBy
         });
       }
 
@@ -1637,15 +1639,15 @@ Adminrouter.put(
           newInstructor: newInstructorId,
           previousInstructor: course.instructor,
           changedBy: changedBy,
-          changedAt: new Date(),
-        },
+          changedAt: new Date()
+        }
       });
     } catch (error) {
       console.error("Error changing course instructor:", error);
       res.status(500).json({
         success: false,
         message: "Server error while changing course instructor",
-        error: error.message,
+        error: error.message
       });
     }
   }
@@ -1683,21 +1685,21 @@ Adminrouter.post(
     if (!username || !email || !password || !phoneNumber) {
       return res.status(400).json({
         success: false,
-        message: "Please provide all required fields",
+        message: "Please provide all required fields"
       });
     }
 
     try {
       // Check if employee exists
       let employee = await Employee.findOne({
-        $or: [{ email }, { username }, { phoneNumber }],
+        $or: [{ email }, { username }, { phoneNumber }]
       });
 
       if (employee) {
         return res.status(400).json({
           success: false,
           message:
-            "Employee with this email, username, or phone number already exists",
+            "Employee with this email, username, or phone number already exists"
         });
       }
 
@@ -1705,20 +1707,20 @@ Adminrouter.post(
         username,
         email,
         password,
-        phoneNumber,
+        phoneNumber
       });
 
       await employee.save();
 
       res.status(201).json({
         success: true,
-        message: "Employee created successfully",
+        message: "Employee created successfully"
       });
     } catch (err) {
       console.error(err.message);
       res.status(500).json({
         success: false,
-        message: "Server Error",
+        message: "Server Error"
       });
     }
   }
@@ -1742,13 +1744,13 @@ Adminrouter.get(
       res.json({
         success: true,
         count: employees.length,
-        data: employees,
+        data: employees
       });
     } catch (error) {
       console.error(error);
       res.status(500).json({
         success: false,
-        message: "Server error while fetching employees",
+        message: "Server error while fetching employees"
       });
     }
   }
@@ -1764,13 +1766,13 @@ Adminrouter.delete(
       if (!employee) {
         return res.status(404).json({
           success: false,
-          message: "Employee not found",
+          message: "Employee not found"
         });
       }
 
       res.status(200).json({
         success: true,
-        message: "Employee deleted successfully",
+        message: "Employee deleted successfully"
       });
     } catch (err) {
       console.error(err.message);
@@ -1779,13 +1781,13 @@ Adminrouter.delete(
       if (err.name === "CastError") {
         return res.status(400).json({
           success: false,
-          message: "Invalid employee ID",
+          message: "Invalid employee ID"
         });
       }
 
       res.status(500).json({
         success: false,
-        message: "Server Error",
+        message: "Server Error"
       });
     }
   }
@@ -1797,13 +1799,13 @@ Adminrouter.post("/consultancy", async (req, res) => {
 
     res.status(201).json({
       success: true,
-      data: consultation,
+      data: consultation
     });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({
       success: false,
-      message: "Server Error",
+      message: "Server Error"
     });
   }
 });
@@ -1820,13 +1822,13 @@ Adminrouter.get(
       res.status(200).json({
         success: true,
         count: consultations.length,
-        data: consultations,
+        data: consultations
       });
     } catch (err) {
       console.error(err.message);
       res.status(500).json({
         success: false,
-        message: "Server Error",
+        message: "Server Error"
       });
     }
   }
@@ -1843,13 +1845,13 @@ Adminrouter.put(
       // Check if employee exists and is a consultant
       const employee = await Employee.findOne({
         _id: employeeId,
-        role: "consultant",
+        role: "consultant"
       });
 
       if (!employee) {
         return res.status(404).json({
           success: false,
-          message: "Consultant employee not found",
+          message: "Consultant employee not found"
         });
       }
 
@@ -1858,7 +1860,7 @@ Adminrouter.put(
       if (!consultation) {
         return res.status(404).json({
           success: false,
-          message: "Consultation not found",
+          message: "Consultation not found"
         });
       }
 
@@ -1869,14 +1871,634 @@ Adminrouter.put(
 
       res.status(200).json({
         success: true,
-        data: consultation,
+        data: consultation
       });
     } catch (err) {
       console.error(err.message);
       res.status(500).json({
         success: false,
-        message: "Server Error",
+        message: "Server Error"
       });
+    }
+  }
+);
+Adminrouter.put(
+  "/consultancy/:id/cancel",
+  authenticateToken,
+  authorizeSubAdmin,
+  async (req, res) => {
+    try {
+      const { cancellationReason } = req.body;
+
+      if (!cancellationReason) {
+        return res.status(400).json({
+          success: false,
+          message: "Cancellation reason is required"
+        });
+      }
+
+      const consultation = await Consultation.findByIdAndUpdate(
+        req.params.id,
+        {
+          status: "cancelled",
+          cancellationReason
+        },
+        { new: true }
+      ).populate("assignedTo", "username email phoneNumber");
+
+      if (!consultation) {
+        return res.status(404).json({
+          success: false,
+          message: "Consultation not found"
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: consultation
+      });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).json({
+        success: false,
+        message: "Server Error"
+      });
+    }
+  }
+);
+Adminrouter.put(
+  "/consultancy/:id/status",
+  authenticateToken,
+  authorizeSubAdmin,
+  async (req, res) => {
+    try {
+      const { status } = req.body;
+      const validStatuses = ["pending", "assigned", "completed", "cancelled"];
+
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid status value"
+        });
+      }
+
+      const consultation = await Consultation.findByIdAndUpdate(
+        req.params.id,
+        { status },
+        { new: true }
+      ).populate("assignedTo", "username email phoneNumber");
+
+      if (!consultation) {
+        return res.status(404).json({
+          success: false,
+          message: "Consultation not found"
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: consultation
+      });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).json({
+        success: false,
+        message: "Server Error"
+      });
+    }
+  }
+);
+
+Adminrouter.put(
+  "/consultancy/:id/reassign",
+  authenticateToken,
+  authorizeSubAdmin,
+  async (req, res) => {
+    try {
+      const { employeeId } = req.body;
+
+      // Verify the new consultant exists
+      const employee = await Employee.findOne({
+        _id: employeeId,
+        role: "consultant"
+      });
+
+      if (!employee) {
+        return res.status(404).json({
+          success: false,
+          message: "Consultant not found"
+        });
+      }
+
+      const consultation = await Consultation.findByIdAndUpdate(
+        req.params.id,
+        {
+          assignedTo: employeeId,
+          status: "assigned"
+        },
+        { new: true }
+      ).populate("assignedTo", "username email phoneNumber");
+
+      if (!consultation) {
+        return res.status(404).json({
+          success: false,
+          message: "Consultation not found"
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: consultation
+      });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).json({
+        success: false,
+        message: "Server Error"
+      });
+    }
+  }
+);
+
+//==================================Visa Processing Route-------------------------------------
+Adminrouter.get(
+  "/requests",
+  authenticateToken,
+  authorizeSubAdmin,
+  async (req, res) => {
+    try {
+      const requests = await VisaRequest.find()
+        .populate("student", "full_name email")
+        .populate("assignedConsultant", "username email");
+
+      res.json({
+        success: true,
+        requests
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message
+      });
+    }
+  }
+);
+Adminrouter.put(
+  "/approve/:requestId",
+  authenticateToken,
+  authorizeSubAdmin,
+  async (req, res) => {
+    try {
+      const visaRequest = await VisaRequest.findByIdAndUpdate(
+        req.params.requestId,
+        { status: "approved" },
+        { new: true }
+      ).populate("student", "full_name email");
+
+      if (!visaRequest) {
+        return res.status(404).json({
+          success: false,
+          message: "Visa request not found"
+        });
+      }
+
+      res.json({
+        success: true,
+        updatedRequest: visaRequest
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message
+      });
+    }
+  }
+);
+
+// Admin rejects visa request
+Adminrouter.put(
+  "/reject/:requestId",
+  authenticateToken,
+  authorizeSubAdmin,
+  async (req, res) => {
+    try {
+      const visaRequest = await VisaRequest.findByIdAndUpdate(
+        req.params.requestId,
+        { status: "rejected" },
+        { new: true }
+      ).populate("student", "full_name email");
+
+      if (!visaRequest) {
+        return res.status(404).json({
+          success: false,
+          message: "Visa request not found"
+        });
+      }
+
+      res.json({
+        success: true,
+        updatedRequest: visaRequest
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message
+      });
+    }
+  }
+);
+
+// Admin assigns consultant
+Adminrouter.put(
+  "/assign/:requestId",
+  authenticateToken,
+  authorizeSubAdmin,
+  async (req, res) => {
+    try {
+      const { consultantId } = req.body;
+
+      const consultant = await Employee.findById(consultantId);
+      if (!consultant || consultant.role !== "consultant") {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid consultant"
+        });
+      }
+
+      const visaRequest = await VisaRequest.findByIdAndUpdate(
+        req.params.requestId,
+        { assignedConsultant: consultantId },
+        { new: true }
+      )
+        .populate("student", "full_name email")
+        .populate("assignedConsultant", "username email");
+
+      if (!visaRequest) {
+        return res.status(404).json({
+          success: false,
+          message: "Visa request not found"
+        });
+      }
+
+      res.json({
+        success: true,
+        updatedRequest: visaRequest
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message
+      });
+    }
+  }
+);
+
+// Admin gets all consultants
+Adminrouter.get(
+  "/consultants",
+  authenticateToken,
+  authorizeSubAdmin,
+  async (req, res) => {
+    try {
+      const consultants = await Employee.find({ role: "consultant" });
+
+      res.json({
+        success: true,
+        consultants
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message
+      });
+    }
+  }
+);
+
+//-----------------Visa steps--------------------------------
+
+Adminrouter.get(
+  "/request/:requestId",
+  authenticateToken,
+  authorizeSubAdmin,
+  async (req, res) => {
+    try {
+      const request = await VisaRequest.findById(req.params.requestId)
+        .populate({
+          path: "student",
+          select: "full_name email"
+        })
+        .populate("assignedConsultant", "username email phoneNumber");
+
+      if (!request) {
+        return res.status(404).json({
+          success: false,
+          message: "Visa request not found"
+        });
+      }
+
+      res.json({
+        success: true,
+        request
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message
+      });
+    }
+  }
+);
+// Employee approves document
+Adminrouter.put(
+  "/approve-document/:requestId",
+  authenticateToken,
+  authorizeSubAdmin,
+  async (req, res) => {
+    try {
+      const { documentName } = req.body;
+
+      const visaRequest = await VisaRequest.findById(req.params.requestId);
+
+      if (!visaRequest) {
+        return res.status(404).json({
+          success: false,
+          message: "Visa request not found"
+        });
+      }
+
+      const documentIndex = visaRequest.documents.findIndex(
+        (doc) => doc.name === documentName
+      );
+
+      if (documentIndex === -1) {
+        return res.status(400).json({
+          success: false,
+          message: "Document not found in request"
+        });
+      }
+
+      visaRequest.documents[documentIndex].status = "approved";
+      visaRequest.documents[documentIndex].feedback = req.body.feedback || "";
+      await visaRequest.save();
+
+      const updatedRequest = await VisaRequest.findById(visaRequest._id)
+        .populate("student", "full_name email")
+        .populate("assignedConsultant", "username email");
+
+      res.json({
+        success: true,
+        updatedRequest
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message
+      });
+    }
+  }
+);
+
+// Employee rejects document
+Adminrouter.put(
+  "/reject-document/:requestId",
+  authenticateToken,
+  authorizeSubAdmin,
+  async (req, res) => {
+    try {
+      const { documentName, feedback } = req.body;
+
+      if (!feedback) {
+        return res.status(400).json({
+          success: false,
+          message: "Feedback is required when rejecting a document"
+        });
+      }
+
+      const visaRequest = await VisaRequest.findById(req.params.requestId);
+
+      if (!visaRequest) {
+        return res.status(404).json({
+          success: false,
+          message: "Visa request not found"
+        });
+      }
+
+      const documentIndex = visaRequest.documents.findIndex(
+        (doc) => doc.name === documentName
+      );
+
+      if (documentIndex === -1) {
+        return res.status(400).json({
+          success: false,
+          message: "Document not found in request"
+        });
+      }
+
+      visaRequest.documents[documentIndex].status = "rejected";
+      visaRequest.documents[documentIndex].feedback = feedback;
+      await visaRequest.save();
+
+      const updatedRequest = await VisaRequest.findById(visaRequest._id)
+        .populate("student", "full_name email")
+        .populate("assignedConsultant", "username email");
+
+      res.json({
+        success: true,
+        updatedRequest
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message
+      });
+    }
+  }
+);
+
+// Admin updates processing step
+Adminrouter.put(
+  "/update-step/:requestId",
+  authenticateToken,
+  authorizeSubAdmin,
+  async (req, res) => {
+    try {
+      const { stepName, status, notes } = req.body;
+
+      const visaRequest = await VisaRequest.findById(req.params.requestId);
+
+      if (!visaRequest) {
+        return res.status(404).json({
+          success: false,
+          message: "Visa request not found"
+        });
+      }
+
+      const stepIndex = visaRequest.processingSteps.findIndex(
+        (step) => step.name === stepName
+      );
+
+      if (stepIndex === -1) {
+        return res.status(400).json({
+          success: false,
+          message: "Step not found in request"
+        });
+      }
+
+      // Update step details
+      visaRequest.processingSteps[stepIndex].status = status;
+      visaRequest.processingSteps[stepIndex].notes = notes;
+
+      if (status === "completed") {
+        visaRequest.processingSteps[stepIndex].completedAt = new Date();
+
+        if (stepIndex < visaRequest.processingSteps.length - 1) {
+          visaRequest.currentStep = stepIndex + 1;
+
+          // Add documents for next step
+          const nextStep = visaRequest.processingSteps[stepIndex + 1];
+          if (nextStep.requiredDocuments?.length > 0) {
+            nextStep.requiredDocuments.forEach((docName) => {
+              if (!visaRequest.documents.some((doc) => doc.name === docName)) {
+                visaRequest.documents.push({
+                  name: docName,
+                  status: "pending"
+                });
+              }
+            });
+          }
+        } else {
+          visaRequest.status = "completed";
+          visaRequest.completedAt = new Date();
+          visaRequest.currentStep = visaRequest.processingSteps.length;
+        }
+      }
+
+      await visaRequest.save();
+
+      const updatedRequest = await VisaRequest.findById(visaRequest._id)
+        .populate("student", "full_name email")
+        .populate("assignedConsultant", "username email");
+
+      res.json({
+        success: true,
+        updatedRequest
+      });
+    } catch (error) {
+      console.error("Error updating visa step:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to update visa processing step"
+      });
+    }
+  }
+);
+
+Adminrouter.post(
+  "/upload/:requestId",
+  authenticateToken,
+  authorizeSubAdmin,
+  uploads.single("document"),
+  async (req, res) => {
+    try {
+      // Validate input
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "No file uploaded"
+        });
+      }
+
+      const { documentName } = req.body;
+      if (!documentName) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({
+          success: false,
+          message: "Document name is required"
+        });
+      }
+
+      const visaRequest = await VisaRequest.findById(req.params.requestId);
+      if (!visaRequest) {
+        fs.unlinkSync(req.file.path);
+        return res.status(404).json({
+          success: false,
+          message: "Visa request not found"
+        });
+      }
+
+      const docIndex = visaRequest.documents.findIndex(
+        (doc) => doc.name === documentName
+      );
+      if (docIndex === -1) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({
+          success: false,
+          message: "Invalid document name for this visa request"
+        });
+      }
+
+      // Delete previous file if exists
+      if (visaRequest.documents[docIndex].url) {
+        const oldFilePath = path.join(
+          __dirname,
+          "../../",
+          visaRequest.documents[docIndex].url
+        );
+        if (fs.existsSync(oldFilePath)) {
+          fs.unlinkSync(oldFilePath);
+        }
+      }
+
+      // Update document
+      const updatedDoc = {
+        name: documentName,
+        url: req.file.path.replace(/\\/g, "/"),
+        status: "pending",
+        feedback: "",
+        uploadedAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      visaRequest.documents[docIndex] = updatedDoc;
+      await visaRequest.save();
+
+      res.status(200).json({
+        success: true,
+        document: updatedDoc, // Return the updated document
+        message: "Document uploaded successfully"
+      });
+    } catch (error) {
+      console.error("Document upload error:", error);
+      if (req.file?.path) {
+        fs.unlinkSync(req.file.path);
+      }
+      res.status(500).json({
+        success: false,
+        message: "Failed to update document: " + error.message
+      });
+    }
+  }
+);
+
+Adminrouter.get(
+  "/download/:filename",
+  authenticateToken,
+  authorizeSubAdmin,
+  (req, res) => {
+    const { filename } = req.params;
+    const filePath = path.join(__dirname, "../public/visa", filename);
+
+    // Check if file exists
+    if (fs.existsSync(filePath)) {
+      res.download(filePath, filename, (err) => {
+        if (err) {
+          console.error("Download error:", err);
+          res.status(500).send("Could not download file");
+        }
+      });
+    } else {
+      res.status(404).send("File not found");
     }
   }
 );

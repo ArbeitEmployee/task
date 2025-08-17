@@ -8,9 +8,8 @@ import {
   FiCalendar,
   FiSearch,
   FiTrash2,
-  FiEdit,
   FiChevronLeft,
-  FiChevronRight,
+  FiChevronRight
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import axios from "axios";
@@ -31,8 +30,8 @@ const EmployeeList = () => {
         setLoading(true);
         const response = await axios.get(`${base_url}/api/admin/employees`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+            Authorization: `Bearer ${localStorage.getItem("token")}`
+          }
         });
         setEmployees(response.data.data);
       } catch (err) {
@@ -80,8 +79,8 @@ const EmployeeList = () => {
         textColor = "text-purple-800";
         break;
       case "subadmin":
-        bgColor = "bg-blue-100";
-        textColor = "text-blue-800";
+        bgColor = "bg-gray-100";
+        textColor = "text-gray-800";
         break;
       case "consultant":
         bgColor = "bg-green-100";
@@ -108,8 +107,8 @@ const EmployeeList = () => {
     try {
       await axios.delete(`${base_url}/api/admin/employees/${id}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
       });
 
       // Update the local state to remove the deleted employee
@@ -173,7 +172,7 @@ const EmployeeList = () => {
             <input
               type="text"
               placeholder="Search employees..."
-              className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-gray-500 transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -236,7 +235,7 @@ const EmployeeList = () => {
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold shadow-md">
+                          <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-500 flex items-center justify-center text-white font-semibold shadow-md">
                             {employee.username.charAt(0)}
                           </div>
                           <div className="ml-4">
@@ -287,15 +286,6 @@ const EmployeeList = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
-                          <button
-                            className="text-blue-600 hover:text-blue-900"
-                            onClick={() => {
-                              // Handle edit functionality
-                              // navigate(`/employees/edit/${employee._id}`)
-                            }}
-                          >
-                            <FiEdit className="inline" />
-                          </button>
                           <button
                             className="text-red-600 hover:text-red-900"
                             onClick={() => handleDelete(employee._id)}
@@ -383,7 +373,7 @@ const EmployeeList = () => {
                           onClick={() => setCurrentPage(page)}
                           className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                             currentPage === page
-                              ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
+                              ? "z-10 bg-gray-50 border-gray-500 text-gray-600"
                               : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
                           }`}
                         >

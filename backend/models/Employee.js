@@ -8,7 +8,7 @@ const employeeSchema = new mongoose.Schema({
     required: [true, "Please provide a username"],
     unique: true,
     trim: true,
-    maxlength: [50, "Username cannot be more than 50 characters"],
+    maxlength: [50, "Username cannot be more than 50 characters"]
   },
   email: {
     type: String,
@@ -16,33 +16,33 @@ const employeeSchema = new mongoose.Schema({
     unique: true,
     match: [
       /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-      "Please provide a valid email",
-    ],
+      "Please provide a valid email"
+    ]
   },
   password: {
     type: String,
     required: [true, "Please provide a password"],
     minlength: [6, "Password must be at least 6 characters"],
-    select: false,
+    select: false
   },
   phoneNumber: {
     type: String,
-    required: [true, "Please provide a phone number"],
+    required: [true, "Please provide a phone number"]
   },
   role: {
     type: String,
-    enum: ["consultant", "manager"],
-    default: "consultant",
+    enum: ["consultant"],
+    default: "consultant"
   },
   isActive: {
     type: Boolean,
-    default: true,
+    default: true
   },
   passwordChangedAt: Date,
   createdAt: {
     type: Date,
-    default: Date.now,
-  },
+    default: Date.now
+  }
 });
 
 // Encrypt password before saving
@@ -67,7 +67,7 @@ employeeSchema.pre("save", function (next) {
 // Generate JWT token
 employeeSchema.methods.generateAuthToken = function () {
   return jwt.sign({ id: this._id, role: this.role }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || "30d",
+    expiresIn: process.env.JWT_EXPIRE || "30d"
   });
 };
 

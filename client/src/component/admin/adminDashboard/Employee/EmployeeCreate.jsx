@@ -7,7 +7,7 @@ import {
   FiLock,
   FiEye,
   FiEyeOff,
-  FiPhone,
+  FiPhone
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import axios from "axios";
@@ -17,7 +17,7 @@ const EmployeeCreate = () => {
     username: "",
     email: "",
     password: "",
-    phoneNumber: "",
+    phoneNumber: ""
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -27,21 +27,21 @@ const EmployeeCreate = () => {
     username: "",
     email: "",
     password: "",
-    phoneNumber: "",
+    phoneNumber: ""
   });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: value
     }));
 
     // Clear the error message when user starts typing
     if (errors[name]) {
       setErrors((prev) => ({
         ...prev,
-        [name]: "",
+        [name]: ""
       }));
     }
   };
@@ -102,8 +102,8 @@ const EmployeeCreate = () => {
         {
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+            Authorization: `Bearer ${localStorage.getItem("token")}`
+          }
         }
       );
 
@@ -112,7 +112,7 @@ const EmployeeCreate = () => {
           username: "",
           email: "",
           password: "",
-          phoneNumber: "",
+          phoneNumber: ""
         });
         toast.success("Employee created successfully!");
       } else {
@@ -128,7 +128,7 @@ const EmployeeCreate = () => {
           username: backendErrors.username || "",
           email: backendErrors.email || "",
           password: backendErrors.password || "",
-          phoneNumber: backendErrors.phoneNumber || "",
+          phoneNumber: backendErrors.phoneNumber || ""
         });
 
         // Show error messages from backend
@@ -153,7 +153,7 @@ const EmployeeCreate = () => {
       className="min-h-screen flex flex-col items-center p-6"
     >
       <div className="w-full mb-8 pb-6 border-b border-gray-200">
-        <h1 className="text-2xl font-bold text-gray-900 text-left">
+        <h1 className="text-3xl font-bold text-gray-900 text-left">
           Add Employee
         </h1>
         <p className="text-gray-600 mt-2">

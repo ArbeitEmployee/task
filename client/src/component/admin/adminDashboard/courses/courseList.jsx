@@ -10,7 +10,7 @@ import {
   FiPlus,
   FiChevronDown,
   FiChevronUp,
-  FiVideo,
+  FiVideo
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
@@ -46,7 +46,7 @@ const CourseList = () => {
     price: "",
     categories: [],
     level: "beginner",
-    category: "",
+    category: ""
   });
   const [existingThumbnail, setExistingThumbnail] = useState(null);
   const [existingAttachments, setExistingAttachments] = useState([]);
@@ -58,8 +58,8 @@ const CourseList = () => {
       ["bold", "italic", "underline", "strike"],
       [{ list: "ordered" }, { list: "bullet" }],
       ["link", "image"],
-      ["clean"],
-    ],
+      ["clean"]
+    ]
   };
 
   const quillFormats = [
@@ -71,15 +71,15 @@ const CourseList = () => {
     "list",
     "bullet",
     "link",
-    "image",
+    "image"
   ];
 
   const fetchCategories = async () => {
     try {
       const response = await axios.get(`${base_url}/api/auth/categories`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
       });
 
       const categoriesData = response.data.data || response.data;
@@ -107,7 +107,7 @@ const CourseList = () => {
   const toggleInstructorDropdown = (courseId) => {
     setShowInstructorDropdown((prev) => ({
       ...prev,
-      [courseId]: !prev[courseId],
+      [courseId]: !prev[courseId]
     }));
   };
 
@@ -117,8 +117,8 @@ const CourseList = () => {
       setIsLoading(true);
       const response = await axios.get(`${base_url}/api/admin/courses`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
       });
       setCourses(response.data.data);
       setError(null);
@@ -187,12 +187,12 @@ const CourseList = () => {
         `${base_url}/api/admin/courses/${courseId}/change-instructor`,
         {
           newInstructorId,
-          changedBy: admindata._id,
+          changedBy: admindata._id
         },
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+            Authorization: `Bearer ${localStorage.getItem("token")}`
+          }
         }
       );
 
@@ -211,8 +211,8 @@ const CourseList = () => {
     try {
       await axios.delete(`${base_url}/api/admin/courses/${courseId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
       });
       fetchCourses();
       toast.success("Course deleted successfully!");
@@ -255,7 +255,7 @@ const CourseList = () => {
               ? { content: item.content }
               : {}),
             // Initialize contentFile only if we need a new upload
-            contentFile: null,
+            contentFile: null
           };
         }
         if (item.type === "quiz") {
@@ -265,8 +265,8 @@ const CourseList = () => {
               ...q,
               options: q.options || [],
               correctAnswer:
-                q.correctAnswer || (q.type === "mcq-multiple" ? [] : 0),
-            })),
+                q.correctAnswer || (q.type === "mcq-multiple" ? [] : 0)
+            }))
           };
         }
         return item;
@@ -275,7 +275,7 @@ const CourseList = () => {
       price: course.price,
       categories: course.categories || [],
       level: course.level || "beginner",
-      category: initialCategory,
+      category: initialCategory
     });
     // Expand all sections by default
     const expanded = {};
@@ -295,7 +295,7 @@ const CourseList = () => {
       price: "",
       categories: [],
       level: "beginner",
-      category: "",
+      category: ""
     });
     setExistingThumbnail(null);
     setExistingAttachments([]);
@@ -310,7 +310,7 @@ const CourseList = () => {
   const toggleSection = (id) => {
     setExpandedSections((prev) => ({
       ...prev,
-      [id]: !prev[id],
+      [id]: !prev[id]
     }));
   };
 
@@ -326,27 +326,27 @@ const CourseList = () => {
       ...(isPremium
         ? {
             contentFile: null, // Will be replaced with file object when uploaded
-            youtubeLink: undefined, // Explicitly remove for premium
+            youtubeLink: undefined // Explicitly remove for premium
           }
         : {
             youtubeLink: "", // Required for free courses
-            contentFile: undefined, // Explicitly remove for free
+            contentFile: undefined // Explicitly remove for free
           }),
       // Animation properties
       initial: { opacity: 0, y: 20 },
       animate: { opacity: 1, y: 0 },
       exit: { opacity: 0, y: -20 },
-      transition: { duration: 0.3 },
+      transition: { duration: 0.3 }
     };
 
     setCourseData((prev) => ({
       ...prev,
-      content: [...prev.content, newTutorial],
+      content: [...prev.content, newTutorial]
     }));
 
     setExpandedSections((prev) => ({
       ...prev,
-      [newTutorial.id]: true,
+      [newTutorial.id]: true
     }));
   };
 
@@ -363,23 +363,23 @@ const CourseList = () => {
           type: "mcq-single",
           options: ["", ""],
           correctAnswer: 0,
-          answer: "",
-        },
+          answer: ""
+        }
       ],
       isExpanded: true,
       // Animation properties
       initial: { opacity: 0, y: 20 },
       animate: { opacity: 1, y: 0 },
       exit: { opacity: 0, y: -20 },
-      transition: { duration: 0.3 },
+      transition: { duration: 0.3 }
     };
     setCourseData((prev) => ({
       ...prev,
-      content: [...prev.content, newQuiz],
+      content: [...prev.content, newQuiz]
     }));
     setExpandedSections((prev) => ({
       ...prev,
-      [newQuiz.id]: true,
+      [newQuiz.id]: true
     }));
   };
 
@@ -397,15 +397,15 @@ const CourseList = () => {
       initial: { opacity: 0, y: 20 },
       animate: { opacity: 1, y: 0 },
       exit: { opacity: 0, y: -20 },
-      transition: { duration: 0.3 },
+      transition: { duration: 0.3 }
     };
     setCourseData((prev) => ({
       ...prev,
-      content: [...prev.content, newLiveClass],
+      content: [...prev.content, newLiveClass]
     }));
     setExpandedSections((prev) => ({
       ...prev,
-      [newLiveClass.id]: true,
+      [newLiveClass.id]: true
     }));
   };
 
@@ -414,7 +414,7 @@ const CourseList = () => {
       id: Date.now(),
       question: "",
       type: questionType,
-      answer: "",
+      answer: ""
     };
 
     let question;
@@ -424,7 +424,7 @@ const CourseList = () => {
         question = {
           ...baseQuestion,
           options: ["", ""],
-          correctAnswer: questionType === "mcq-single" ? 0 : [],
+          correctAnswer: questionType === "mcq-single" ? 0 : []
         };
         break;
       case "short-answer":
@@ -441,11 +441,11 @@ const CourseList = () => {
         if (item.id === quizId || item._id === quizId) {
           return {
             ...item,
-            questions: [...(item.questions || []), question],
+            questions: [...(item.questions || []), question]
           };
         }
         return item;
-      }),
+      })
     }));
   };
 
@@ -460,22 +460,22 @@ const CourseList = () => {
               if (q.id === questionId || q._id === questionId) {
                 return {
                   ...q,
-                  options: [...(q.options || []), ""],
+                  options: [...(q.options || []), ""]
                 };
               }
               return q;
-            }),
+            })
           };
         }
         return item;
-      }),
+      })
     }));
   };
 
   const removeContentItem = (id) => {
     setCourseData((prev) => ({
       ...prev,
-      content: prev.content.filter((item) => item.id !== id && item._id !== id),
+      content: prev.content.filter((item) => item.id !== id && item._id !== id)
     }));
   };
 
@@ -503,8 +503,8 @@ const CourseList = () => {
                 description: "",
                 meetingLink: "",
                 schedule: new Date().toISOString().slice(0, 16),
-                isExpanded: true,
-              },
+                isExpanded: true
+              }
             ];
           }
         }
@@ -524,14 +524,14 @@ const CourseList = () => {
                 return {
                   ...rest,
                   contentFile: rest.contentFile || null,
-                  content: rest.content || null,
+                  content: rest.content || null
                 };
               } else {
                 // Switching to free - remove content and ensure youtubeLink exists
                 const { content, contentFile, ...rest } = item;
                 return {
                   ...rest,
-                  youtubeLink: rest.youtubeLink || "",
+                  youtubeLink: rest.youtubeLink || ""
                 };
               }
             }
@@ -543,13 +543,13 @@ const CourseList = () => {
           ...prev,
           [name]: value,
           content: updatedContent,
-          price: value === "premium" || value === "live" ? prev.price : "",
+          price: value === "premium" || value === "live" ? prev.price : ""
         };
       });
     } else {
       setCourseData((prev) => ({
         ...prev,
-        [name]: value,
+        [name]: value
       }));
     }
   };
@@ -562,7 +562,7 @@ const CourseList = () => {
           return { ...item, [field]: value };
         }
         return item;
-      }),
+      })
     }));
   };
 
@@ -578,11 +578,11 @@ const CourseList = () => {
                 return { ...q, [field]: value };
               }
               return q;
-            }),
+            })
           };
         }
         return item;
-      }),
+      })
     }));
   };
 
@@ -600,11 +600,11 @@ const CourseList = () => {
                 return { ...q, options: newOptions };
               }
               return q;
-            }),
+            })
           };
         }
         return item;
-      }),
+      })
     }));
   };
 
@@ -635,11 +635,11 @@ const CourseList = () => {
                 return { ...q, correctAnswer: newAnswers };
               }
               return q;
-            }),
+            })
           };
         }
         return item;
-      }),
+      })
     }));
   };
 
@@ -655,11 +655,11 @@ const CourseList = () => {
                 return { ...q, answer: value };
               }
               return q;
-            }),
+            })
           };
         }
         return item;
-      }),
+      })
     }));
   };
 
@@ -677,7 +677,7 @@ const CourseList = () => {
       setCourseData((prev) => ({
         ...prev,
         thumbnail: file,
-        thumbnailPreview: previewUrl,
+        thumbnailPreview: previewUrl
       }));
       setExistingThumbnail(null);
     }
@@ -687,14 +687,14 @@ const CourseList = () => {
     const files = Array.from(e.target.files);
     setCourseData((prev) => ({
       ...prev,
-      attachments: [...prev.attachments, ...files],
+      attachments: [...prev.attachments, ...files]
     }));
   };
 
   const removeAttachment = (index) => {
     setCourseData((prev) => ({
       ...prev,
-      attachments: prev.attachments.filter((_, i) => i !== index),
+      attachments: prev.attachments.filter((_, i) => i !== index)
     }));
   };
 
@@ -736,15 +736,15 @@ const CourseList = () => {
                 return {
                   ...q,
                   options: newOptions,
-                  correctAnswer: newCorrectAnswer,
+                  correctAnswer: newCorrectAnswer
                 };
               }
               return q;
-            }),
+            })
           };
         }
         return item;
-      }),
+      })
     }));
   };
   const stripHtml = (html) => {
@@ -817,7 +817,7 @@ const CourseList = () => {
               contentItem.content = {
                 filename: contentItem.contentFile.name,
                 size: contentItem.contentFile.size,
-                mimetype: contentItem.contentFile.type,
+                mimetype: contentItem.contentFile.type
               };
             }
 
@@ -898,7 +898,7 @@ const CourseList = () => {
               ) {
                 return {
                   ...question,
-                  answer: stripHtml(question.answer),
+                  answer: stripHtml(question.answer)
                 };
               }
             }
@@ -975,8 +975,8 @@ const CourseList = () => {
         {
           headers: {
             "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+            Authorization: `Bearer ${localStorage.getItem("token")}`
+          }
         }
       );
 
@@ -1049,7 +1049,7 @@ const CourseList = () => {
       <div className="max-w-full w-full mx-auto">
         {/* Header */}
         <div className="w-full mb-6 pb-4 border-b border-gray-200">
-          <h1 className="text-2xl font-bold text-gray-900 text-left">
+          <h1 className="text-3xl font-bold text-gray-900 text-left">
             Course Management
           </h1>
           <p className="text-gray-600 mt-2">
@@ -1285,7 +1285,7 @@ const CourseList = () => {
                               value={courseData.description}
                               onChange={(value) =>
                                 handleInputChange({
-                                  target: { name: "description", value },
+                                  target: { name: "description", value }
                                 })
                               }
                               modules={quillModules}
@@ -1330,22 +1330,22 @@ const CourseList = () => {
                                             initial={{
                                               opacity: 0,
                                               scale: 0.8,
-                                              y: 10,
+                                              y: 10
                                             }}
                                             animate={{
                                               opacity: 1,
                                               scale: 1,
-                                              y: 0,
+                                              y: 0
                                             }}
                                             whileHover={{
                                               scale: 1.1,
-                                              rotate: -5,
+                                              rotate: -5
                                             }}
                                             whileTap={{ scale: 0.95 }}
                                             transition={{
                                               type: "spring",
                                               stiffness: 300,
-                                              damping: 20,
+                                              damping: 20
                                             }}
                                             className="absolute -bottom-2 -right-2 bg-white p-1 rounded-full shadow-md border border-gray-300 cursor-pointer hover:bg-gray-100 transition-colors"
                                           >
@@ -1365,29 +1365,29 @@ const CourseList = () => {
                                             setCourseData((prev) => ({
                                               ...prev,
                                               thumbnail: null,
-                                              thumbnailPreview: null,
+                                              thumbnailPreview: null
                                             }));
                                             setExistingThumbnail(null);
                                           }}
                                           initial={{
                                             opacity: 0,
                                             scale: 0.8,
-                                            y: -10,
+                                            y: -10
                                           }}
                                           animate={{
                                             opacity: 1,
                                             scale: 1,
-                                            y: 0,
+                                            y: 0
                                           }}
                                           whileHover={{
                                             scale: 1.1,
-                                            rotate: 10,
+                                            rotate: 10
                                           }}
                                           whileTap={{ scale: 0.9 }}
                                           transition={{
                                             type: "spring",
                                             stiffness: 300,
-                                            damping: 20,
+                                            damping: 20
                                           }}
                                           className="absolute -right-2 -top-2 bg-white p-1.5 rounded-full shadow-md border border-gray-200 hover:bg-red-50 text-red-500"
                                           type="button"
@@ -2052,12 +2052,12 @@ const CourseList = () => {
                                                                             q.id !==
                                                                             (question.id ||
                                                                               question._id)
-                                                                        ),
+                                                                        )
                                                                     };
                                                                   }
                                                                   return contentItem;
                                                                 }
-                                                              ),
+                                                              )
                                                           })
                                                         );
                                                       }}
@@ -2088,7 +2088,7 @@ const CourseList = () => {
 
                                                 {[
                                                   "mcq-single",
-                                                  "mcq-multiple",
+                                                  "mcq-multiple"
                                                 ].includes(question.type) ? (
                                                   <div className="space-y-2">
                                                     {question.options.map(
@@ -2203,10 +2203,10 @@ const CourseList = () => {
                                                         }
                                                         className="text-green-600 hover:text-green-800 flex items-center text-sm mt-2 bg-green-50 hover:bg-green-100 px-3 py-1 rounded border border-green-200"
                                                         whileHover={{
-                                                          scale: 1.05,
+                                                          scale: 1.05
                                                         }}
                                                         whileTap={{
-                                                          scale: 0.95,
+                                                          scale: 0.95
                                                         }}
                                                       >
                                                         <FiPlus className="mr-1" />{" "}
@@ -2427,9 +2427,7 @@ const CourseList = () => {
                               <div
                                 className="text-sm text-gray-500 line-clamp-1 overflow-hidden"
                                 dangerouslySetInnerHTML={{
-                                  __html: DOMPurify.sanitize(
-                                    course.description
-                                  ),
+                                  __html: DOMPurify.sanitize(course.description)
                                 }}
                               />
                               <div className="flex gap-2 mt-2 flex-wrap">
