@@ -22,7 +22,7 @@ const Services = () => {
       gestureDirection: "vertical",
       smooth: true,
       smoothTouch: false,
-      touchMultiplier: 2
+      touchMultiplier: 2,
     });
 
     const raf = (time) => {
@@ -41,7 +41,7 @@ const Services = () => {
       },
       onLeaveBack: () => {
         setIsVisible(false);
-      }
+      },
     });
 
     cardsRef.current.forEach((card, index) => {
@@ -61,8 +61,8 @@ const Services = () => {
           },
           onLeaveBack: () => {
             gsap.to(card, { opacity: 0, y: 50, duration: 0.8 });
-          }
-        }
+          },
+        },
       });
     });
 
@@ -122,19 +122,20 @@ const Services = () => {
                 </svg>
               ),
               countries: [
+                "Finland",
+                "Estonia",
+                "Hungary",
+                "Sweden",
+                "Norway",
                 "USA",
-                "Canada",
                 "UK",
                 "Australia",
-                "Germany",
-                "France"
               ],
-              color: "from-indigo-500 to-blue-600"
+              color: "from-indigo-500 to-blue-600",
             },
             {
               title: "Visa Assistance",
-              description:
-                "Expert guidance for all types of visas including student, tourist, work, and immigration visas.",
+              description: "Expert guidance for student visa",
               icon: (
                 <svg
                   className="w-8 h-8 text-white"
@@ -150,13 +151,8 @@ const Services = () => {
                   />
                 </svg>
               ),
-              types: [
-                "Student Visa",
-                "Tourist Visa",
-                "Work Visa",
-                "Permanent Residency"
-              ],
-              color: "from-purple-500 to-indigo-600"
+              types: ["Student Visa"],
+              color: "from-purple-500 to-indigo-600",
             },
             {
               title: "Exam Preparation",
@@ -177,17 +173,9 @@ const Services = () => {
                   />
                 </svg>
               ),
-              exams: [
-                "IELTS",
-                "TOEFL",
-                "GRE",
-                "GMAT",
-                "SAT",
-                "PTE",
-                "Duolingo"
-              ],
-              color: "from-blue-500 to-cyan-600"
-            }
+              exams: ["IELTS", "SAT", "PTE", "Duolingo"],
+              color: "from-blue-500 to-cyan-600",
+            },
           ].map((service, index) => (
             <div
               ref={(el) => (cardsRef.current[index] = el)}
@@ -254,7 +242,7 @@ const Services = () => {
         {/* CTA Section */}
         <div className="text-center mt-10">
           <button
-            className="relative inline-flex items-center px-8 py-4 overflow-hidden text-white bg-gradient-to-r from-blue-600 to-[#004080] rounded-full group"
+            className="cursor-pointer relative inline-flex items-center px-8 py-4 overflow-hidden text-white bg-gradient-to-r from-[#004080] to-[#244e77] rounded-full group"
             onClick={handleExploreServices}
           >
             <span className="absolute right-0 transition-all duration-1000 translate-x-full group-hover:-translate-x-4">

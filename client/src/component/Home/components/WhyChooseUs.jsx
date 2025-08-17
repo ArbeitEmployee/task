@@ -7,11 +7,20 @@ gsap.registerPlugin(ScrollTrigger);
 
 const WhyChooseUs = () => {
   const sectionRef = useRef(null);
-  const itemRefs = useRef([]);
-  const imageRef = useRef(null);
-  const headingRef = useRef(null);
-  const containerRef = useRef(null);
+
   const badgeRef = useRef(null);
+  const headingRef = useRef(null);
+  const underlineRef = useRef(null);
+  const imageRef = useRef(null);
+
+  const itemRefs = useRef([]); // array of <li> refs
+  itemRefs.current = []; // reset on each render; callback refs will repopulate
+
+  const addItemRef = (el, idx) => {
+    if (el) {
+      itemRefs.current[idx] = el;
+    }
+  };
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia(
@@ -19,7 +28,7 @@ const WhyChooseUs = () => {
     ).matches;
     if (prefersReducedMotion) return;
 
-    // Initialize Lenis smooth scroll
+    // --- Lenis smooth scroll ---
     const lenis = new Lenis({
       duration: 1.2,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -27,123 +36,150 @@ const WhyChooseUs = () => {
       gestureDirection: "vertical",
       smooth: true,
       smoothTouch: false,
-      touchMultiplier: 2
+      touchMultiplier: 2,
     });
 
+    let rafId;
     const raf = (time) => {
       lenis.raf(time);
-      requestAnimationFrame(raf);
+      rafId = requestAnimationFrame(raf);
     };
-    requestAnimationFrame(raf);
+    rafId = requestAnimationFrame(raf);
 
+    // --- GSAP/ScrollTrigger animations in context (scoped to section) ---
     const ctx = gsap.context(() => {
-      // Animation for badge
-      gsap.from(badgeRef.current, {
-        y: 20,
-        opacity: 0,
-        duration: 0.8,
-        ease: "power3.out",
-        scrollTrigger: {
-          trigger: badgeRef.current,
-          start: "top 80%",
-          toggleActions: "play none none none"
-        }
-      });
+      // eslint-disable-next-line no-unused-vars
+      const tl = gsap.timeline();
 
-      // Animation for heading with underline
-      gsap.from(headingRef.current, {
-        y: 40,
-        opacity: 0,
-        duration: 1,
-        ease: "power3.out",
-        scrollTrigger: {
-          trigger: headingRef.current,
-          start: "top 75%",
-          toggleActions: "play none none none"
-        }
-      });
+      // Badge
+      if (badgeRef.current) {
+        gsap.from(badgeRef.current, {
+          y: 20,
+          opacity: 0,
+          duration: 0.8,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: badgeRef.current,
+            start: "top 80%",
+            toggleActions: "play none none none",
+          },
+        });
+      }
 
-      gsap.from(headingRef.current.querySelector("span span"), {
-        scaleX: 0,
-        duration: 1.2,
-        ease: "power2.out",
-        scrollTrigger: {
-          trigger: headingRef.current,
-          start: "top 75%",
-          toggleActions: "play none none none"
-        }
-      });
+      // Heading
+      if (headingRef.current) {
+        gsap.from(headingRef.current, {
+          y: 40,
+          opacity: 0,
+          duration: 1,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: headingRef.current,
+            start: "top 75%",
+            toggleActions: "play none none none",
+          },
+        });
+      }
 
-      // Animation for image
-      gsap.from(imageRef.current, {
-        x: -80,
-        opacity: 0,
-        duration: 0.8,
-        ease: "power3.out",
-        scrollTrigger: {
-          trigger: imageRef.current,
-          start: "top 70%",
-          toggleActions: "play none none none"
-        }
-      });
+      // Underline of heading (guarded)
+      if (underlineRef.current) {
+        gsap.from(underlineRef.current, {
+          scaleX: 0,
+          transformOrigin: "left center",
+          duration: 1.2,
+          ease: "power2.out",
+          scrollTrigger: {
+            trigger: headingRef.current || underlineRef.current,
+            start: "top 75%",
+            toggleActions: "play none none none",
+          },
+        });
+      }
 
-      // Animations for list items with staggered delay
-      itemRefs.current.forEach((item, index) => {
+      // Image
+      if (imageRef.current) {
+        gsap.from(imageRef.current, {
+          x: -80,
+          opacity: 0,
+          duration: 0.8,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: imageRef.current,
+            start: "top 70%",
+            toggleActions: "play none none none",
+          },
+        });
+      }
+
+      // List items (stagger)
+      const items = itemRefs.current.filter(Boolean);
+      items.forEach((item, index) => {
         gsap.from(item, {
           x: -40,
           opacity: 0,
           duration: 0.6,
           ease: "power2.out",
+          delay: index * 0.1,
           scrollTrigger: {
             trigger: item,
             start: "top 80%",
-            toggleActions: "play none none none"
+            toggleActions: "play none none none",
           },
-          delay: index * 0.1
         });
       });
 
-      // Create a master trigger for the section
-      const sectionTrigger = ScrollTrigger.create({
-        trigger: sectionRef.current,
-        start: "top center",
-        end: "bottom center",
-        onEnter: () => {
-          gsap.to([headingRef.current, imageRef.current, ...itemRefs.current], {
-            opacity: 1,
-            y: 0,
-            x: 0,
-            duration: 0.6,
-            stagger: 0.05,
-            ease: "power1.out"
-          });
-        },
-        onLeaveBack: () => {
-          gsap.to([headingRef.current, imageRef.current, ...itemRefs.current], {
-            opacity: 0,
-            y: 20,
-            x: -20,
-            duration: 0.6,
-            stagger: 0.02,
-            ease: "power1.in"
-          });
-        }
-      });
+      // Master trigger to fade in/out whole set (guard everything)
+      const allTargets = [
+        headingRef.current,
+        imageRef.current,
+        ...items,
+      ].filter(Boolean);
 
-      // Update ScrollTrigger on Lenis scroll
+      let sectionTrigger;
+      if (sectionRef.current && allTargets.length) {
+        sectionTrigger = ScrollTrigger.create({
+          trigger: sectionRef.current,
+          start: "top center",
+          end: "bottom center",
+          onEnter: () => {
+            gsap.to(allTargets, {
+              opacity: 1,
+              y: 0,
+              x: 0,
+              duration: 0.6,
+              stagger: 0.05,
+              ease: "power1.out",
+            });
+          },
+          onLeaveBack: () => {
+            gsap.to(allTargets, {
+              opacity: 0,
+              y: 20,
+              x: -20,
+              duration: 0.6,
+              stagger: 0.02,
+              ease: "power1.in",
+            });
+          },
+        });
+      }
+
+      // Keep ScrollTrigger in sync with Lenis
       lenis.on("scroll", () => {
         ScrollTrigger.update();
       });
 
+      // Cleanup for everything inside context
       return () => {
-        lenis.destroy();
-        sectionTrigger.kill();
+        if (sectionTrigger) sectionTrigger.kill();
       };
     }, sectionRef);
 
+    // Global cleanup
     return () => {
+      if (rafId) cancelAnimationFrame(rafId);
       lenis.destroy();
-      ctx.revert();
+      ctx.revert(); // kills all GSAP/ScrollTrigger created in context
     };
   }, []);
 
@@ -153,10 +189,7 @@ const WhyChooseUs = () => {
       className="relative py-25 overflow-hidden bg-transparent"
     >
       <div className="container mx-auto px-4 md:px-6 lg:px-8 relative z-10">
-        <div
-          className="flex flex-col items-center text-center"
-          ref={containerRef}
-        >
+        <div className="flex flex-col items-center text-center">
           {/* Premium Badge */}
           <div
             ref={badgeRef}
@@ -184,7 +217,10 @@ const WhyChooseUs = () => {
             Why{" "}
             <span className="text-[#004080] relative">
               Choose Us
-              <span className="absolute -bottom-2 left-0 w-full h-1 bg-gradient-to-r from-[#004080] to-[#004080]/0 rounded-full transition-all duration-500 transform origin-left"></span>
+              <span
+                ref={underlineRef}
+                className="absolute -bottom-2 left-0 w-full h-1 bg-gradient-to-r from-[#004080] to-[#004080]/0 rounded-full transition-all duration-500 transform origin-left"
+              />
             </span>
           </h2>
 
@@ -192,7 +228,7 @@ const WhyChooseUs = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center max-w-7xl w-full">
             <div
               ref={imageRef}
-              className="cursor-pointer relative rounded-3xl overflow-hidden shadow-2xl border-8 border-white transform hover:shadow-3xl transition-all duration-500 group"
+              className="cursor-pointer relative rounded-3xl overflow-hidden shadow-2xl border-8 border-white transform hover:shadow-3xl transition-all duration-500 group will-change-transform"
             >
               <img
                 src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"
@@ -200,23 +236,23 @@ const WhyChooseUs = () => {
                 className="w-full h-auto md:h-[600px] object-cover group-hover:scale-105 transition-transform duration-700 will-change-transform"
                 loading="lazy"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#004080]/80 via-[#004080]/30 to-transparent"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-[#004080]/80 via-[#004080]/30 to-transparent" />
               <div className="absolute bottom-0 left-0 p-8 text-white text-left">
                 <h3 className="text-2xl md:text-3xl font-bold mb-3 !text-white">
                   Our Global Success
                 </h3>
                 <p className="text-lg opacity-90">
-                  Join 10,000+ students across 50 countries
+                  Join 600+ students across 20+ countries
                 </p>
               </div>
             </div>
 
-            {/* Premium Content */}
+            {/* List */}
             <div className="text-left">
               <ul className="space-y-6">
                 {[
                   {
-                    text: "95% Visa Approval Rate",
+                    text: "100% Visa Approval Rate",
                     icon: (
                       <svg
                         className="w-8 h-8"
@@ -233,7 +269,7 @@ const WhyChooseUs = () => {
                       </svg>
                     ),
                     description:
-                      "Industry-leading success rate with documented results"
+                      "Industry-leading success rate with documented results",
                   },
                   {
                     text: "Free IELTS/SAT Courses",
@@ -253,10 +289,10 @@ const WhyChooseUs = () => {
                       </svg>
                     ),
                     description:
-                      "Premium test prep materials worth $500+ included free"
+                      "Premium test preparation materials with expert guidance",
                   },
                   {
-                    text: "Certified Counselors",
+                    text: "Experienced Counselor",
                     icon: (
                       <svg
                         className="w-8 h-8"
@@ -272,8 +308,7 @@ const WhyChooseUs = () => {
                         />
                       </svg>
                     ),
-                    description:
-                      "AACI-certified advisors with 10+ years experience"
+                    description: "Advisor with 17+ years of experience",
                   },
                   {
                     text: "Zero File-Opening Fees",
@@ -293,12 +328,12 @@ const WhyChooseUs = () => {
                       </svg>
                     ),
                     description:
-                      "No hidden costs - we only get paid when you succeed"
-                  }
+                      "No hidden costs - we only get paid when you succeed",
+                  },
                 ].map((item, index) => (
                   <li
                     key={index}
-                    ref={headingRef}
+                    ref={(el) => addItemRef(el, index)}
                     className="flex items-start bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border-l-[6px] border-[#004080] group hover:bg-gray-50 will-change-transform"
                   >
                     <span className="text-[#004080] mr-5 mt-1 group-hover:scale-110 transition-transform duration-300">

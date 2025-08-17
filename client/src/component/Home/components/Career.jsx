@@ -5,9 +5,11 @@ import { useInView } from "react-intersection-observer";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 gsap.registerPlugin(ScrollTrigger);
+
 const Career = () => {
   const heroRef = useRef(null);
   const contentRef = useRef(null);
+
   useEffect(() => {
     const ctx = gsap.context(() => {
       const mm = gsap.matchMedia();
@@ -54,6 +56,7 @@ const Career = () => {
 
     return () => ctx.revert();
   }, []);
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -80,7 +83,6 @@ const Career = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Form submission logic would go here
     console.log("Form submitted:", formData);
     setSubmitted(true);
     setFormData({
@@ -99,29 +101,6 @@ const Career = () => {
       formRef.current.scrollIntoView({ behavior: "smooth" });
     }
   };
-
-  const positions = [
-    {
-      role: "Visa Processing Officer",
-      department: "Operations",
-      deadline: "Aug 31, 2025",
-    },
-    {
-      role: "IELTS Instructor",
-      department: "Academics",
-      deadline: "Sept 15, 2025",
-    },
-    {
-      role: "Student Counselor",
-      department: "Admissions",
-      deadline: "Sept 30, 2025",
-    },
-    {
-      role: "Marketing Specialist",
-      department: "Marketing",
-      deadline: "Oct 15, 2025",
-    },
-  ];
 
   // Animation variants
   const containerVariants = {
@@ -195,7 +174,6 @@ const Career = () => {
             <h3 className="font-bold text-lg mb-2 text-gray-800">
               Drop Your CV
             </h3>
-            {/* Close Button */}
             <button
               onClick={() => setShowCvDrop(false)}
               className="text-gray-500 hover:text-gray-700"
@@ -218,7 +196,6 @@ const Career = () => {
             </button>
           </div>
 
-          {/* CV Upload Form */}
           <form onSubmit={handleSubmit}>
             <input
               type="file"
@@ -242,7 +219,6 @@ const Career = () => {
 
   return (
     <motion.div className="relative">
-      {/* Floating CV Drop Button - Always Visible */}
       <FloatingCvDrop />
 
       {/* Hero Section */}
@@ -293,9 +269,7 @@ const Career = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  setShowCvDrop(!showCvDrop);
-                }}
+                onClick={() => setShowCvDrop(!showCvDrop)}
                 className="inline-block bg-black/40 hover:bg-black/60 text-white font-bold py-3 px-8 rounded-full transition duration-300 border border-white"
               >
                 Drop Your CV
@@ -337,13 +311,13 @@ const Career = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
                 ),
-                title: "Flexible Work Options",
+                title: "Flexible Work Hours",
                 description:
-                  "Remote and hybrid work arrangements to suit your lifestyle",
+                  "Work when you're most productive with our flexible scheduling options",
               },
               {
                 icon: (
@@ -358,13 +332,13 @@ const Career = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                      d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
                 ),
-                title: "Professional Development",
+                title: "Connect with Our Global Partners",
                 description:
-                  "$1,000 annual fund for courses, certifications, and conferences",
+                  "Opportunity to work with our international education partners worldwide",
               },
               {
                 icon: (
@@ -379,12 +353,13 @@ const Career = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
                     />
                   </svg>
                 ),
-                title: "Top Rated Workplace",
-                description: "4.8/5 Glassdoor rating from our team members",
+                title: "Excellent Homely Work Environment",
+                description:
+                  "Enjoy a comfortable and supportive workplace that feels like home",
               },
             ].map((feature, index) => (
               <motion.div
@@ -405,7 +380,7 @@ const Career = () => {
       </section>
 
       {/* Open Positions Section */}
-      <section id="positions" className="py-20 ">
+      <section id="positions" className="py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"
@@ -419,78 +394,47 @@ const Career = () => {
             >
               Current Openings
             </motion.h2>
-            <motion.p
-              variants={itemVariants}
-              className="text-xl text-gray-600 max-w-2xl mx-auto"
-            >
-              Join our team of passionate education consultants
-            </motion.p>
           </motion.div>
 
           <motion.div
             variants={fadeIn}
-            className="bg-white rounded-xl shadow-md overflow-hidden"
+            className="bg-white rounded-xl shadow-md overflow-hidden p-12 text-center"
           >
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Role
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Department
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Deadline
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {positions.map((position, index) => (
-                    <motion.tr
-                      key={index}
-                      variants={itemVariants}
-                      whileHover={{ backgroundColor: "rgba(0, 64, 128, 0.05)" }}
-                      className="transition-colors duration-200"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-medium text-gray-900">
-                          {position.role}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-gray-600">
-                          {position.department}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                          {position.deadline}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => scrollToForm(position.role)}
-                          className="text-[#004080] hover:text-[#003366] font-bold"
-                        >
-                          Apply Now →
-                        </button>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <svg
+              className="w-16 h-16 mx-auto text-gray-400 mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <h3 className="text-2xl font-bold mb-2 text-gray-800">
+              No Openings at the Moment
+            </h3>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              We're not hiring right now — but don't worry, exciting
+              opportunities are always on the horizon. Stay tuned!
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => scrollToForm()}
+              className="mt-6 inline-block bg-[#004080] hover:bg-[#003366] text-white font-bold py-3 px-6 rounded-lg transition duration-300"
+            >
+              Submit General Application
+            </motion.button>
           </motion.div>
         </div>
       </section>
 
       {/* Application Form Section */}
-      <section id="apply" className="py-20 " ref={formRef}>
+      <section id="apply" className="py-20" ref={formRef}>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto">
             <motion.div
@@ -509,7 +453,7 @@ const Career = () => {
                 variants={itemVariants}
                 className="text-xl text-gray-600 max-w-2xl mx-auto"
               >
-                Start your journey with Northern Lights today
+                Submit your CV and we'll contact you when positions open up
               </motion.p>
             </motion.div>
 
@@ -536,7 +480,9 @@ const Career = () => {
                 <h3 className="text-2xl font-bold mb-2">
                   Thank you for your application!
                 </h3>
-                <p>We'll contact you within 72 hours.</p>
+                <p>
+                  We'll contact you when suitable positions become available.
+                </p>
               </motion.div>
             ) : (
               <motion.form
@@ -617,11 +563,6 @@ const Career = () => {
                       <option value="General Application">
                         General Application
                       </option>
-                      {positions.map((pos, index) => (
-                        <option key={index} value={pos.role}>
-                          {pos.role}
-                        </option>
-                      ))}
                     </select>
                   </div>
                 </div>

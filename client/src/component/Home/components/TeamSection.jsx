@@ -62,7 +62,7 @@ const TeamSection = () => {
       bio: "20+ years in immigration law, ex-UN advisor",
       image:
         "https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-      color: "#FF5E7D"
+      color: "#FF5E7D",
     },
     {
       id: 2,
@@ -71,7 +71,7 @@ const TeamSection = () => {
       bio: "Processed 1000+ successful visa applications",
       image:
         "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-      color: "#47B5FF"
+      color: "#47B5FF",
     },
     {
       id: 3,
@@ -80,14 +80,14 @@ const TeamSection = () => {
       bio: "Established 12+ country partnerships worldwide",
       image:
         "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-      color: "#6C4AB6"
-    }
+      color: "#6C4AB6",
+    },
   ];
 
   const stats = [
-    { value: 5000, label: "Students Guided", suffix: "+" },
-    { value: 98, label: "Visa Success Rate", suffix: "%" },
-    { value: 12, label: "Country Partnerships", suffix: "+" }
+    { value: 600, label: "Students Guided", suffix: "+" },
+    { value: 100, label: "Visa Success Rate", suffix: "%" },
+    { value: 20, label: "Country Partnerships", suffix: "+" },
   ];
 
   const values = [
@@ -95,20 +95,20 @@ const TeamSection = () => {
       title: "Integrity",
       description: "No false promises",
       icon: "✨",
-      color: "#FF5E7D"
+      color: "#FF5E7D",
     },
     {
-      title: "Innovation",
-      description: "AI-driven counseling tools",
+      title: "Transparency",
+      description: "Real-time updates",
       icon: "🚀",
-      color: "#47B5FF"
+      color: "#47B5FF",
     },
     {
       title: "Impact",
-      description: "95% student satisfaction",
+      description: "100% student satisfaction",
       icon: "💎",
-      color: "#6C4AB6"
-    }
+      color: "#6C4AB6",
+    },
   ];
 
   // Animation variants
@@ -118,9 +118,9 @@ const TeamSection = () => {
       opacity: 1,
       transition: {
         staggerChildren: 0.2,
-        delayChildren: 0.3
-      }
-    }
+        delayChildren: 0.3,
+      },
+    },
   };
 
   const itemVariants = {
@@ -130,9 +130,9 @@ const TeamSection = () => {
       y: 0,
       transition: {
         duration: 0.8,
-        ease: [0.16, 0.77, 0.47, 0.97]
-      }
-    }
+        ease: [0.16, 0.77, 0.47, 0.97],
+      },
+    },
   };
 
   const slideInLeft = {
@@ -142,9 +142,9 @@ const TeamSection = () => {
       x: 0,
       transition: {
         duration: 0.8,
-        ease: [0.16, 0.77, 0.47, 0.97]
-      }
-    }
+        ease: [0.16, 0.77, 0.47, 0.97],
+      },
+    },
   };
 
   const timelineItem = {
@@ -155,9 +155,9 @@ const TeamSection = () => {
       transition: {
         delay: i * 0.15,
         duration: 0.6,
-        ease: "easeOut"
-      }
-    })
+        ease: "easeOut",
+      },
+    }),
   };
 
   const luxeBarVariants = {
@@ -166,8 +166,8 @@ const TeamSection = () => {
       opacity: 1,
       scaleX: 1,
       filter: "blur(0px)",
-      transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] }
-    }
+      transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] },
+    },
   };
 
   return (
@@ -203,14 +203,14 @@ const TeamSection = () => {
               className="absolute inset-y-0 -left-1/3 w-1/2"
               style={{
                 background:
-                  "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0) 100%)"
+                  "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0) 100%)",
               }}
               initial={{ x: "-120%" }}
               animate={{ x: ["-120%", "160%"] }}
               transition={{
                 duration: 1.8,
                 repeat: Infinity,
-                ease: [0.2, 0.8, 0.2, 1]
+                ease: [0.2, 0.8, 0.2, 1],
               }}
             />
             {[0, 1, 2, 3].map((i) => (
@@ -225,7 +225,7 @@ const TeamSection = () => {
                   repeat: Infinity,
                   repeatDelay: 0.6,
                   ease: "easeOut",
-                  delay: i * 0.2
+                  delay: i * 0.2,
                 }}
               />
             ))}
@@ -300,7 +300,7 @@ const TeamSection = () => {
                     <div
                       className="w-12 h-12 rounded-full flex items-center justify-center mr-6"
                       style={{
-                        backgroundColor: teamMembers[index].color + "20"
+                        backgroundColor: teamMembers[index].color + "20",
                       }}
                     >
                       <span

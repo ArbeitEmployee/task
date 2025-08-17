@@ -14,7 +14,7 @@ const Services = () => {
   const isInView = useInView(sectionRef, {
     once: false,
     amount: 0.07,
-    margin: "0px 0px -20% 0px"
+    margin: "0px 0px -20% 0px",
   });
 
   const controls = useAnimation();
@@ -27,7 +27,7 @@ const Services = () => {
       gestureDirection: "vertical",
       smooth: true,
       smoothTouch: false,
-      touchMultiplier: 2
+      touchMultiplier: 2,
     });
 
     const raf = (time) => {
@@ -62,30 +62,30 @@ const Services = () => {
         // hide children first, slowly
         staggerChildren: 0.08,
         staggerDirection: -1,
-        duration: 0.8
-      }
+        duration: 0.8,
+      },
     },
     visible: {
       opacity: 1,
       transition: {
         // appear fast
         staggerChildren: 0.12,
-        delayChildren: 0.1
-      }
-    }
+        delayChildren: 0.1,
+      },
+    },
   };
 
   const itemVariants = {
     hidden: {
       opacity: 0,
       y: 30,
-      transition: { duration: 1.0, ease: "easeInOut" } // slow fade out
+      transition: { duration: 1.0, ease: "easeInOut" }, // slow fade out
     },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.35, ease: [0.16, 0.77, 0.47, 0.97] } // fast in
-    }
+      transition: { duration: 0.35, ease: [0.16, 0.77, 0.47, 0.97] }, // fast in
+    },
   };
 
   const luxeBarVariants = {
@@ -94,8 +94,8 @@ const Services = () => {
       opacity: 1,
       scaleX: 1,
       filter: "blur(0px)",
-      transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] }
-    }
+      transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] },
+    },
   };
 
   return (
@@ -119,8 +119,10 @@ const Services = () => {
             variants={itemVariants}
             className="text-4xl md:text-5xl lg:text-6xl font-bold text-[#004080] mb-6"
           >
-            <span className="text-black">We Are The Most Trusted</span> Visa and
-            Immigration Consultant
+            <span className="text-black">
+              Trusted Visa and Immigration Consultancy{" "}
+            </span>{" "}
+            At Your Service
           </motion.h1>
           <motion.div
             variants={luxeBarVariants}
@@ -133,14 +135,14 @@ const Services = () => {
               className="absolute inset-y-0 -left-1/3 w-1/2"
               style={{
                 background:
-                  "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0) 100%)"
+                  "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0) 100%)",
               }}
               initial={{ x: "-120%" }}
               animate={{ x: ["-120%", "160%"] }}
               transition={{
                 duration: 1.8,
                 repeat: Infinity,
-                ease: [0.2, 0.8, 0.2, 1]
+                ease: [0.2, 0.8, 0.2, 1],
               }}
             />
           </motion.div>
@@ -154,11 +156,10 @@ const Services = () => {
           className="mb-20"
         >
           <p className="text-lg md:text-xl text-gray-700 text-center">
-            Northern Lights Study and Immigration Consultancy Study and
-            Immigration Consultancy empowers aspiring students with accurate
-            country-specific information and end-to-end admission, scholarship,
-            and visa services through mentors who've successfully navigated the
-            process themselves.
+            Northern Lights Study and Immigration Consultancy empowers aspiring
+            students with accurate country-specific information and end-to-end
+            admission, scholarship, and visa services through mentor with 17+
+            years experience.
           </p>
         </motion.div>
 
@@ -184,23 +185,22 @@ const Services = () => {
             {[
               {
                 title: "Expert Counseling",
-                description:
-                  "30-min free sessions for university/country selection",
+                description: "Free session for university/country selection",
                 icon: "💬",
-                bg: "from-blue-400/20 to-blue-600/20"
+                bg: "from-blue-400/20 to-blue-600/20",
               },
               {
                 title: "Profile Assessment",
                 description: "Academic evaluation + university recommendations",
                 icon: "📊",
-                bg: "from-purple-400/20 to-purple-600/20"
+                bg: "from-purple-400/20 to-purple-600/20",
               },
               {
                 title: "Visa Process Walkthrough",
                 description: "Step-by-step guidance",
                 icon: "🛂",
-                bg: "from-teal-400/20 to-teal-600/20"
-              }
+                bg: "from-teal-400/20 to-teal-600/20",
+              },
             ].map((service, index) => (
               <motion.div
                 key={index}
@@ -245,13 +245,11 @@ const Services = () => {
 
           <motion.div
             variants={containerVariants}
-            className="flex flex-wrap justify-center gap-8 max-w-6xl mx-auto"
+            className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20"
           >
             {[
               {
                 title: "Study Abroad Consultancy",
-                description:
-                  "Comprehensive support for university selection, application assistance, statement of purpose guidance, and more.",
                 icon: (
                   <svg
                     className="w-8 h-8 text-white"
@@ -268,19 +266,16 @@ const Services = () => {
                   </svg>
                 ),
                 features: [
-                  "Documents Arrangement: Collect academic certs, transcripts, IELTS/TOEFL scores. Prepare EU-standard CVs & application bundles.",
-                  "Motivation Letter: Expert SOP writers refine drafts using proven templates + storytelling techniques.",
-                  "University Application: Shortlist universities matching academic profile; handle full application submission.",
-                  "Interview Prep: Mock interviews with country-specific Q&A banks (e.g., Finland's assignment-focused process).",
-                  "Scholarship Support: Target Erasmus Mundus, Fulbright, DAAD based on student's grades/extracurriculars.",
-                  "Tuition Fee Support: Guide on forex rates, student bank accounts, and fee insurance."
+                  "Documents Arrangement",
+                  "University Application",
+                  "Free IELTS/SAT Courses",
+                  "Motivation Letter and CV Writing Assistance",
+                  "Interview Preparation",
                 ],
-                color: "from-indigo-500 to-blue-600"
+                color: "from-indigo-500 to-blue-600",
               },
               {
                 title: "Visa Assistance",
-                description:
-                  "Expert guidance for all types of visas including student, tourist, work, and immigration visas.",
                 icon: (
                   <svg
                     className="w-8 h-8 text-white"
@@ -297,20 +292,43 @@ const Services = () => {
                   </svg>
                 ),
                 features: [
-                  "Document Legalization: Attest certificates via Education Board → Foreign Ministry → Embassy. (Required for Germany, Austria)",
-                  "VFS Appointment: Book slots + handle payment (except Schengen). Priority service for Canada SDS.",
-                  "Sponsorship Guidelines: Prepare bank statements (6 months) + sponsor affidavits (1st/2nd blood). Finland: 10 lakh BDT proof required.",
-                  "Embassy Interview Prep: Simulate visa officer Q&A (e.g., 'Why this university?'). USA: Focus on post-study plans.",
-                  "Dependent Visa: Process spouse/child visas alongside student applications. Australia: SVP allows dependents.",
-                  "Tourist Visa: Schengen/UK/US applications for parents visiting students. Document checklist tailored per embassy."
+                  "Document Legalization",
+                  "VFS Appointment",
+                  "Sponsorship Guidelines",
+                  "Embassy Interview Preparation",
                 ],
-                color: "from-purple-500 to-indigo-600"
-              }
+                color: "from-purple-500 to-indigo-600",
+              },
+              {
+                title: "After-Visa Services ",
+                icon: (
+                  <svg
+                    className="w-8 h-8 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                ),
+                features: [
+                  "Air Ticket Support",
+                  "Money Exchange Support",
+                  "Accommodation Support ",
+                  "Job Guidance",
+                ],
+                color: "from-blue-500 to-cyan-600",
+              },
             ].map((service, index) => (
               <motion.div
                 key={index}
                 variants={itemVariants}
-                className="bg-white p-10 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 border border-gray-100 relative overflow-hidden group w-full md:w-[calc(50%-20px)] lg:w-[calc(50%-20px)] max-w-2xl"
+                className="bg-white p-10 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 border border-gray-100 relative overflow-hidden group w-full cursor-pointer"
               >
                 <div
                   className={`absolute inset-0 bg-gradient-to-br ${service.color} opacity-0 group-hover:opacity-10 transition-opacity duration-500 rounded-2xl -z-0`}
@@ -335,18 +353,21 @@ const Services = () => {
                     {service.features.map((feature, i) => (
                       <li key={i} className="flex items-start">
                         <svg
-                          className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0"
+                          className="w-5 h-5 text-gray-600 mr-2 mt-0.5 flex-shrink-0"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+                          <circle
+                            cx="12"
+                            cy="12"
+                            r="3"
+                            stroke="currentColor"
                             strokeWidth={2}
-                            d="M5 13l4 4L19 7"
+                            fill="none"
                           />
                         </svg>
+
                         <span className="text-gray-700">{feature}</span>
                       </li>
                     ))}
@@ -367,44 +388,37 @@ const Services = () => {
             variants={itemVariants}
             className="text-4xl font-bold text-center !text-black mb-12"
           >
-            <span className="text-[#004080]">After-Visa</span>Services
+            <span className="text-[#004080]">After-Visa </span>Services
           </motion.h2>
 
           <motion.div
             variants={containerVariants}
-            className="grid grid-cols-1 md:grid-cols-3 gap-8"
+            className="flex flex-wrap justify-center gap-8 w-full px-4" // Changed to flex with justify-center
           >
             {[
               {
-                title: "Air Ticket Support",
-                description:
-                  "Book discounted student fares (proof of admission required).",
-                icon: "✈️",
-                color: "from-indigo-500 to-blue-600"
+                title: "INTI International Education Scholarship",
+                description: "Details sharing soon.",
+                icon: "🎓",
+                color: "from-purple-500 to-pink-600",
               },
               {
-                title: "Accommodation Support",
-                description: "Partnered with UniAcco/Amber for dorm bookings.",
-                icon: "🏠",
-                color: "from-green-500 to-teal-600"
-              },
-              {
-                title: "Job Guidance",
+                title: "Northern Scholarships",
                 description:
-                  "LinkedIn profile optimization + part-time job leads.",
-                icon: "💼",
-                color: "from-yellow-500 to-orange-600"
-              }
+                  "Get exclusive scholarship for our service charge with incredible IELTS/TOEFL/PTE/Duolingo and SAT scores.",
+                icon: "🏆",
+                color: "from-red-500 to-yellow-600",
+              },
             ].map((service, index) => (
               <motion.div
                 key={index}
                 variants={itemVariants}
-                className="bg-white p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 border border-gray-100 relative overflow-hidden group"
+                className="bg-white p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 border border-gray-100 relative overflow-hidden group w-full md:w-[400px] min-h-[300px] flex flex-col justify-center items-center" // Added fixed width on md+
               >
                 <div
                   className={`absolute inset-0 bg-gradient-to-br ${service.color} opacity-0 group-hover:opacity-10 transition-opacity duration-500 rounded-2xl -z-0`}
                 ></div>
-                <div className="relative z-10">
+                <div className="relative z-10 text-center flex-grow flex flex-col justify-center items-center">
                   <div className="text-4xl mb-6 group-hover:text-white transition-colors duration-300">
                     {service.icon}
                   </div>
@@ -419,7 +433,8 @@ const Services = () => {
             ))}
           </motion.div>
         </motion.div>
-        <motion.div
+
+        {/* <motion.div
           initial="hidden"
           animate={controls}
           variants={containerVariants}
@@ -437,26 +452,26 @@ const Services = () => {
                 title: "AI Chatbot Support",
                 description:
                   "24/7 instant answers on visa policies & university deadlines",
-                icon: "🤖"
+                icon: "🤖",
               },
               {
                 title: "Mobile App Features",
                 description:
                   "Eligibility checker, live tracker, and direct mentor messaging",
-                icon: "📱"
+                icon: "📱",
               },
               {
                 title: "Scholarship Targeting",
                 description:
                   "Specialized support for Erasmus Mundus, Fulbright, DAAD",
-                icon: "💰"
+                icon: "💰",
               },
               {
                 title: "Dependent Visa Help",
                 description:
                   "Process spouse/child visas alongside student applications",
-                icon: "👨‍👩‍👧"
-              }
+                icon: "👨‍👩‍👧",
+              },
             ].map((service, index) => (
               <motion.div
                 key={index}
@@ -477,7 +492,7 @@ const Services = () => {
               </motion.div>
             ))}
           </div>
-        </motion.div>
+        </motion.div> */}
       </div>
     </section>
   );

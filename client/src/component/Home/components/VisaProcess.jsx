@@ -12,94 +12,96 @@ const VisaProcess = () => {
     navigate("/appointment");
   };
   const serviceIcons = {
-    documents: "🗂️",
-    sop: "✍️",
-    vfs: "🛂",
-    interview: "🎤",
-    scholarship: "💰",
-    tuition: "💳",
-    relocation: "✈️",
-    chatbot: "🤖"
+    consultation: "👩‍💻", // AI consultation
+    university: "🏛️", // University building
+    documents: "📚", // Stack of books
+    sop: "✒️", // Fountain pen
+    offer: "📜", // Scroll
+    payment: "💸", // Money with wings
+    finance: "🏦", // Bank
+    visa: "🛂", // Passport control
+    legalization: "🖇️", // Linked papers
+    interview: "🎙️", // Studio microphone
+    relocation: "🧳", // Luggage
   };
 
   const generalSteps = [
     {
       title: "Initial Consultation & Profile Assessment",
       description:
-        "Our AI chatbot provides instant eligibility check for 500+ programs",
-      icon: serviceIcons.chatbot,
-      side: "left"
+        "Our expert counselor assesses your profile and suggests ideal universities/countries based on your qualifications and preferences",
+      icon: serviceIcons.consultation,
+      side: "left",
     },
     {
       title: "University/College Shortlisting & Application",
       description:
-        "We shortlist universities matching your profile and handle full application submission",
-      icon: "🏫",
-      side: "right"
+        "We shortlist perfect-fit universities and handle the entire application submission process",
+      icon: serviceIcons.university,
+      side: "right",
     },
     {
       title: "Documents Arrangement",
       description:
-        "We collect academic certs, transcripts, IELTS/TOEFL scores and prepare EU-standard CVs",
+        "We organize academic certificates, transcripts, test scores and craft EU-standard CVs",
       icon: serviceIcons.documents,
-      side: "left"
+      side: "left",
     },
     {
       title: "Motivation Letter & SOP Crafting",
       description:
-        "Our expert writers refine drafts using proven templates + storytelling techniques",
+        "Our writers create compelling narratives using proven templates and storytelling techniques",
       icon: serviceIcons.sop,
-      side: "right"
+      side: "right",
     },
     {
       title: "Offer Letter & Acceptance",
       description:
-        "Track your application status live through our app with direct mentor messaging",
-      icon: "📨",
-      side: "left"
+        "We help you track application status and guide through acceptance procedures",
+      icon: serviceIcons.offer,
+      side: "left",
     },
     {
-      title: "Financial Documentation & Proof of Funds",
+      title: "Tuition Fee Payment",
       description:
-        "We guide on forex rates, student bank accounts, and fee insurance",
-      icon: serviceIcons.tuition,
-      side: "right"
+        "We provide secure guidance for international tuition payments",
+      icon: serviceIcons.payment,
+      side: "right",
+    },
+    {
+      title: "Financial Documentation",
+      description:
+        "Expert guidance on forex rates, student bank accounts, and proof of funds",
+      icon: serviceIcons.finance,
+      side: "left",
     },
     {
       title: "Visa Application & VFS Appointment",
-      description:
-        "We book slots + handle payment (except Schengen) with priority service for Canada SDS",
-      icon: serviceIcons.vfs,
-      side: "left"
+      description: "We handle slot bookings and visa application procedures",
+      icon: serviceIcons.visa,
+      side: "right",
     },
     {
       title: "Document Legalization",
       description:
-        "We attest certificates via Education Board → Foreign Ministry → Embassy",
-      icon: "📜",
-      side: "right"
+        "End-to-end attestation through Education Board → Foreign Ministry → Embassy",
+      icon: serviceIcons.legalization,
+      side: "left",
     },
     {
       title: "Embassy Interview Preparation",
       description:
-        "Mock interviews with country-specific Q&A banks (e.g., Finland's assignment-focused process)",
+        "Country-specific mock interviews with actual question banks",
       icon: serviceIcons.interview,
-      side: "left"
+      side: "right",
     },
     {
-      title: "Scholarship Application Support",
+      title: "Visa Outcome & Relocation",
       description:
-        "We target Erasmus Mundus, Fulbright, DAAD based on your grades/extracurriculars",
-      icon: serviceIcons.scholarship,
-      side: "right"
-    },
-    {
-      title: "Visa Outcome & Pre-Departure Briefing",
-      description:
-        "Includes relocation support for air tickets, accommodation, and part-time job leads",
+        "Complete pre-departure support including flights, accommodation, and job leads",
       icon: serviceIcons.relocation,
-      side: "left"
-    }
+      side: "left",
+    },
   ];
 
   return (
@@ -156,7 +158,7 @@ const VisaProcess = () => {
                 }`}
                 style={{
                   marginTop: index === 0 ? 0 : "0",
-                  minHeight: "180px" // Minimum height for mobile
+                  minHeight: "180px", // Minimum height for mobile
                 }}
               >
                 <div
@@ -206,7 +208,7 @@ const VisaProcess = () => {
           <motion.button
             whileHover={{
               scale: 1.05,
-              boxShadow: "0 10px 25px rgba(0, 64, 128, 0.3)"
+              boxShadow: "0 10px 25px rgba(0, 64, 128, 0.3)",
             }}
             onClick={handleBookConsultation}
             whileTap={{ scale: 0.95 }}

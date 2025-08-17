@@ -25,7 +25,7 @@ const AppointmentForm = () => {
     sponsorOther: "",
     message: "",
     status: "pending",
-    assignedTo: null
+    assignedTo: null,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -50,34 +50,45 @@ const AppointmentForm = () => {
 
   const countries = [
     "Finland",
+    "Estonia",
     "Denmark",
     "Sweden",
     "Norway",
-    "Cyprus",
-    "Malta",
-    "Poland",
+    "Hungary",
+    "USA",
+    "UK",
+    "Australia",
     "Italy",
     "Spain",
     "Portugal",
-    "Hungary ",
-    "Check Republic",
-    "Estonia",
-    "Other"
+    "Greece",
+    "Poland",
+    "Lithuania",
+    "Latvia",
+    "Cyprus",
+    "Malta",
+    "Czech Republic",
+    "Romania",
+    "China",
+    "Malaysia",
+    "Thailand",
+    "Other",
   ];
+
   const studyLevels = [
     "Undergraduate",
     "Postgraduate",
     "Diploma",
     "Language Course",
     "PhD",
-    "Other"
+    "Other",
   ];
   const intakes = [
     "September 2025",
     "January 2026",
     "May 2026",
     "September 2026",
-    "Other"
+    "Other",
   ];
   const sponsors = ["Self-Funded", "Guardian", "Scholarship", "Other"];
 
@@ -85,7 +96,7 @@ const AppointmentForm = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -111,7 +122,7 @@ const AppointmentForm = () => {
         sponsor:
           formData.sponsor === "Other"
             ? formData.sponsorOther
-            : formData.sponsor
+            : formData.sponsor,
       };
 
       // Remove the "Other" fields
@@ -143,7 +154,7 @@ const AppointmentForm = () => {
           sponsorOther: "",
           message: "",
           status: "pending",
-          assignedTo: null
+          assignedTo: null,
         });
       }
     } catch (error) {
@@ -495,7 +506,7 @@ const AppointmentForm = () => {
                   "University shortlisting with best-fit recommendations",
                   "Visa process guidance for your destination",
                   "Scholarship and funding opportunity insights",
-                  "Application strategy and document review"
+                  "Application strategy and document review",
                 ].map((item, index) => (
                   <li key={index} className="flex items-start">
                     <svg
@@ -539,7 +550,7 @@ const AppointmentForm = () => {
                 {[
                   ["Duration", "30 minutes (extendable if needed)"],
                   ["Available Days", "Saturday to Thursday (Friday closed)"],
-                  ["Preparation", "Have academic documents and passport ready"]
+                  ["Preparation", "Have academic documents and passport ready"],
                 ].map(([title, desc], index) => (
                   <div key={index} className="flex">
                     <div className="bg-[#004080]/10 p-2 rounded-lg mr-4">

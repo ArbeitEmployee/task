@@ -19,7 +19,7 @@ const About = () => {
     { x: 480, y: 300, color: "#FFBE0B", name: "AS" }, // Asia
     { x: 300, y: 380, color: "#FF9F1C", name: "AU" }, // Australia
     { x: 200, y: 280, color: "#A663CC", name: "AF" }, // Africa
-    { x: 150, y: 150, color: "#6BD425", name: "SA" } // South America
+    { x: 150, y: 150, color: "#6BD425", name: "SA" }, // South America
   ];
 
   // Create a smooth path through all continent points
@@ -36,11 +36,11 @@ const About = () => {
       // Create smooth curves between points
       const control1 = {
         x: prev.x + (curr.x - prev.x) * 0.3,
-        y: prev.y + (curr.y - prev.y) * 0.3
+        y: prev.y + (curr.y - prev.y) * 0.3,
       };
       const control2 = {
         x: prev.x + (curr.x - prev.x) * 0.6,
-        y: prev.y + (curr.y - prev.y) * 0.6
+        y: prev.y + (curr.y - prev.y) * 0.6,
       };
       path += ` C ${control1.x},${control1.y} ${control2.x},${control2.y} ${curr.x},${curr.y}`;
     }
@@ -74,7 +74,7 @@ const About = () => {
     y: continentPoints
       .map((p) => p.y - 250)
       .concat([continentPoints[0].y - 250]),
-    rotate: planeAngles.concat([planeAngles[0]])
+    rotate: planeAngles.concat([planeAngles[0]]),
   };
   useEffect(() => {
     if (isInView) {
@@ -123,9 +123,9 @@ const About = () => {
       opacity: 1,
       transition: {
         staggerChildren: 0.2,
-        delayChildren: 0.3
-      }
-    }
+        delayChildren: 0.3,
+      },
+    },
   };
 
   const itemVariants = {
@@ -135,9 +135,9 @@ const About = () => {
       y: 0,
       transition: {
         duration: 0.8,
-        ease: [0.16, 0.77, 0.47, 0.97]
-      }
-    }
+        ease: [0.16, 0.77, 0.47, 0.97],
+      },
+    },
   };
 
   const slideInLeft = {
@@ -147,9 +147,9 @@ const About = () => {
       x: 0,
       transition: {
         duration: 0.8,
-        ease: [0.16, 0.77, 0.47, 0.97]
-      }
-    }
+        ease: [0.16, 0.77, 0.47, 0.97],
+      },
+    },
   };
 
   const slideInRight = {
@@ -159,9 +159,9 @@ const About = () => {
       x: 0,
       transition: {
         duration: 0.8,
-        ease: [0.16, 0.77, 0.47, 0.97]
-      }
-    }
+        ease: [0.16, 0.77, 0.47, 0.97],
+      },
+    },
   };
 
   const timelineItem = {
@@ -172,9 +172,9 @@ const About = () => {
       transition: {
         delay: i * 0.15,
         duration: 0.6,
-        ease: "easeOut"
-      }
-    })
+        ease: "easeOut",
+      },
+    }),
   };
   const luxeBarVariants = {
     hidden: { opacity: 0, scaleX: 0.75, filter: "blur(2px)" },
@@ -182,8 +182,8 @@ const About = () => {
       opacity: 1,
       scaleX: 1,
       filter: "blur(0px)",
-      transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] }
-    }
+      transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] },
+    },
   };
 
   return (
@@ -229,14 +229,14 @@ const About = () => {
               className="absolute inset-y-0 -left-1/3 w-1/2"
               style={{
                 background:
-                  "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0) 100%)"
+                  "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0) 100%)",
               }}
               initial={{ x: "-120%" }}
               animate={{ x: ["-120%", "160%"] }}
               transition={{
                 duration: 1.8,
                 repeat: Infinity,
-                ease: [0.2, 0.8, 0.2, 1]
+                ease: [0.2, 0.8, 0.2, 1],
               }}
             />
 
@@ -253,7 +253,7 @@ const About = () => {
                   repeat: Infinity,
                   repeatDelay: 0.6,
                   ease: "easeOut",
-                  delay: i * 0.2
+                  delay: i * 0.2,
                 }}
               />
             ))}
@@ -282,10 +282,9 @@ const About = () => {
                 <div className="space-y-8 pl-12">
                   {[
                     {
-                      year: "2021",
                       title: "Founding Story",
                       description:
-                        "Born from a vision to simplify global education access, Northern Lights began as a small consultancy in Dhaka.",
+                        "Guided by a vision to make global education more accessible, Northern Lights started its journey as a modest consultancy in Dhaka.",
                       icon: (
                         <div className="absolute left-0 flex items-center justify-center w-10 h-10 rounded-full bg-[#a0cbe8] text-[#004080] shadow-lg">
                           <svg
@@ -301,52 +300,8 @@ const About = () => {
                             />
                           </svg>
                         </div>
-                      )
+                      ),
                     },
-                    {
-                      year: "2022",
-                      title: "Service Expansion",
-                      description:
-                        "Added visa services for 10+ countries including Canada, Germany, and Australia.",
-                      icon: (
-                        <div className="absolute left-0 flex items-center justify-center w-10 h-10 rounded-full bg-[#a0cbe8] text-[#004080] shadow-lg">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-5 w-5"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        </div>
-                      )
-                    },
-                    {
-                      year: "2024",
-                      title: "Tech Innovation",
-                      description:
-                        "Launched AI-powered exam prep courses with 90% student satisfaction rate.",
-                      icon: (
-                        <div className="absolute left-0 flex items-center justify-center w-10 h-10 rounded-full bg-[#a0cbe8] text-[#004080] shadow-lg">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-5 w-5"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        </div>
-                      )
-                    }
                   ].map((item, i) => (
                     <motion.div
                       key={i}
@@ -356,9 +311,6 @@ const About = () => {
                     >
                       {item.icon}
                       <div className="flex items-baseline">
-                        <span className="text-[#004080] font-bold mr-3">
-                          {item.year}
-                        </span>
                         <h4 className="font-semibold text-gray-900">
                           {item.title}
                         </h4>
@@ -459,8 +411,8 @@ const About = () => {
                         </span>
                       </h4>
                       <p className="text-gray-600 mt-3 leading-relaxed pl-1">
-                        To become Asia's most trusted consultancy for borderless
-                        education.
+                        To become a trusted consultancy for higher study
+                        aspirants of Bangladesh.
                       </p>
                     </div>
                   </motion.div>
@@ -555,7 +507,7 @@ const About = () => {
                     { x: 480, y: 300, color: "#FFBE0B", name: "AS" }, // Asia
                     { x: 300, y: 380, color: "#FF9F1C", name: "AU" }, // Australia
                     { x: 200, y: 280, color: "#A663CC", name: "AF" }, // Africa
-                    { x: 150, y: 150, color: "#6BD425", name: "SA" } // South America
+                    { x: 150, y: 150, color: "#6BD425", name: "SA" }, // South America
                   ].map((pin, i) => (
                     <g key={i}>
                       <circle
@@ -614,14 +566,14 @@ const About = () => {
                       initial={{
                         x: planeAnimation.x[0],
                         y: planeAnimation.y[0],
-                        rotate: planeAnimation.rotate[0]
+                        rotate: planeAnimation.rotate[0],
                       }}
                       animate={planeAnimation}
                       transition={{
                         duration: 20,
                         repeat: Infinity,
                         repeatType: "loop",
-                        ease: "linear"
+                        ease: "linear",
                       }}
                     >
                       <path
@@ -645,7 +597,7 @@ const About = () => {
                         duration: 20,
                         repeat: Infinity,
                         repeatType: "loop",
-                        ease: "linear"
+                        ease: "linear",
                       }}
                     />
                   </g>
@@ -665,7 +617,7 @@ const About = () => {
             >
               {[
                 {
-                  number: 500,
+                  number: 600,
                   label: "Students Helped",
                   icon: (
                     <svg
@@ -682,7 +634,7 @@ const About = () => {
                       />
                     </svg>
                   ),
-                  suffix: "+"
+                  suffix: "+",
                 },
                 {
                   number: 20,
@@ -702,10 +654,10 @@ const About = () => {
                       />
                     </svg>
                   ),
-                  suffix: "+"
+                  suffix: "+",
                 },
                 {
-                  number: 98,
+                  number: 100,
                   label: "Visa Success",
                   icon: (
                     <svg
@@ -722,8 +674,8 @@ const About = () => {
                       />
                     </svg>
                   ),
-                  suffix: "%"
-                }
+                  suffix: "%",
+                },
               ].map((stat, index) => (
                 <motion.div
                   key={index}
