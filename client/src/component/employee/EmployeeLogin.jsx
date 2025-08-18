@@ -146,6 +146,7 @@ const EmployeeLogin = () => {
                   setEmail(e.target.value);
                   setErrors({ ...errors, email: "" });
                 }}
+                autoComplete="off"
                 placeholder="employee@company.com"
                 className={`w-full bg-gray-50 border ${
                   errors.email ? "border-red-300" : "border-gray-200"
@@ -188,6 +189,7 @@ const EmployeeLogin = () => {
                   setPassword(e.target.value);
                   setErrors({ ...errors, password: "" });
                 }}
+                autoComplete="off"
                 placeholder="••••••••"
                 className={`w-full bg-gray-50 border ${
                   errors.password ? "border-red-300" : "border-gray-200"
@@ -248,7 +250,7 @@ const EmployeeLogin = () => {
             </label>
 
             <Link
-              to="/employee/forgot-password"
+              to="/employee/forgotPassword"
               className="text-sm text-gray-600 hover:text-gray-800 transition-colors duration-200"
             >
               Forgot password?

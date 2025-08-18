@@ -109,7 +109,7 @@ const Hero = () => {
     zoomTweenRef.current = gsap.to(currentImageRef.current, {
       scale: 1.1,
       duration: ZOOM_SEC,
-      ease: "none"
+      ease: "none",
     });
   };
 
@@ -131,7 +131,7 @@ const Hero = () => {
       onComplete: () => {
         gsap.set(fillRef, { scaleX: 0, backgroundColor: "transparent" });
         nextSlide();
-      }
+      },
     });
   };
 
@@ -144,7 +144,7 @@ const Hero = () => {
       x: 0,
       opacity: 1,
       zIndex: 20,
-      scale: 1
+      scale: 1,
     });
 
     // next layer hidden and cleared to avoid "same image twice" flashes
@@ -152,7 +152,7 @@ const Hero = () => {
       backgroundImage: "none",
       x: 0,
       opacity: 0,
-      zIndex: 10
+      zIndex: 10,
     });
 
     setDisplayedIndex(index);
@@ -180,7 +180,7 @@ const Hero = () => {
       backgroundImage: `url(${nextUrl})`,
       x: "100%",
       opacity: 0.7,
-      zIndex: 20
+      zIndex: 20,
     });
     // Current image sits below
     gsap.set(currentImage, { zIndex: 10 });
@@ -196,7 +196,7 @@ const Hero = () => {
           opacity: 0,
           backgroundImage: "none",
           x: 0,
-          zIndex: 10
+          zIndex: 10,
         });
 
         currentRef.current = nextIndex;
@@ -209,7 +209,7 @@ const Hero = () => {
         typeText(heroData[nextIndex].description);
 
         isAnimatingRef.current = false;
-      }
+      },
     });
 
     tl.to(
@@ -251,7 +251,7 @@ const Hero = () => {
           id: item._id,
           description: item.description,
           image: item.image,
-          createdAt: item.createdAt
+          createdAt: item.createdAt,
         }));
 
         setHeroData(formatted);

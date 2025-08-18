@@ -36,6 +36,8 @@ import Liveclass from "./component/teacher/teacherDashboard/liveclass/Liveclass"
 import AppRoutes from "./component/Home/App";
 import EmployeeLogin from "./component/employee/EmployeeLogin";
 import EmployeeDashboard from "./component/employee/employeeDashboard/employeeDashboard";
+import ResetPasswordEmployee from "./component/employee/ResetPassword";
+import ForgotPasswordEmployee from "./component/employee/ForgotPassword";
 
 const isAuthenticated = () => {
   const token = localStorage.getItem("token");
@@ -153,6 +155,14 @@ const App = () => {
           {/* ------------------------------Employee-all-route---------------------------------------- */}
           <Route path="/employee/login" element={<EmployeeLogin />} />
           <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
+          <Route
+            path="/employee/forgotPassword"
+            element={<ForgotPasswordEmployee />}
+          />
+          <Route
+            path="/employee/reset-password"
+            element={<ResetPasswordEmployee />}
+          />
           {/* ----------------------------------student-all-route---------------------------------- */}
           <Route
             path="/student/course-overview/:id"
