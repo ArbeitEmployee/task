@@ -16,7 +16,7 @@ import {
   FiRefreshCw,
   FiAlertTriangle,
   FiEdit,
-  FiX
+  FiX,
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 
@@ -42,8 +42,8 @@ const EmployeeConsultationManagement = () => {
           "http://localhost:3500/api/employee/consultations",
           {
             headers: {
-              "x-auth-token": token
-            }
+              "x-auth-token": token,
+            },
           }
         );
         setConsultations(response.data.data);
@@ -68,8 +68,8 @@ const EmployeeConsultationManagement = () => {
         {},
         {
           headers: {
-            "x-auth-token": token
-          }
+            "x-auth-token": token,
+          },
         }
       );
 
@@ -98,8 +98,8 @@ const EmployeeConsultationManagement = () => {
         { cancellationReason: cancelReason },
         {
           headers: {
-            "x-auth-token": token
-          }
+            "x-auth-token": token,
+          },
         }
       );
 
@@ -359,7 +359,7 @@ const EmployeeConsultationManagement = () => {
                             </p>
                             <p className="flex items-center text-gray-700">
                               <FiCalendar className="mr-2 text-gray-500" />
-                              Submitted:{" "}
+                              Submitted on:{" "}
                               {new Date(
                                 consultation.createdAt
                               ).toLocaleDateString("en-US", {
@@ -367,7 +367,7 @@ const EmployeeConsultationManagement = () => {
                                 month: "short",
                                 day: "numeric",
                                 hour: "2-digit",
-                                minute: "2-digit"
+                                minute: "2-digit",
                               })}
                             </p>
                           </div>
@@ -379,19 +379,29 @@ const EmployeeConsultationManagement = () => {
                           </h4>
                           <div className="space-y-2">
                             <p className="text-gray-700">
-                              <span className="font-medium">Country:</span>{" "}
-                              {consultation.country}
+                              <span className="font-bold">
+                                {Array.isArray(consultation.countries) &&
+                                consultation.countries.length > 1
+                                  ? "Countries"
+                                  : "Country"}
+                                :
+                              </span>{" "}
+                              {Array.isArray(consultation.countries) &&
+                              consultation.countries.length > 0
+                                ? consultation.countries.join(", ")
+                                : consultation.country || "Not specified"}
                             </p>
+
                             <p className="text-gray-700">
-                              <span className="font-medium">Study Level:</span>{" "}
+                              <span className="font-bold">Study Level:</span>{" "}
                               {consultation.studyLevel}
                             </p>
                             <p className="text-gray-700">
-                              <span className="font-medium">Intake:</span>{" "}
+                              <span className="font-bold">Intake:</span>{" "}
                               {consultation.intake}
                             </p>
                             <p className="text-gray-700">
-                              <span className="font-medium">Sponsor:</span>{" "}
+                              <span className="font-bold">Sponsor:</span>{" "}
                               {consultation.sponsor}
                             </p>
                           </div>

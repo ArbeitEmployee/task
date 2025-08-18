@@ -14,7 +14,7 @@ import {
   FiCheckCircle,
   FiXCircle,
   FiRefreshCw,
-  FiAlertTriangle
+  FiAlertTriangle,
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 const ConsultationManagement = () => {
@@ -40,8 +40,8 @@ const ConsultationManagement = () => {
           "http://localhost:3500/api/admin/consultancy",
           {
             headers: {
-              Authorization: `Bearer ${token}`
-            }
+              Authorization: `Bearer ${token}`,
+            },
           }
         );
         setConsultations(response.data.data);
@@ -61,8 +61,8 @@ const ConsultationManagement = () => {
           "http://localhost:3500/api/admin/employees",
           {
             headers: {
-              Authorization: `Bearer ${token}`
-            }
+              Authorization: `Bearer ${token}`,
+            },
           }
         );
         setEmployees(
@@ -87,8 +87,8 @@ const ConsultationManagement = () => {
         { employeeId: selectedEmployee },
         {
           headers: {
-            Authorization: `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
@@ -99,7 +99,7 @@ const ConsultationManagement = () => {
             ? {
                 ...cons,
                 assignedTo: employees.find((e) => e._id === selectedEmployee),
-                status: "assigned"
+                status: "assigned",
               }
             : cons
         )
@@ -121,8 +121,8 @@ const ConsultationManagement = () => {
         { status: newStatus },
         {
           headers: {
-            Authorization: `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
@@ -249,6 +249,7 @@ const ConsultationManagement = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Country
                 </th>
+
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Study Level
                 </th>
@@ -295,8 +296,11 @@ const ConsultationManagement = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {consultation.country}
+                    {consultation.countries && consultation.countries.length > 0
+                      ? consultation.countries.join(", ")
+                      : "Not specified"}
                   </td>
+
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {consultation.studyLevel}
                   </td>
@@ -377,7 +381,7 @@ const ConsultationManagement = () => {
                         month: "short",
                         day: "numeric",
                         hour: "2-digit",
-                        minute: "2-digit"
+                        minute: "2-digit",
                       })}
                     </span>
                   </div>
@@ -467,12 +471,19 @@ const ConsultationManagement = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Target Country
+                        {currentConsultation.countries &&
+                        currentConsultation.countries.length === 1
+                          ? "Target Country"
+                          : "Target Countries"}
                       </p>
                       <p className="text-gray-900 font-medium text-lg">
-                        {currentConsultation.country}
+                        {currentConsultation.countries &&
+                        currentConsultation.countries.length > 0
+                          ? currentConsultation.countries.join(", ")
+                          : "Not specified"}
                       </p>
                     </div>
+
                     <div className="space-y-1">
                       <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Study Level
@@ -772,8 +783,8 @@ const ConsultationManagement = () => {
                         { cancellationReason: cancelReason }, // <- data body
                         {
                           headers: {
-                            Authorization: `Bearer ${token}`
-                          }
+                            Authorization: `Bearer ${token}`,
+                          },
                         }
                       );
 

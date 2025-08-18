@@ -15,7 +15,7 @@ const AppointmentForm = () => {
     fullName: "",
     email: "",
     phone: "",
-    country: "",
+    countries: [],
     countryOther: "",
     studyLevel: "",
     studyLevelOther: "",
@@ -30,7 +30,8 @@ const AppointmentForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState(false);
-
+  const [countryOpen, setCountryOpen] = useState(false);
+  const countryDropRef = useRef(null);
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -48,7 +49,7 @@ const AppointmentForm = () => {
     };
   }, []);
 
-  const countries = [
+  const countryOptions = [
     "Finland",
     "Estonia",
     "Denmark",
@@ -75,6 +76,28 @@ const AppointmentForm = () => {
     "Other",
   ];
 
+  useEffect(() => {
+    const onClickOutside = (e) => {
+      if (
+        countryDropRef.current &&
+        !countryDropRef.current.contains(e.target)
+      ) {
+        setCountryOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  const toggleCountry = (value) => {
+    setFormData((prev) => {
+      const exists = prev.countries.includes(value);
+      const next = exists
+        ? prev.countries.filter((v) => v !== value)
+        : [...prev.countries, value];
+      return { ...prev, countries: next };
+    });
+  };
   const studyLevels = [
     "Undergraduate",
     "Postgraduate",
@@ -109,10 +132,13 @@ const AppointmentForm = () => {
       // Prepare final data
       const submissionData = {
         ...formData,
-        country:
-          formData.country === "Other"
-            ? formData.countryOther
-            : formData.country,
+        countries:
+          formData.countries.includes("Other") && formData.countryOther
+            ? [
+                ...formData.countries.filter((c) => c !== "Other"),
+                formData.countryOther.trim(),
+              ]
+            : formData.countries, // remove "Other" if not selected
         studyLevel:
           formData.studyLevel === "Other"
             ? formData.studyLevelOther
@@ -125,11 +151,18 @@ const AppointmentForm = () => {
             : formData.sponsor,
       };
 
-      // Remove the "Other" fields
+      // Remove the "Other" fields from submissionData
       delete submissionData.countryOther;
       delete submissionData.studyLevelOther;
       delete submissionData.intakeOther;
       delete submissionData.sponsorOther;
+
+      // Ensure that countries is not empty before submission
+      if (!submissionData.countries || submissionData.countries.length === 0) {
+        setSubmitError("Please select at least one country.");
+        setIsSubmitting(false);
+        return;
+      }
 
       const response = await axios.post(
         "http://localhost:3500/api/admin/consultancy",
@@ -144,7 +177,7 @@ const AppointmentForm = () => {
           fullName: "",
           email: "",
           phone: "",
-          country: "",
+          countries: [], // reset countries to empty array
           countryOther: "",
           studyLevel: "",
           studyLevelOther: "",
@@ -290,35 +323,69 @@ const AppointmentForm = () => {
                   />
                 </div>
 
-                {/* Country */}
-                <div className="space-y-2">
-                  <label
-                    htmlFor="country"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Preferred Country <span className="text-red-500">*</span>
+                {/* Countries (multi-select with checkboxes) */}
+                <div className="space-y-2" ref={countryDropRef}>
+                  <label className="text-sm font-medium text-gray-700">
+                    Preferred Countries <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    id="country"
-                    name="country"
-                    value={formData.country}
-                    onChange={handleChange}
-                    className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#004080] transition-all duration-300 appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiAjdjQgdjYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSI+PC9wb2x5bGluZT48L3N2Zz4=')] bg-no-repeat bg-[center_right_1rem] bg-[length:1.5rem]"
-                    required
+
+                  <button
+                    type="button"
+                    onClick={() => setCountryOpen((s) => !s)}
+                    className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#004080] transition-all bg-white flex items-center justify-between"
                   >
-                    <option value="">Select Country</option>
-                    {countries.map((country) => (
-                      <option key={country} value={country}>
-                        {country}
-                      </option>
-                    ))}
-                  </select>
-                  {formData.country === "Other" && (
+                    <span className="truncate">
+                      {formData.countries.length === 0
+                        ? "Select countries"
+                        : formData.countries.join(", ")}
+                    </span>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-5 w-5 transition-transform ${
+                        countryOpen ? "rotate-180" : ""
+                      }`}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
+
+                  {countryOpen && (
+                    <div className="mt-2 max-h-64 overflow-auto border border-gray-200 rounded-xl shadow-lg bg-white p-3">
+                      {countryOptions.map((c) => (
+                        <label
+                          key={c}
+                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={formData.countries.includes(c)}
+                            onChange={() => toggleCountry(c)}
+                          />
+                          <span className="text-gray-800">{c}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* “Other” text field when selected */}
+                  {formData.countries.includes("Other") && (
                     <input
                       type="text"
                       name="countryOther"
                       value={formData.countryOther}
-                      onChange={handleChange}
+                      onChange={(e) =>
+                        setFormData((p) => ({
+                          ...p,
+                          countryOther: e.target.value,
+                        }))
+                      }
                       className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#004080] transition-all duration-300 mt-2"
                       placeholder="Please specify country"
                       required

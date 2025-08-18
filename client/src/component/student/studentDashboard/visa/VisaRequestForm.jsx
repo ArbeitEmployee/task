@@ -9,7 +9,7 @@ const VisaRequestForm = ({ setActiveView }) => {
   const [formData, setFormData] = useState({
     destinationCountry: "",
     visaType: "student",
-    purpose: ""
+    purpose: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const base_url = import.meta.env.VITE_API_KEY_Base_URL;
@@ -18,7 +18,7 @@ const VisaRequestForm = ({ setActiveView }) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -32,8 +32,8 @@ const VisaRequestForm = ({ setActiveView }) => {
         formData,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("studentToken")}`
-          }
+            Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
+          },
         }
       );
 
@@ -77,9 +77,10 @@ const VisaRequestForm = ({ setActiveView }) => {
             onChange={handleChange}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gray-500"
           >
+            <option value="" disabled>
+              Select an option
+            </option>
             <option value="student">Student Visa</option>
-            <option value="work">Work Visa</option>
-            <option value="tourist">Tourist Visa</option>
           </select>
         </div>
 
