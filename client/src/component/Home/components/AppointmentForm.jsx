@@ -324,7 +324,7 @@ const AppointmentForm = () => {
                 </div>
 
                 {/* Countries (multi-select with checkboxes) */}
-                <div className="space-y-2" ref={countryDropRef}>
+                <div className="relative space-y-2" ref={countryDropRef}>
                   <label className="text-sm font-medium text-gray-700">
                     Preferred Countries <span className="text-red-500">*</span>
                   </label>
@@ -356,25 +356,30 @@ const AppointmentForm = () => {
                   </button>
 
                   {countryOpen && (
-                    <div className="mt-2 max-h-64 overflow-auto border border-gray-200 rounded-xl shadow-lg bg-white p-3">
-                      {countryOptions.map((c) => (
-                        <label
-                          key={c}
-                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4"
-                            checked={formData.countries.includes(c)}
-                            onChange={() => toggleCountry(c)}
-                          />
-                          <span className="text-gray-800">{c}</span>
-                        </label>
-                      ))}
+                    <div
+                      className="absolute z-50 w-full mt-1 max-h-64 overflow-y-auto border border-gray-200 rounded-xl shadow-lg bg-white scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+                      onWheel={(e) => e.stopPropagation()}
+                    >
+                      <div className="p-3">
+                        {countryOptions.map((c) => (
+                          <label
+                            key={c}
+                            className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                              checked={formData.countries.includes(c)}
+                              onChange={() => toggleCountry(c)}
+                            />
+                            <span className="text-gray-800 text-sm">{c}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   )}
 
-                  {/* “Other” text field when selected */}
+                  {/* "Other" text field when selected */}
                   {formData.countries.includes("Other") && (
                     <input
                       type="text"

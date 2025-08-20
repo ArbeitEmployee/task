@@ -10,7 +10,7 @@ import {
   FiPhone,
   FiFileText,
   FiLink,
-  FiDollarSign
+  FiDollarSign,
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
@@ -28,13 +28,13 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
     specialization: "",
     qualifications: "",
     linkedin_url: "",
-    hourly_rate: ""
+    hourly_rate: "",
   });
 
   const [files, setFiles] = useState({
     cv: null,
     certificates: [],
-    profile_photo: null
+    profile_photo: null,
   });
 
   const [errors, setErrors] = useState({
@@ -45,19 +45,19 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
     specialization: "",
     qualifications: "",
     cv: "",
-    certificates: ""
+    certificates: "",
   });
 
   // Login form state
   const [loginForm, setLoginForm] = useState({
     email: "",
     password: "",
-    remember: false
+    remember: false,
   });
 
   const [loginErrors, setLoginErrors] = useState({
     email: "",
-    password: ""
+    password: "",
   });
 
   // UI states
@@ -65,7 +65,7 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
-
+  const [customSpecialization, setCustomSpecialization] = useState("");
   // ========== REGISTRATION FUNCTIONS ==========
   const validateField = (name, value) => {
     let error = "";
@@ -94,7 +94,11 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
           error = "Include country code (e.g., +880)";
         break;
       case "specialization":
-        if (!value) error = "Specialization is required";
+        if (!value) {
+          error = "Specialization is required";
+        } else if (value === "Other" && !customSpecialization.trim()) {
+          error = "Please specify your specialization";
+        }
         break;
       case "qualifications":
         if (!value) error = "Qualifications are required";
@@ -128,8 +132,16 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) validateField(name, value);
+    const newValue = name === "email" ? value.toLowerCase() : value;
+
+    setForm((prev) => ({ ...prev, [name]: newValue }));
+
+    // If the specialization is "Other", clear the customSpecialization field
+    if (name === "specialization" && value !== "Other") {
+      setCustomSpecialization("");
+    }
+
+    if (errors[name]) validateField(name, newValue);
   };
 
   const handleFileChange = (e) => {
@@ -177,12 +189,21 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
 
     try {
       const formData = new FormData();
-      
-      // Append all form fields
+
+      const specializationToSend =
+        form.specialization === "Other"
+          ? customSpecialization
+          : form.specialization;
+
       Object.entries(form).forEach(([key, value]) => {
+        if (key === "specialization") return; // Skip specialization from default loop
         if (value) formData.append(key, value);
       });
-      
+
+      // Append specialization separately
+      if (specializationToSend) {
+        formData.append("specialization", specializationToSend);
+      }
       // Append files
       formData.append("cv", files.cv);
       files.certificates.forEach((cert, index) => {
@@ -192,19 +213,23 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
         formData.append("profile_photo", files.profile_photo);
       }
 
-      const response = await axios.post(`${base_url}/api/auth/teacher-register`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data"
+      const response = await axios.post(
+        `${base_url}/api/auth/teacher-register`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
         }
-      });
+      );
 
       toast.success("Registration submitted for approval", {
         style: {
           background: "#fff",
           color: "#000",
           border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
-        }
+          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+        },
       });
 
       // Reset form and switch to login
@@ -216,23 +241,17 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
         specialization: "",
         qualifications: "",
         linkedin_url: "",
-        hourly_rate: ""
+        hourly_rate: "",
       });
+      setCustomSpecialization("");
       setFiles({
         cv: null,
         certificates: [],
-        profile_photo: null
+        profile_photo: null,
       });
       setAuthMode("login");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Registration failed", {
-        style: {
-          background: "#fff",
-          color: "#000",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
-        }
-      });
+      toast.error(err.response?.data?.message || "Registration failed");
     } finally {
       setIsSubmitting(false);
     }
@@ -284,20 +303,20 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
     try {
       const response = await axios.post(`${base_url}/api/auth/teacher-login`, {
         email: loginForm.email,
-        password: loginForm.password
+        password: loginForm.password,
       });
 
       // Store the token (you might want to use cookies or more secure storage)
       localStorage.setItem("teacherToken", response.data.token);
-      localStorage.setItem("teacherData",JSON.stringify(response.data.data));
-      
+      localStorage.setItem("teacherData", JSON.stringify(response.data.data));
+
       toast.success("Login successful", {
         style: {
           background: "#fff",
           color: "#000",
           border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
-        }
+          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+        },
       });
 
       // Navigate to dashboard
@@ -308,19 +327,20 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
         if (err.response.status === 401) {
           errorMessage = "Invalid email or password";
         } else if (err.response.status === 403) {
-          errorMessage = err.response.data.message || "Account not approved yet";
+          errorMessage =
+            err.response.data.message || "Account not approved yet";
         } else {
           errorMessage = err.response.data.message || errorMessage;
         }
       }
-      
+
       toast.error(errorMessage, {
         style: {
           background: "#fff",
           color: "#000",
           border: "1px solid #e5e7eb",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
-        }
+          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+        },
       });
     } finally {
       setIsLoginSubmitting(false);
@@ -329,7 +349,7 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
 
   const handleForgotPassword = () => {
     navigate("/teacher/forgotPassword", {
-      state: { authMode }
+      state: { authMode },
     });
   };
 
@@ -497,7 +517,7 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
                       className={`w-full px-4 py-3 rounded-lg border ${
                         errors.specialization
                           ? "border-red-500"
-                          : "border-gray-300"
+                          : "border-gray-700"
                       }  focus:border-gray-500`}
                     >
                       <option value="">Select your specialization</option>
@@ -508,6 +528,25 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
                       <option value="GMAT">GMAT</option>
                       <option value="Other">Other</option>
                     </select>
+                    {form.specialization === "Other" && (
+                      <input
+                        type="text"
+                        placeholder="Enter your specialization"
+                        value={customSpecialization}
+                        onChange={(e) =>
+                          setCustomSpecialization(e.target.value)
+                        }
+                        onBlur={() =>
+                          validateField("specialization", form.specialization)
+                        }
+                        className={`w-full px-4 py-3 mt-3 rounded-lg border ${
+                          errors.specialization
+                            ? "border-red-500"
+                            : "border-gray-700"
+                        } focus:ring-2 focus:ring-black focus:border-gray-500`}
+                      />
+                    )}
+
                     {errors.specialization && (
                       <motion.p
                         initial={{ opacity: 0, y: -5 }}
@@ -518,7 +557,6 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
                       </motion.p>
                     )}
                   </div>
-
                   {/* Qualifications */}
                   <div className="space-y-2">
                     <label className="flex items-center text-sm font-medium text-gray-700">
@@ -640,7 +678,7 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
                             setFiles((prev) => ({ ...prev, cv: null }));
                             setErrors((prev) => ({
                               ...prev,
-                              cv: "CV is required"
+                              cv: "CV is required",
                             }));
                           }}
                           className="text-gray-400 hover:text-red-500 ml-2 transition-colors duration-200"
@@ -708,7 +746,7 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
                             handleFileChange(e);
                             setErrors((prev) => ({
                               ...prev,
-                              certificates: ""
+                              certificates: "",
                             }));
                           }}
                           className="hidden"
@@ -738,7 +776,7 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
                                     certificates:
                                       files.certificates.length <= 1
                                         ? "At least one certificate is required"
-                                        : ""
+                                        : "",
                                   }));
                                 }}
                                 className="text-gray-400 hover:text-red-500 ml-2 transition-colors duration-200"
@@ -787,7 +825,7 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
                                 handleFileChange(e);
                                 setErrors((prev) => ({
                                   ...prev,
-                                  certificates: ""
+                                  certificates: "",
                                 }));
                               }}
                               className="hidden"
@@ -823,7 +861,7 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
                           onClick={() =>
                             setFiles((prev) => ({
                               ...prev,
-                              profile_photo: null
+                              profile_photo: null,
                             }))
                           }
                           className="text-gray-400 hover:text-red-500 ml-2 transition-colors duration-200"
@@ -1041,10 +1079,10 @@ const TeacherAuth = ({ authMode, setAuthMode }) => {
                             x: loginForm.remember ? 20 : 3,
                             backgroundColor: loginForm.remember
                               ? "#ffffff"
-                              : "#ffffff"
+                              : "#ffffff",
                           }}
                           style={{
-                            boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+                            boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
                           }}
                         ></motion.div>
                       </div>

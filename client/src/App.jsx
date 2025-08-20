@@ -18,21 +18,11 @@ import ForgotPasswordStudent from "./component/student/ForgotPassword";
 import ResetPasswordStudent from "./component/student/ResetPassword";
 import StudentDashboard from "./component/student/studentDashboard/studentDashboard";
 import TeacherDashboard from "./component/teacher/teacherDashboard/teacherDashboard";
-import Createmcq from "./component/teacher/teacherDashboard/mcq/Createmcq";
-import Createquestion from "./component/teacher/teacherDashboard/question/Createquestion";
-// import CreateCourse from "./component/teacher/teacherDashboard/courses/CreateCourse";
-// import CourseList from "./component/teacher/teacherDashboard/courses/CourseList";
-import Mcqlist from "./component/teacher/teacherDashboard/mcq/Mcqlist";
-import CQlist from "./component/teacher/teacherDashboard/question/CQlist";
-import CourseList from "./component/teacher/teacherDashboard/course/CourseList";
-import CreateCourse from "./component/teacher/teacherDashboard/course/CreateCourse";
-import Notification from "./component/teacher/teacherDashboard/notification/Notification";
-import TeacherSettings from "./component/teacher/teacherDashboard/settings/TeacherSettings";
+
 import CourseOverview from "./component/student/studentDashboard/courses/courseView/CourseOverview";
 import CoursePlayer from "./component/student/studentDashboard/courses/courseView/CoursePlayer";
 import Editcourse from "./component/admin/adminDashboard/courses/Editcourse";
-import Studentpaper from "./component/teacher/teacherDashboard/paper/Studentpaper";
-import Liveclass from "./component/teacher/teacherDashboard/liveclass/Liveclass";
+
 import AppRoutes from "./component/Home/App";
 import EmployeeLogin from "./component/employee/EmployeeLogin";
 import EmployeeDashboard from "./component/employee/employeeDashboard/employeeDashboard";
@@ -140,17 +130,6 @@ const App = () => {
           <Route path="/student/dashboard" element={<StudentDashboard />} />
           <Route path="/admin/courses/edit/:id" element={<Editcourse />} />
           {/* ------------------------------teacher-all-route---------------------------------------- */}
-          <Route path="/teacher/courses/create" element={<CreateCourse />} />
-          <Route path="/teacher/course-list" element={<CourseList />} />
-          <Route path="/teacher/create-mcq" element={<Createmcq />} />
-          <Route path="/teacher/mcq-list" element={<Mcqlist />} />
-          <Route path="/teacher/create-question" element={<Createquestion />} />
-          <Route path="/teacher/question-list" element={<CQlist />} />
-          <Route path="/teacher/notifications" element={<Notification />} />
-          <Route path="/teacher/settings" element={<TeacherSettings />} />
-          <Route path="/teacher/student-paper" element={<Studentpaper />} />
-          <Route path="/teacher/live-class" element={<Liveclass />} />
-          {/* <Route path="/teacher/course-list" element={<CourseList />} /> */}
 
           {/* ------------------------------Employee-all-route---------------------------------------- */}
           <Route path="/employee/login" element={<EmployeeLogin />} />

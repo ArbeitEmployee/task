@@ -2,6 +2,15 @@ import React, { useRef, useState, useEffect } from "react";
 // eslint-disable-next-line no-unused-vars
 import { motion, useAnimation, useInView } from "framer-motion";
 
+// Import team member images from assets
+import afrinAlamJui from "../../../assets/team-members/afrin-alam-jui.jpg";
+import mahfuzulAlam from "../../../assets/team-members/mahfuzul-alam.jpg";
+import zannatulFerdous from "../../../assets/team-members/zannatul-ferdous.jpg";
+import tahmidAhmed from "../../../assets/team-members/tahmid-ahmed.jpg";
+import saniMia from "../../../assets/team-members/sani-mia.jpg";
+import alAminAdnan from "../../../assets/team-members/al-amin-adnan.jpg";
+import mashfiHanna from "../../../assets/team-members/mashfi-hanna.jpg";
+
 const TeamSection = () => {
   const sectionRef = useRef(null);
   const isInView = useInView(sectionRef, { once: false, amount: 0.15 });
@@ -57,30 +66,59 @@ const TeamSection = () => {
   const teamMembers = [
     {
       id: 1,
-      name: "John Doe",
-      role: "Founder",
-      bio: "20+ years in immigration law, ex-UN advisor",
-      image:
-        "https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
+      name: "Afrin Alam Jui",
+      role: "Chairperson",
+      bio: "Leading the vision and direction of our organization",
+      image: afrinAlamJui,
       color: "#FF5E7D",
     },
     {
       id: 2,
-      name: "Sarah Khan",
-      role: "Visa Director",
-      bio: "Processed 1000+ successful visa applications",
-      image:
-        "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
+      name: "M. Mahfuzul Alam",
+      role: "CEO & Managing Director",
+      bio: "Overseeing operations and strategic development",
+      image: mahfuzulAlam,
       color: "#47B5FF",
     },
     {
       id: 3,
-      name: "Michael Chen",
-      role: "Global Strategist",
-      bio: "Established 12+ country partnerships worldwide",
-      image:
-        "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
+      name: "Zannatul Ferdous",
+      role: "Study & Language Co-Ordinator",
+      bio: "Specializing in applications, entrance exams, IELTS, and SAT",
+      image: zannatulFerdous,
       color: "#6C4AB6",
+    },
+    {
+      id: 4,
+      name: "Tahmid Ahmed",
+      role: "Chief Marketing Officer & Language Co-Ordinator",
+      bio: "Expert in IELTS, SAT preparation and marketing strategies",
+      image: tahmidAhmed,
+      color: "#4CAF50",
+    },
+    {
+      id: 5,
+      name: "Sani Mia",
+      role: "Graphics Designer & Visa Process Co-Ordinator",
+      bio: "Creative design solutions and visa processing expertise",
+      image: saniMia,
+      color: "#FF9800",
+    },
+    {
+      id: 6,
+      name: "Al Amin Adnan Habib",
+      role: "Office Assistant",
+      bio: "Ensuring smooth office operations and support",
+      image: alAminAdnan,
+      color: "#9C27B0",
+    },
+    {
+      id: 7,
+      name: "Mashfi Hanna",
+      role: "Assistant Counsellor",
+      bio: "Providing guidance and support to students",
+      image: mashfiHanna,
+      color: "#2196F3",
     },
   ];
 
@@ -237,7 +275,7 @@ const TeamSection = () => {
           variants={containerVariants}
           initial="hidden"
           animate={controls}
-          className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-32"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-32"
         >
           {teamMembers.map((member) => (
             <motion.div

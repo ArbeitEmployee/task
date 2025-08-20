@@ -1,11 +1,17 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 // eslint-disable-next-line no-unused-vars
 import { motion, useAnimation, useInView } from "framer-motion";
+import emailjs from "@emailjs/browser";
+import { toast, Toaster } from "react-hot-toast";
 
 const ContactForm = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const form = useRef();
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
   const sectionRef = useRef(null);
   const headingRef = useRef(null);
   const formRef = useRef(null);
@@ -55,6 +61,32 @@ const ContactForm = () => {
     },
   };
 
+  const sendEmail = (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    emailjs
+      .sendForm(
+        "YOUR_SERVICE_ID", // Replace with your EmailJS service ID
+        "YOUR_TEMPLATE_ID", // Replace with your EmailJS template ID
+        form.current,
+        "YOUR_PUBLIC_KEY" // Replace with your EmailJS public key
+      )
+      .then(
+        (result) => {
+          console.log(result.text);
+          toast.success("Message sent successfully!");
+          form.current.reset();
+          setIsLoading(false);
+        },
+        (error) => {
+          console.log(error.text);
+          toast.error("Failed to send message. Please try again.");
+          setIsLoading(false);
+        }
+      );
+  };
+
   return (
     <motion.section
       ref={sectionRef}
@@ -63,6 +95,7 @@ const ContactForm = () => {
       animate={controls}
       variants={containerVariants}
     >
+      <Toaster position="top-center" />
       <div className="container mx-auto px-4 max-w-6xl">
         <motion.h2
           ref={headingRef}
@@ -84,7 +117,7 @@ const ContactForm = () => {
             >
               Send Us a Message
             </motion.h3>
-            <form className="space-y-4">
+            <form ref={form} className="space-y-4" onSubmit={sendEmail}>
               <motion.div variants={formItemVariants}>
                 <label
                   htmlFor="name"
@@ -95,7 +128,7 @@ const ContactForm = () => {
                 <input
                   type="text"
                   id="name"
-                  name="name"
+                  name="user_name"
                   className="w-full px-4 py-2.5 rounded-xl shadow-sm focus:ring-2 focus:ring-[#004080] placeholder-gray-500"
                   placeholder="John Doe"
                   required
@@ -111,7 +144,7 @@ const ContactForm = () => {
                 <input
                   type="email"
                   id="email"
-                  name="email"
+                  name="user_email"
                   className="w-full px-4 py-2.5 rounded-xl shadow-sm focus:ring-2 focus:ring-[#004080] placeholder-gray-500"
                   placeholder="john@example.com"
                   required
@@ -127,7 +160,7 @@ const ContactForm = () => {
                 <input
                   type="tel"
                   id="phone"
-                  name="phone"
+                  name="user_phone"
                   className="w-full px-4 py-2.5 rounded-xl shadow-sm focus:ring-2 focus:ring-[#004080] placeholder-gray-500"
                   placeholder="+880 123 456 7890"
                   required
@@ -151,11 +184,12 @@ const ContactForm = () => {
               </motion.div>
               <motion.button
                 type="submit"
-                className="w-full px-5 py-3 bg-[#ffd700] hover:bg-[#ffd800] text-black font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                disabled={isLoading}
+                className="w-full px-5 py-3 bg-[#ffd700] hover:bg-[#ffd800] text-black font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                whileHover={{ scale: isLoading ? 1 : 1.02 }}
+                whileTap={{ scale: isLoading ? 1 : 0.98 }}
               >
-                Send Message
+                {isLoading ? "Sending..." : "Send Message"}
               </motion.button>
             </form>
           </motion.div>

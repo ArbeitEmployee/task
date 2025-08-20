@@ -9,7 +9,8 @@ import {
   FiMail,
   FiEye,
   FiGlobe,
-  FiClock
+  FiClock,
+  FiRefreshCw,
 } from "react-icons/fi";
 import AssignConsultantModal from "./AssignConsultantModal";
 import VisaManagement from "./visaManagement/VisaManagementDetail";
@@ -30,8 +31,8 @@ const VisaRequestsList = ({ onViewRequest }) => {
           `${base_url}/api/admin/visa/requests`,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`
-            }
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
           }
         );
         setRequests(response.data.requests);
@@ -55,8 +56,8 @@ const VisaRequestsList = ({ onViewRequest }) => {
         {},
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`
-          }
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
       );
 
@@ -78,8 +79,8 @@ const VisaRequestsList = ({ onViewRequest }) => {
         {},
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`
-          }
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
       );
 
@@ -93,7 +94,28 @@ const VisaRequestsList = ({ onViewRequest }) => {
       toast.error(error.response?.data?.message || "Failed to reject request");
     }
   };
+  const handleReopen = async (requestId) => {
+    try {
+      const response = await axios.put(
+        `${base_url}/api/admin/visa/reopen/${requestId}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
 
+      setRequests((prev) =>
+        prev.map((req) =>
+          req._id === requestId ? response.data.updatedRequest : req
+        )
+      );
+      toast.success("Visa request reopened successfully!");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to reopen request");
+    }
+  };
   const handleAssignConsultant = (request) => {
     setSelectedRequest(request);
     setShowAssignModal(true);
@@ -327,53 +349,74 @@ const VisaRequestsList = ({ onViewRequest }) => {
                         </>
                       )}
 
-                      {request.status === "approved" &&
-                        !request.assignedConsultant && (
-                          <button
-                            onClick={() => handleAssignConsultant(request)}
-                            className="p-1.5 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-800 transition-colors duration-200 group relative"
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-4 w-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 4v16m8-8H4"
-                              />
-                            </svg>
-                            <span className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                              Assign Consultant
-                            </span>
-                          </button>
-                        )}
-                      <button
-                        onClick={() => handleAssignConsultant(request)}
-                        className="p-1.5 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-800 transition-colors duration-200 group relative"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
+                      {request.status === "rejected" && (
+                        <button
+                          onClick={() => handleReopen(request._id)}
+                          className="p-1.5 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-800 transition-colors duration-200 group relative"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15.232 5.232l3.536 3.536M9 13l6.232-6.232a2 2 0 112.828 2.828L11.828 15.828H9v-2.828z"
-                          />
-                        </svg>
-                        <span className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                          Edit Consultant
-                        </span>
-                      </button>
+                          <FiRefreshCw className="h-4 w-4" />
+                          <span className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                            Reopen
+                          </span>
+                        </button>
+                      )}
+
+                      {(request.status === "approved" ||
+                        request.status === "completed") && (
+                        <>
+                          {/* Show "Assign Consultant" only if no consultant is assigned */}
+                          {!request.assignedConsultant && (
+                            <button
+                              onClick={() => handleAssignConsultant(request)}
+                              className="p-1.5 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-800 transition-colors duration-200 group relative"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M12 4v16m8-8H4"
+                                />
+                              </svg>
+                              <span className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                                Assign Consultant
+                              </span>
+                            </button>
+                          )}
+
+                          {/* Show "Edit Consultant" only if a consultant is already assigned */}
+                          {request.assignedConsultant && (
+                            <button
+                              onClick={() => handleAssignConsultant(request)}
+                              className="p-1.5 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-800 transition-colors duration-200 group relative"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M15.232 5.232l3.536 3.536M9 13l6.232-6.232a2 2 0 112.828 2.828L11.828 15.828H9v-2.828z"
+                                />
+                              </svg>
+                              <span className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                                Edit Consultant
+                              </span>
+                            </button>
+                          )}
+                        </>
+                      )}
 
                       <button
                         onClick={() => handleViewRequest(request)}

@@ -22,12 +22,12 @@ const Header = () => {
     { name: "Home", path: "/" },
     { name: "About", path: "/about" },
     { name: "Services", path: "/services" },
-    { name: "Countires", path: "/countries" },
+    { name: "Countries", path: "/countries" },
     { name: "Courses", path: "/courses" },
     { name: "Blogs & News", path: "/blog" },
     { name: "Events", path: "/events" },
     { name: "Careers", path: "/career" },
-    { name: "Contact", path: "/contact" }
+    { name: "Contact", path: "/contact" },
   ];
 
   return (

@@ -202,8 +202,16 @@ Studnetauth.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find student with password
-    const student = await Student.findOne({ email }).select("+password");
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
+    }
+
+    // Find student with email and select the password field
+    const student = await Student.findOne({ email })
+      .select("+password")
+      .select("-enrolledCourses"); // Ensure we exclude the enrolledCourses field from validation
 
     if (!student) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -212,17 +220,17 @@ Studnetauth.post("/login", async (req, res) => {
     // Check if account is locked
     if (student.isLocked) {
       const remainingTime = Math.ceil(
-        (student.lockUntil - Date.now()) / (60 * 1000)
+        (student.lockUntil - Date.now()) / (60 * 1000) // time in minutes
       );
       return res.status(403).json({
         message: `Account locked. Try again in ${remainingTime} minutes.`,
       });
     }
 
-    // Verify password
+    // Verify password using bcrypt.compare
     const isMatch = await bcrypt.compare(password, student.password);
     if (!isMatch) {
-      // Increment failed attempts
+      // Increment failed login attempts
       await student.incrementLoginAttempts();
       return res.status(401).json({ message: "Invalid credentials" });
     }
@@ -234,15 +242,18 @@ Studnetauth.post("/login", async (req, res) => {
       });
     }
 
-    // Reset login attempts on successful login
+    // Reset login attempts after successful login
     if (student.loginAttempts > 0 || student.lockUntil) {
       student.loginAttempts = 0;
       student.lockUntil = undefined;
       await student.save();
     }
 
-    // Generate token
-    const token = generateToken({ id: student._id, role: student.role }, "1h");
+    // Generate JWT token
+    const token = generateToken(
+      { id: student._id, role: student.role },
+      "1h" // Token expires in 1 hour
+    );
 
     res.status(200).json({
       message: "Login successful",
@@ -255,6 +266,7 @@ Studnetauth.post("/login", async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Login error:", error); // Log the full error to understand the issue
     res.status(500).json({ message: "Login failed", error: error.message });
   }
 });

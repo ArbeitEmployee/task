@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
 import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -10,14 +11,12 @@ import {
   FiImage,
   FiVideo,
   FiChevronDown,
-  FiChevronUp
+  FiChevronUp,
 } from "react-icons/fi";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import toast, { Toaster } from "react-hot-toast";
 import axios from "axios";
-import Sidebar from "../sidebar";
-import Theader from "../common/Theader";
 
 const CreateCourse = () => {
   const base_url = import.meta.env.VITE_API_KEY_Base_URL;
@@ -33,7 +32,7 @@ const CreateCourse = () => {
     requirements: [],
     whatYouWillLearn: [],
     level: "beginner",
-    category: "" // Added category field
+    category: "", // Added category field
   });
   const [expandedSections, setExpandedSections] = useState({});
   const [newCategory, setNewCategory] = useState("");
@@ -49,8 +48,8 @@ const CreateCourse = () => {
       ["bold", "italic", "underline", "strike"],
       [{ list: "ordered" }, { list: "bullet" }],
       ["link", "image"],
-      ["clean"]
-    ]
+      ["clean"],
+    ],
   };
 
   const quillFormats = [
@@ -62,7 +61,7 @@ const CreateCourse = () => {
     "list",
     "bullet",
     "link",
-    "image"
+    "image",
   ];
   // Fetch categories when component mounts
   useEffect(() => {
@@ -73,8 +72,8 @@ const CreateCourse = () => {
           `${base_url}/api/teacher/all-category`,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("teacherToken")}`
-            }
+              Authorization: `Bearer ${localStorage.getItem("teacherToken")}`,
+            },
           }
         );
         if (response.data.success) {
@@ -99,16 +98,8 @@ const CreateCourse = () => {
   const toggleSection = (id) => {
     setExpandedSections((prev) => ({
       ...prev,
-      [id]: !prev[id]
+      [id]: !prev[id],
     }));
-  };
-
-  const [activeView, setActiveView] = useState("dashboard");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
-  // Toggle sidebar function
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
   };
 
   // Add a new category
@@ -119,7 +110,7 @@ const CreateCourse = () => {
     ) {
       setCourseData((prev) => ({
         ...prev,
-        categories: [...prev.categories, newCategory.trim()]
+        categories: [...prev.categories, newCategory.trim()],
       }));
       setNewCategory("");
     }
@@ -129,7 +120,7 @@ const CreateCourse = () => {
   const removeCategory = (index) => {
     setCourseData((prev) => ({
       ...prev,
-      categories: prev.categories.filter((_, i) => i !== index)
+      categories: prev.categories.filter((_, i) => i !== index),
     }));
   };
 
@@ -138,7 +129,7 @@ const CreateCourse = () => {
     if (newRequirement.trim()) {
       setCourseData((prev) => ({
         ...prev,
-        requirements: [...prev.requirements, newRequirement.trim()]
+        requirements: [...prev.requirements, newRequirement.trim()],
       }));
       setNewRequirement("");
     }
@@ -148,7 +139,7 @@ const CreateCourse = () => {
   const removeRequirement = (index) => {
     setCourseData((prev) => ({
       ...prev,
-      requirements: prev.requirements.filter((_, i) => i !== index)
+      requirements: prev.requirements.filter((_, i) => i !== index),
     }));
   };
 
@@ -157,7 +148,7 @@ const CreateCourse = () => {
     if (newLearningPoint.trim()) {
       setCourseData((prev) => ({
         ...prev,
-        whatYouWillLearn: [...prev.whatYouWillLearn, newLearningPoint.trim()]
+        whatYouWillLearn: [...prev.whatYouWillLearn, newLearningPoint.trim()],
       }));
       setNewLearningPoint("");
     }
@@ -167,7 +158,7 @@ const CreateCourse = () => {
   const removeLearningPoint = (index) => {
     setCourseData((prev) => ({
       ...prev,
-      whatYouWillLearn: prev.whatYouWillLearn.filter((_, i) => i !== index)
+      whatYouWillLearn: prev.whatYouWillLearn.filter((_, i) => i !== index),
     }));
   };
 
@@ -180,15 +171,15 @@ const CreateCourse = () => {
       content: isPremium ? null : "",
       youtubeLink: !isPremium ? "" : null,
       isPremium: isPremium,
-      isExpanded: true
+      isExpanded: true,
     };
     setCourseData((prev) => ({
       ...prev,
-      content: [...prev.content, newTutorial]
+      content: [...prev.content, newTutorial],
     }));
     setExpandedSections((prev) => ({
       ...prev,
-      [newTutorial.id]: true
+      [newTutorial.id]: true,
     }));
   };
 
@@ -205,18 +196,18 @@ const CreateCourse = () => {
           type: "mcq-single",
           options: ["", ""],
           correctAnswer: 0,
-          answer: ""
-        }
+          answer: "",
+        },
       ],
-      isExpanded: true
+      isExpanded: true,
     };
     setCourseData((prev) => ({
       ...prev,
-      content: [...prev.content, newQuiz]
+      content: [...prev.content, newQuiz],
     }));
     setExpandedSections((prev) => ({
       ...prev,
-      [newQuiz.id]: true
+      [newQuiz.id]: true,
     }));
   };
 
@@ -229,15 +220,15 @@ const CreateCourse = () => {
       thumbnail: null,
       meetingLink: "",
       schedule: new Date().toISOString().slice(0, 16),
-      isExpanded: true
+      isExpanded: true,
     };
     setCourseData((prev) => ({
       ...prev,
-      content: [...prev.content, newLiveClass]
+      content: [...prev.content, newLiveClass],
     }));
     setExpandedSections((prev) => ({
       ...prev,
-      [newLiveClass.id]: true
+      [newLiveClass.id]: true,
     }));
   };
 
@@ -246,7 +237,7 @@ const CreateCourse = () => {
       id: Date.now(),
       question: "",
       type: questionType,
-      answer: ""
+      answer: "",
     };
 
     let question;
@@ -256,7 +247,7 @@ const CreateCourse = () => {
         question = {
           ...baseQuestion,
           options: ["", ""],
-          correctAnswer: questionType === "mcq-single" ? 0 : []
+          correctAnswer: questionType === "mcq-single" ? 0 : [],
         };
         break;
       case "short-answer":
@@ -273,11 +264,11 @@ const CreateCourse = () => {
         if (item.id === quizId) {
           return {
             ...item,
-            questions: [...item.questions, question]
+            questions: [...item.questions, question],
           };
         }
         return item;
-      })
+      }),
     }));
   };
 
@@ -292,22 +283,22 @@ const CreateCourse = () => {
               if (q.id === questionId) {
                 return {
                   ...q,
-                  options: [...q.options, ""]
+                  options: [...q.options, ""],
                 };
               }
               return q;
-            })
+            }),
           };
         }
         return item;
-      })
+      }),
     }));
   };
 
   const removeContentItem = (id) => {
     setCourseData((prev) => ({
       ...prev,
-      content: prev.content.filter((item) => item.id !== id)
+      content: prev.content.filter((item) => item.id !== id),
     }));
   };
 
@@ -315,7 +306,7 @@ const CreateCourse = () => {
     const { name, value } = e.target;
     setCourseData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -327,7 +318,7 @@ const CreateCourse = () => {
           return { ...item, [field]: value };
         }
         return item;
-      })
+      }),
     }));
   };
 
@@ -343,11 +334,11 @@ const CreateCourse = () => {
                 return { ...q, [field]: value };
               }
               return q;
-            })
+            }),
           };
         }
         return item;
-      })
+      }),
     }));
   };
 
@@ -365,11 +356,11 @@ const CreateCourse = () => {
                 return { ...q, options: newOptions };
               }
               return q;
-            })
+            }),
           };
         }
         return item;
-      })
+      }),
     }));
   };
 
@@ -394,11 +385,11 @@ const CreateCourse = () => {
                 return { ...q, correctAnswer: newAnswers };
               }
               return q;
-            })
+            }),
           };
         }
         return item;
-      })
+      }),
     }));
   };
 
@@ -414,11 +405,11 @@ const CreateCourse = () => {
                 return { ...q, answer: value };
               }
               return q;
-            })
+            }),
           };
         }
         return item;
-      })
+      }),
     }));
   };
 
@@ -434,7 +425,7 @@ const CreateCourse = () => {
     if (file) {
       setCourseData((prev) => ({
         ...prev,
-        thumbnail: file
+        thumbnail: file,
       }));
     }
   };
@@ -443,14 +434,14 @@ const CreateCourse = () => {
     const files = Array.from(e.target.files);
     setCourseData((prev) => ({
       ...prev,
-      attachments: [...prev.attachments, ...files]
+      attachments: [...prev.attachments, ...files],
     }));
   };
 
   const removeAttachment = (index) => {
     setCourseData((prev) => ({
       ...prev,
-      attachments: prev.attachments.filter((_, i) => i !== index)
+      attachments: prev.attachments.filter((_, i) => i !== index),
     }));
   };
 
@@ -486,15 +477,15 @@ const CreateCourse = () => {
                 return {
                   ...q,
                   options: newOptions,
-                  correctAnswer: newCorrectAnswer
+                  correctAnswer: newCorrectAnswer,
                 };
               }
               return q;
-            })
+            }),
           };
         }
         return item;
-      })
+      }),
     }));
   };
 
@@ -628,8 +619,8 @@ const CreateCourse = () => {
         {
           headers: {
             "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${localStorage.getItem("teacherToken")}`
-          }
+            Authorization: `Bearer ${localStorage.getItem("teacherToken")}`,
+          },
         }
       );
 
@@ -648,7 +639,7 @@ const CreateCourse = () => {
         categories: [],
         requirements: [],
         whatYouWillLearn: [],
-        level: "beginner"
+        level: "beginner",
       });
       setCourseType(null);
       setExpandedSections({});
@@ -664,27 +655,15 @@ const CreateCourse = () => {
   };
 
   return (
-    <div className="bg-gray-50 p-[20px]">
+    <div className="">
       <div className="flex w-full h-[94vh] bg-white overflow-hidden">
-        {/* Sidebar Section */}
-        <Sidebar
-          activeView={activeView}
-          setActiveView={setActiveView}
-          isOpen={isSidebarOpen}
-          toggleSidebar={toggleSidebar}
-        />
-
         {/* Main Content Section */}
         <div className="flex-1 h-full overflow-auto">
-          <Theader
-            toggleSidebar={toggleSidebar}
-            isSidebarOpen={isSidebarOpen}
-          />
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
-            className="min-h-screen p-6"
+            className="min-h-screen"
           >
             <div className="max-w-full mx-auto">
               {!courseType ? (
@@ -706,7 +685,7 @@ const CreateCourse = () => {
                       transition={{ duration: 0.5, delay: 0.2 }}
                       whileHover={{
                         scale: 1.05,
-                        boxShadow: "0 10px 25px -5px rgba(59, 130, 246, 0.4)"
+                        boxShadow: "0 10px 25px -5px rgba(59, 130, 246, 0.4)",
                       }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setCourseType("free")}
@@ -741,7 +720,7 @@ const CreateCourse = () => {
                       transition={{ duration: 0.5, delay: 0.2 }}
                       whileHover={{
                         scale: 1.05,
-                        boxShadow: "0 10px 25px -5px rgba(168, 85, 247, 0.4)"
+                        boxShadow: "0 10px 25px -5px rgba(168, 85, 247, 0.4)",
                       }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setCourseType("premium")}
@@ -789,7 +768,7 @@ const CreateCourse = () => {
                           categories: [],
                           requirements: [],
                           whatYouWillLearn: [],
-                          level: "beginner"
+                          level: "beginner",
                         });
                       }}
                       className="text-gray-500 cursor-pointer hover:text-gray-700"
@@ -823,7 +802,7 @@ const CreateCourse = () => {
                           value={courseData.description}
                           onChange={(value) =>
                             handleInputChange({
-                              target: { name: "description", value }
+                              target: { name: "description", value },
                             })
                           }
                           modules={quillModules}
@@ -855,7 +834,7 @@ const CreateCourse = () => {
                               onClick={() =>
                                 setCourseData((prev) => ({
                                   ...prev,
-                                  thumbnail: null
+                                  thumbnail: null,
                                 }))
                               }
                               className="text-gray-400 hover:text-red-500 p-3 rounded-full flex items-center justify-center transition-colors"
@@ -1416,12 +1395,12 @@ const CreateCourse = () => {
                                                               (q) =>
                                                                 q.id !==
                                                                 question.id
-                                                            )
+                                                            ),
                                                         };
                                                       }
                                                       return contentItem;
                                                     }
-                                                  )
+                                                  ),
                                                 }));
                                               }}
                                               className="text-gray-400 hover:text-red-500 transition-colors"
@@ -1450,7 +1429,7 @@ const CreateCourse = () => {
 
                                         {[
                                           "mcq-single",
-                                          "mcq-multiple"
+                                          "mcq-multiple",
                                         ].includes(question.type) ? (
                                           <div className="space-y-2">
                                             {question.options.map(

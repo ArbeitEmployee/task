@@ -1,14 +1,14 @@
 /* eslint-disable no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
+
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FiEdit, FiEye, FiSearch, FiFilter, FiX, FiPlus } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import Sidebar from "../sidebar";
-import Theader from "../common/Theader";
 import axios from "axios";
 import { MdDelete } from "react-icons/md";
-import DOMPurify from 'dompurify';
+import DOMPurify from "dompurify";
 
 const CourseList = () => {
   const navigate = useNavigate();
@@ -16,8 +16,7 @@ const CourseList = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
-  const [activeView, setActiveView] = useState("dashboard");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
   const base_url = import.meta.env.VITE_API_KEY_Base_URL;
   const [viewingCourse, setViewingCourse] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -37,11 +36,14 @@ const CourseList = () => {
   const fetchCourses = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${base_url}/api/teacher/my-courses/${teacherId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("teacherToken")}`,
-        },
-      });
+      const response = await axios.get(
+        `${base_url}/api/teacher/my-courses/${teacherId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("teacherToken")}`,
+          },
+        }
+      );
       setCourses(response.data);
       setLoading(false);
     } catch (error) {
@@ -49,10 +51,6 @@ const CourseList = () => {
       toast.error("Failed to fetch courses");
       setLoading(false);
     }
-  };
-
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
   };
 
   const filteredCourses = courses.filter((course) => {
@@ -77,13 +75,16 @@ const CourseList = () => {
 
   const handleDeleteConfirm = async () => {
     if (!courseToDelete) return;
-    
+
     try {
-      await axios.delete(`${base_url}/api/teacher/delete-content/${courseToDelete}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("teacherToken")}`,
-        },
-      });
+      await axios.delete(
+        `${base_url}/api/teacher/delete-content/${courseToDelete}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("teacherToken")}`,
+          },
+        }
+      );
       toast.success("Course deleted successfully");
       fetchCourses(); // Refresh the course list
     } catch (error) {
@@ -96,34 +97,22 @@ const CourseList = () => {
   };
 
   return (
-    <div className="bg-gradient-to-br from-gray-100 p-[20px] to-gray-300 min-h-screen flex items-center justify-center">
-      <div className="flex w-full h-[94vh] bg-white overflow-hidden">
-        {/* Sidebar Section */}
-        <Sidebar
-          activeView={activeView}
-          setActiveView={setActiveView}
-          isOpen={isSidebarOpen}
-          toggleSidebar={toggleSidebar}
-        />
-
+    <div className=" min-h-screen flex items-center justify-center">
+      <div className="flex w-full overflow-hidden">
         {/* Main Content Section */}
         <div className="flex-1 h-full overflow-auto">
-          <Theader
-            toggleSidebar={toggleSidebar}
-            isSidebarOpen={isSidebarOpen}
-          />
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
-            className="min-h-screen p-6 bg-gray-50"
+            className="min-h-screen"
           >
             <div className="max-w-full mx-auto">
               <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-800">My Courses</h1>
               </div>
 
-              <div className="bg-white rounded-[5px] shadow-sm border border-gray-200 p-6 mb-6">
+              <div className="mb-6">
                 <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
                   <div className="relative flex-1">
                     <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -140,7 +129,7 @@ const CourseList = () => {
                     <select
                       value={filter}
                       onChange={(e) => setFilter(e.target.value)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:border-gray-500 hover:border-gray-500"
                     >
                       <option value="all">All Courses</option>
                       <option value="free">Free Courses</option>
@@ -191,9 +180,13 @@ const CourseList = () => {
                                   <div className="text-sm font-medium text-gray-900">
                                     {course.title}
                                   </div>
-                                  <div 
+                                  <div
                                     className="text-sm text-gray-500 line-clamp-1 overflow-hidden"
-                                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(course.description) }}
+                                    dangerouslySetInnerHTML={{
+                                      __html: DOMPurify.sanitize(
+                                        course.description
+                                      ),
+                                    }}
                                   />
                                 </div>
                               </div>
@@ -224,7 +217,8 @@ const CourseList = () => {
                                     <svg
                                       key={i}
                                       className={`h-4 w-4 ${
-                                        i < Math.floor(course.averageRating || 0)
+                                        i <
+                                        Math.floor(course.averageRating || 0)
                                           ? "text-yellow-400"
                                           : "text-gray-300"
                                       }`}
@@ -269,8 +263,12 @@ const CourseList = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
-                            No courses found. Create your first course to get started.
+                          <td
+                            colSpan="5"
+                            className="px-6 py-4 text-center text-gray-500"
+                          >
+                            No courses found. Create your first course to get
+                            started.
                           </td>
                         </tr>
                       )}
@@ -317,20 +315,28 @@ const CourseList = () => {
 
                       {/* Basic Information */}
                       <div className="space-y-4">
-                        <h3 className="text-lg font-semibold border-b pb-2 border-gray-200">Basic Information</h3>
+                        <h3 className="text-lg font-semibold border-b pb-2 border-gray-200">
+                          Basic Information
+                        </h3>
                         <div>
-                          <h4 className="text-sm font-medium text-gray-500">Title</h4>
+                          <h4 className="text-sm font-medium text-gray-500">
+                            Title
+                          </h4>
                           <p className="text-gray-800">{viewingCourse.title}</p>
                         </div>
                         <div>
-                          <h4 className="text-sm font-medium text-gray-500">Description</h4>
+                          <h4 className="text-sm font-medium text-gray-500">
+                            Description
+                          </h4>
                           <p className="text-gray-800 whitespace-pre-line">
                             {viewingCourse.description}
                           </p>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <h4 className="text-sm font-medium text-gray-500">Type</h4>
+                            <h4 className="text-sm font-medium text-gray-500">
+                              Type
+                            </h4>
                             <span
                               className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                 viewingCourse.type === "premium"
@@ -344,14 +350,18 @@ const CourseList = () => {
                             </span>
                           </div>
                           <div>
-                            <h4 className="text-sm font-medium text-gray-500">Students Enrolled</h4>
+                            <h4 className="text-sm font-medium text-gray-500">
+                              Students Enrolled
+                            </h4>
                             <p className="text-gray-800">
                               {viewingCourse.studentsEnrolled?.length || 0}
                             </p>
                           </div>
                         </div>
                         <div>
-                          <h4 className="text-sm font-medium text-gray-500">Rating</h4>
+                          <h4 className="text-sm font-medium text-gray-500">
+                            Rating
+                          </h4>
                           <div className="flex items-center">
                             <div className="text-lg font-medium text-gray-900 mr-2">
                               {viewingCourse.averageRating?.toFixed(1) || "0.0"}
@@ -361,7 +371,8 @@ const CourseList = () => {
                                 <svg
                                   key={i}
                                   className={`h-5 w-5 ${
-                                    i < Math.floor(viewingCourse.averageRating || 0)
+                                    i <
+                                    Math.floor(viewingCourse.averageRating || 0)
                                       ? "text-yellow-400"
                                       : "text-gray-300"
                                   }`}
@@ -378,7 +389,9 @@ const CourseList = () => {
 
                       {/* Course Content */}
                       <div className="space-y-4">
-                        <h3 className="text-lg font-semibold border-b border-gray-200 pb-2">Course Content</h3>
+                        <h3 className="text-lg font-semibold border-b border-gray-200 pb-2">
+                          Course Content
+                        </h3>
                         {viewingCourse.content?.length > 0 ? (
                           <div className="space-y-3">
                             {viewingCourse.content.map((item, index) => (
@@ -422,7 +435,9 @@ const CourseList = () => {
                                 {item.type === "live" && (
                                   <div className="mt-2 space-y-1">
                                     <p className="text-sm text-gray-700">
-                                      <span className="font-medium">Scheduled:</span>{" "}
+                                      <span className="font-medium">
+                                        Scheduled:
+                                      </span>{" "}
                                       {new Date(item.schedule).toLocaleString()}
                                     </p>
                                     <a
@@ -446,7 +461,9 @@ const CourseList = () => {
                             ))}
                           </div>
                         ) : (
-                          <p className="text-gray-500">No content available for this course.</p>
+                          <p className="text-gray-500">
+                            No content available for this course.
+                          </p>
                         )}
                       </div>
                     </div>
@@ -475,7 +492,9 @@ const CourseList = () => {
                 >
                   <div className="p-6">
                     <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-lg font-bold text-gray-800">Confirm Deletion</h3>
+                      <h3 className="text-lg font-bold text-gray-800">
+                        Confirm Deletion
+                      </h3>
                       <button
                         onClick={() => setIsDeleteModalOpen(false)}
                         className="text-gray-500 hover:text-gray-700"
@@ -483,11 +502,12 @@ const CourseList = () => {
                         <FiX className="h-6 w-6" />
                       </button>
                     </div>
-                    
+
                     <p className="text-gray-600 mb-6">
-                      Are you sure you want to delete this course? This action cannot be undone.
+                      Are you sure you want to delete this course? This action
+                      cannot be undone.
                     </p>
-                    
+
                     <div className="flex justify-end gap-4">
                       <button
                         onClick={() => setIsDeleteModalOpen(false)}
