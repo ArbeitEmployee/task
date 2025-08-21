@@ -210,6 +210,7 @@ const CourseCreator = () => {
       question: "",
       type: questionType,
       answer: "",
+      marks: 1,
     };
 
     let question;
@@ -292,6 +293,13 @@ const CourseCreator = () => {
         return item;
       }),
     }));
+  };
+
+  const calculateQuizTotalMarks = (quiz) => {
+    return quiz.questions.reduce(
+      (total, question) => total + (question.marks || 1),
+      0
+    );
   };
 
   const handleQuestionChange = (quizId, questionId, field, value) => {
@@ -1288,6 +1296,19 @@ const CourseCreator = () => {
                                   />
                                 </div>
 
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium text-blue-800">
+                                      Total Quiz Marks:{" "}
+                                      {calculateQuizTotalMarks(item)}
+                                    </span>
+                                    <span className="text-xs text-blue-600">
+                                      {item.questions.length} question
+                                      {item.questions.length !== 1 ? "s" : ""}
+                                    </span>
+                                  </div>
+                                </div>
+
                                 <div className="space-y-6">
                                   {item.questions.map((question, qIndex) => (
                                     <div
@@ -1367,6 +1388,29 @@ const CourseCreator = () => {
                                             )
                                           }
                                           placeholder="Enter question"
+                                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                          required
+                                        />
+                                      </div>
+
+                                      <div className="mb-3">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                          Marks/Points
+                                        </label>
+                                        <input
+                                          type="number"
+                                          min="1"
+                                          max="100"
+                                          value={question.marks || 1}
+                                          onChange={(e) =>
+                                            handleQuestionChange(
+                                              item.id,
+                                              question.id,
+                                              "marks",
+                                              parseInt(e.target.value) || 1
+                                            )
+                                          }
+                                          placeholder="Enter marks for this question"
                                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
                                           required
                                         />

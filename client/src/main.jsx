@@ -7,6 +7,8 @@ import App from "./App.jsx";
 import { AdminProvider } from "./context/AdminContext.jsx";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import "flag-icons/css/flag-icons.min.css";
+
 gsap.registerPlugin(ScrollTrigger);
 createRoot(document.getElementById("root")).render(
   <StrictMode>

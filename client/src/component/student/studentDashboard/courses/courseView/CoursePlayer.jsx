@@ -21,7 +21,7 @@ import {
   FiUser,
   FiUsers,
   FiCalendar,
-  FiAlertCircle
+  FiAlertCircle,
 } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
@@ -55,6 +55,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
   const [lastTrackedTime, setLastTrackedTime] = useState(0); // Last time we sent to backend
   const videoRef = useRef(null);
   const videoContainerRef = useRef(null);
+  const youtubeIframeRef = useRef(null);
   const timeTrackingInterval = useRef(null);
   const base_url = import.meta.env.VITE_API_KEY_Base_URL;
   const studentdata = JSON.parse(localStorage.getItem("studentData"));
@@ -64,8 +65,8 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
     const token = localStorage.getItem("authToken");
     return {
       headers: {
-        Authorization: `Bearer ${token}`
-      }
+        Authorization: `Bearer ${token}`,
+      },
     };
   };
 
@@ -87,7 +88,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
           initialProgress[item._id] = {
             completed: item.completed || false,
             progress: item.progress || 0,
-            timeSpent: item.timeSpent || 0
+            timeSpent: item.timeSpent || 0,
           };
 
           if (item.type === "quiz" && item.answers) {
@@ -105,7 +106,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
           response.data.content[currentContent]?.completed
         ) {
           setQuizSubmitted(true);
-          setQuizScore(response.data.content[currentContent].percentage);
+          setQuizScore(response.data.content[currentContent].score);
           setAwaitingGrading(
             response.data.content[currentContent].gradingStatus ===
               "partially-graded"
@@ -122,14 +123,12 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
     fetchCourse();
   }, [id, base_url, setActiveView]);
 
-  // Record course access
   const isValidId = (id) => {
     return id && typeof id === "string" && id.length === 24; // Basic MongoDB ID validation
   };
   useEffect(() => {
     const recordAccess = async () => {
       try {
-        // Validate all required data
         if (!isValidId(courseId) || !isValidId(studentdata?.id)) {
           throw new Error("Invalid course or student ID");
         }
@@ -145,18 +144,15 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
         }
       } catch (error) {
         console.error("Access recording failed:", error.message);
-        // Optional: Add user feedback
         toast.error("Couldn't record course access");
       }
     };
 
-    // Only run if we have valid data
     if (course && isValidId(courseId) && isValidId(studentdata?.id)) {
       recordAccess();
     }
   }, [course, courseId, base_url]);
 
-  // Handle quiz content
   useEffect(() => {
     if (!course) return;
 
@@ -166,7 +162,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
 
       if (course.content[currentContent]?.completed) {
         setQuizSubmitted(true);
-        setQuizScore(course.content[currentContent].percentage);
+        setQuizScore(course.content[currentContent].score);
         setAwaitingGrading(
           course.content[currentContent].gradingStatus === "partially-graded"
         );
@@ -177,7 +173,6 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
     }
   }, [currentContent, course]);
 
-  // Start/stop time tracking when playing/pausing
   useEffect(() => {
     if (!course) return;
 
@@ -185,12 +180,10 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
     if (!currentItem || currentItem.type === "quiz") return;
 
     if (isPlaying) {
-      // Start tracking time
       timeTrackingInterval.current = setInterval(() => {
         setTimeWatched((prev) => prev + 1);
       }, 1000);
     } else {
-      // Pause tracking
       clearInterval(timeTrackingInterval.current);
     }
 
@@ -206,7 +199,6 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
     const currentItem = course.content[currentContent];
     if (!currentItem || currentItem.type === "quiz") return;
 
-    // Only send updates every 10 seconds or when component unmounts
     const shouldSendUpdate =
       timeWatched - lastTrackedTime >= 10 ||
       (timeWatched > 0 && timeWatched !== lastTrackedTime);
@@ -219,7 +211,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
             contentItemId: currentItem._id,
             secondsWatched: timeWatched,
             totalDuration: currentItem.duration || 0,
-            user_id: studentdata.id
+            user_id: studentdata.id,
           },
           getAuthHeaders()
         );
@@ -230,10 +222,8 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
     }
   }, [timeWatched, lastTrackedTime, currentContent, course, id, base_url]);
 
-  // Reset time tracking when content changes
   useEffect(() => {
     return () => {
-      // When component unmounts or content changes, ensure we send final time
       if (timeWatched > lastTrackedTime) {
         const currentItem = course?.content[currentContent];
         if (currentItem && currentItem.type !== "quiz") {
@@ -244,7 +234,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                 contentItemId: currentItem._id,
                 secondsWatched: timeWatched,
                 totalDuration: currentItem.duration || 0,
-                user_id: studentdata.id
+                user_id: studentdata.id,
               },
               getAuthHeaders()
             )
@@ -257,7 +247,6 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
     };
   }, [currentContent]);
 
-  // Fullscreen handling
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -293,7 +282,6 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
       setIsPlaying(!isPlaying);
     } catch (error) {
       console.error("Error toggling play/pause:", error);
-      // Fallback: reload the video source if play fails
       if (!isPlaying) {
         videoRef.current.load();
         setTimeout(() => {
@@ -305,7 +293,6 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
     }
   };
   useEffect(() => {
-    // Reset video state when content changes
     if (videoRef.current) {
       videoRef.current.load();
       setIsPlaying(true);
@@ -319,6 +306,23 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
       }
     };
   }, [currentContent]);
+
+  useEffect(() => {
+    if (!course) return;
+
+    const currentItem = course.content[currentContent];
+    if (
+      currentItem?.type === "tutorial" &&
+      currentItem?.youtubeLink &&
+      youtubeIframeRef.current
+    ) {
+      const newSrc = getYouTubeEmbedUrl(currentItem.youtubeLink);
+      if (youtubeIframeRef.current.src !== newSrc) {
+        youtubeIframeRef.current.src = newSrc;
+      }
+    }
+  }, [isPlaying, isMuted, currentContent, course]);
+
   const toggleMute = () => {
     setIsMuted(!isMuted);
   };
@@ -339,14 +343,13 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
     if (currentContent < course.content.length - 1) {
       const currentItem = course.content[currentContent];
       try {
-        // Send final time update before moving to next content
         await axios.post(
           `${base_url}/api/course-player/${id}/track-video-time`,
           {
             contentItemId: currentItem._id,
             secondsWatched: timeWatched,
             totalDuration: currentItem.duration || 0,
-            user_id: studentdata.id
+            user_id: studentdata.id,
           },
           getAuthHeaders()
         );
@@ -363,8 +366,8 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
         [currentItem._id]: {
           ...prev[currentItem._id],
           completed: true,
-          progress: 100
-        }
+          progress: 100,
+        },
       }));
     }
   };
@@ -381,7 +384,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
   const handleAnswerChange = (questionId, answer) => {
     setQuizAnswers((prev) => ({
       ...prev,
-      [questionId]: answer
+      [questionId]: answer,
     }));
   };
 
@@ -397,13 +400,13 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
           contentItemId: quiz._id,
           contentItemType: quiz.type,
           answers: quizAnswers,
-          user_id: studentdata.id
+          user_id: studentdata.id,
         },
         getAuthHeaders()
       );
 
       if (response.data.alreadySubmitted) {
-        setQuizScore(response.data.percentage);
+        setQuizScore(response.data.score);
         setQuizSubmitted(true);
         setQuizAnswers(
           response.data.answers.reduce((acc, answer) => {
@@ -417,7 +420,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
         return;
       }
 
-      setQuizScore(response.data.percentage);
+      setQuizScore(response.data.score);
       setQuizSubmitted(true);
       setCertificateUrl(response.data.certificateUrl || null);
       setCourseCompleted(response.data.courseCompleted || false);
@@ -428,8 +431,8 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
         [quiz._id]: {
           ...prev[quiz._id],
           completed: true,
-          progress: 100
-        }
+          progress: 100,
+        },
       }));
 
       toast.success(
@@ -494,7 +497,24 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
       /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const match = url.match(regExp);
     const videoId = match && match[2].length === 11 ? match[2] : null;
-    return videoId ? `https://www.youtube.com/embed/${videoId}` : "";
+
+    if (!videoId) return "";
+
+    const params = new URLSearchParams({
+      controls: "1",
+      modestbranding: "1",
+      rel: "0",
+      showinfo: "0",
+      iv_load_policy: "3",
+      cc_load_policy: "0",
+      playsinline: "1",
+      enablejsapi: "1",
+      origin: window.location.origin,
+      autoplay: isPlaying ? "1" : "0",
+      mute: isMuted ? "1" : "0",
+    });
+
+    return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
   };
 
   const downloadCertificate = () => {
@@ -526,7 +546,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
           <h2 className="text-xl font-bold mb-2">Error Loading Course</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <button
-            onClick={() => setActiveView("myCourses")} // Change this line
+            onClick={() => setActiveView("myCourses")}
             className="flex items-center text-indigo-600 hover:text-indigo-800 font-medium"
           >
             <FiChevronLeft className="mr-1" /> Back to course
@@ -580,14 +600,23 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
               <div className="w-full max-h-full max-w-full aspect-video relative bg-black rounded-xl overflow-hidden group">
                 {/* Video player */}
                 {currentItem.youtubeLink ? (
-                  <iframe
-                    src={`${getYouTubeEmbedUrl(
-                      currentItem.youtubeLink
-                    )}?autoplay=${isPlaying ? 1 : 0}&mute=${isMuted ? 1 : 0}`}
-                    className="w-full h-full"
-                    frameBorder="0"
-                    allowFullScreen
-                  />
+                  <>
+                    <iframe
+                      ref={youtubeIframeRef}
+                      src={getYouTubeEmbedUrl(currentItem.youtubeLink)}
+                      className="w-full h-full"
+                      frameBorder="0"
+                      allowFullScreen
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      title={currentItem.title || "YouTube Video"}
+                    />
+
+                    {/* YouTube info overlay */}
+                    <div className="absolute top-4 right-4 bg-black/70 text-white text-sm px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      Use YouTube controls to play/pause and adjust settings
+                    </div>
+                  </>
                 ) : currentItem.content?.path ? (
                   <>
                     <video
@@ -606,13 +635,13 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                         if (!currentItem.duration) {
                           const updatedItem = {
                             ...currentItem,
-                            duration: e.target.duration
+                            duration: e.target.duration,
                           };
                           setCourse((prev) => ({
                             ...prev,
                             content: prev.content.map((item) =>
                               item._id === currentItem._id ? updatedItem : item
-                            )
+                            ),
                           }));
                         }
                       }}
@@ -628,8 +657,8 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                           [currentItem._id]: {
                             ...prev[currentItem._id],
                             completed: true,
-                            progress: 100
-                          }
+                            progress: 100,
+                          },
                         }));
                       }}
                     />
@@ -647,156 +676,158 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                   </div>
                 )}
 
-                {/* Custom controls overlay */}
-                <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-4">
-                  {/* Top bar with filename and watch time */}
-                  <div className="flex justify-between items-center mb-2">
-                    {currentItem.content?.filename && (
-                      <div className="text-white text-sm font-medium bg-black/50 px-3 py-1 rounded-full truncate max-w-[70%]">
-                        {currentItem.content.filename}
+                {/* Custom controls overlay - only for non-YouTube videos */}
+                {!currentItem.youtubeLink && (
+                  <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-4">
+                    {/* Top bar with filename and watch time */}
+                    <div className="flex justify-between items-center mb-2">
+                      {currentItem.content?.filename && (
+                        <div className="text-white text-sm font-medium bg-black/50 px-3 py-1 rounded-full truncate max-w-[70%]">
+                          {currentItem.content.filename}
+                        </div>
+                      )}
+                      <div className="text-white text-sm bg-black/50 px-3 py-1 rounded-full">
+                        Watched: {formatTime(timeWatched)} /
+                        {formatTime(currentItem.duration || 0)}
                       </div>
-                    )}
-                    <div className="text-white text-sm bg-black/50 px-3 py-1 rounded-full">
-                      Watched: {formatTime(timeWatched)} /
-                      {formatTime(currentItem.duration || 0)}
                     </div>
-                  </div>
 
-                  {/* Progress bar with hover time preview */}
-                  <div className="relative w-full h-2 bg-gray-600 rounded-full mb-3 group/progress">
-                    <div
-                      className="absolute top-0 left-0 h-full bg-indigo-500 rounded-full"
-                      style={{
-                        width: `${
-                          (currentTime / (currentItem.duration || 1)) * 100
-                        }%`
-                      }}
-                    ></div>
-                    <div className="absolute top-0 left-0 h-full w-full opacity-0 group-hover/progress:opacity-100">
-                      <input
-                        type="range"
-                        min="0"
-                        max={currentItem.duration || 1}
-                        value={currentTime}
-                        onChange={(e) => {
-                          if (videoRef.current) {
-                            videoRef.current.currentTime = e.target.value;
-                            setCurrentTime(e.target.value);
-                          }
+                    {/* Progress bar with hover time preview */}
+                    <div className="relative w-full h-2 bg-gray-600 rounded-full mb-3 group/progress">
+                      <div
+                        className="absolute top-0 left-0 h-full bg-indigo-500 rounded-full"
+                        style={{
+                          width: `${
+                            (currentTime / (currentItem.duration || 1)) * 100
+                          }%`,
                         }}
-                        className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
-                      />
+                      ></div>
+                      <div className="absolute top-0 left-0 h-full w-full opacity-0 group-hover/progress:opacity-100">
+                        <input
+                          type="range"
+                          min="0"
+                          max={currentItem.duration || 1}
+                          value={currentTime}
+                          onChange={(e) => {
+                            if (videoRef.current) {
+                              videoRef.current.currentTime = e.target.value;
+                              setCurrentTime(e.target.value);
+                            }
+                          }}
+                          className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Bottom controls */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      {/* Play/Pause button */}
-                      <button
-                        onClick={() => {
-                          if (videoRef.current) {
-                            isPlaying
-                              ? videoRef.current.pause()
-                              : videoRef.current.play();
-                          }
-                          togglePlay();
-                        }}
-                        className="text-white hover:text-indigo-300 transition-colors p-2"
-                      >
-                        {isPlaying ? (
-                          <FiPause
-                            size={24}
-                            className="hover:scale-110 transition-transform"
-                          />
-                        ) : (
-                          <FiPlay
-                            size={24}
-                            className="hover:scale-110 transition-transform"
-                          />
-                        )}
-                      </button>
-
-                      {/* Volume control */}
-                      <div className="flex items-center group/volume">
+                    {/* Bottom controls */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        {/* Play/Pause button */}
                         <button
                           onClick={() => {
                             if (videoRef.current) {
-                              videoRef.current.muted = !isMuted;
+                              isPlaying
+                                ? videoRef.current.pause()
+                                : videoRef.current.play();
                             }
-                            toggleMute();
+                            togglePlay();
                           }}
                           className="text-white hover:text-indigo-300 transition-colors p-2"
                         >
-                          {isMuted ? (
-                            <FiVolumeX
+                          {isPlaying ? (
+                            <FiPause
+                              size={24}
+                              className="hover:scale-110 transition-transform"
+                            />
+                          ) : (
+                            <FiPlay
+                              size={24}
+                              className="hover:scale-110 transition-transform"
+                            />
+                          )}
+                        </button>
+
+                        {/* Volume control */}
+                        <div className="flex items-center group/volume">
+                          <button
+                            onClick={() => {
+                              if (videoRef.current) {
+                                videoRef.current.muted = !isMuted;
+                              }
+                              toggleMute();
+                            }}
+                            className="text-white hover:text-indigo-300 transition-colors p-2"
+                          >
+                            {isMuted ? (
+                              <FiVolumeX
+                                size={20}
+                                className="hover:scale-110 transition-transform"
+                              />
+                            ) : (
+                              <FiVolume2
+                                size={20}
+                                className="hover:scale-110 transition-transform"
+                              />
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Current time */}
+                        <div className="text-white text-sm font-mono">
+                          {formatTime(currentTime)} /{" "}
+                          {formatTime(currentItem.duration || 0)}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-4">
+                        {/* Playback speed */}
+                        <div className="relative group/speed">
+                          <button className="text-white text-sm bg-black/50 hover:bg-black/70 px-3 py-1 rounded transition-colors">
+                            {playbackRate}x
+                          </button>
+                          <div className="absolute bottom-full left-0 mb-2 bg-gray-800 rounded-lg shadow-lg p-2 hidden group-hover/speed:block">
+                            {[0.5, 0.75, 1, 1.25, 1.5, 2].map((speed) => (
+                              <button
+                                key={speed}
+                                onClick={() => {
+                                  setPlaybackRate(speed);
+                                  if (videoRef.current) {
+                                    videoRef.current.playbackRate = speed;
+                                  }
+                                }}
+                                className={`block w-full text-left px-3 py-1 rounded ${
+                                  playbackRate === speed
+                                    ? "bg-indigo-600 text-white"
+                                    : "text-gray-300 hover:bg-gray-700"
+                                }`}
+                              >
+                                {speed}x
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Fullscreen button */}
+                        <button
+                          onClick={toggleFullscreen}
+                          className="text-white hover:text-indigo-300 transition-colors p-2"
+                        >
+                          {isFullscreen ? (
+                            <FiMinimize
                               size={20}
                               className="hover:scale-110 transition-transform"
                             />
                           ) : (
-                            <FiVolume2
+                            <FiMaximize
                               size={20}
                               className="hover:scale-110 transition-transform"
                             />
                           )}
                         </button>
                       </div>
-
-                      {/* Current time */}
-                      <div className="text-white text-sm font-mono">
-                        {formatTime(currentTime)} /{" "}
-                        {formatTime(currentItem.duration || 0)}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-4">
-                      {/* Playback speed */}
-                      <div className="relative group/speed">
-                        <button className="text-white text-sm bg-black/50 hover:bg-black/70 px-3 py-1 rounded transition-colors">
-                          {playbackRate}x
-                        </button>
-                        <div className="absolute bottom-full left-0 mb-2 bg-gray-800 rounded-lg shadow-lg p-2 hidden group-hover/speed:block">
-                          {[0.5, 0.75, 1, 1.25, 1.5, 2].map((speed) => (
-                            <button
-                              key={speed}
-                              onClick={() => {
-                                setPlaybackRate(speed);
-                                if (videoRef.current) {
-                                  videoRef.current.playbackRate = speed;
-                                }
-                              }}
-                              className={`block w-full text-left px-3 py-1 rounded ${
-                                playbackRate === speed
-                                  ? "bg-indigo-600 text-white"
-                                  : "text-gray-300 hover:bg-gray-700"
-                              }`}
-                            >
-                              {speed}x
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Fullscreen button */}
-                      <button
-                        onClick={toggleFullscreen}
-                        className="text-white hover:text-indigo-300 transition-colors p-2"
-                      >
-                        {isFullscreen ? (
-                          <FiMinimize
-                            size={20}
-                            className="hover:scale-110 transition-transform"
-                          />
-                        ) : (
-                          <FiMaximize
-                            size={20}
-                            className="hover:scale-110 transition-transform"
-                          />
-                        )}
-                      </button>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
             {currentItem.type === "live" && (
@@ -825,7 +856,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                               day: "numeric",
                               year: "numeric",
                               hour: "2-digit",
-                              minute: "2-digit"
+                              minute: "2-digit",
                             }
                           )}
                         </span>
@@ -1279,8 +1310,11 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                         <p className="text-gray-600 mb-6">
                           Some of your answers require teacher review. Your
                           current score is {quizScore}/
-                          {currentItem.questions?.length || 0}. We'll notify you
-                          when grading is complete.
+                          {currentItem.questions?.reduce(
+                            (total, q) => total + (q.marks || 1),
+                            0
+                          ) || 0}
+                          . We'll notify you when grading is complete.
                         </p>
                       </>
                     ) : (
@@ -1289,13 +1323,25 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                           <FiCheck className="text-green-600 text-4xl" />
                         </div>
                         <div className="text-4xl font-bold mb-2">
-                          {quizScore}/{currentItem.questions?.length || 0}
+                          {quizScore}/
+                          {currentItem.questions?.reduce(
+                            (total, q) => total + (q.marks || 1),
+                            0
+                          ) || 0}
                         </div>
                         <p className="text-xl mb-6">
-                          {quizScore === (currentItem.questions?.length || 0)
+                          {quizScore ===
+                          (currentItem.questions?.reduce(
+                            (total, q) => total + (q.marks || 1),
+                            0
+                          ) || 0)
                             ? "Perfect score! You're amazing!"
                             : quizScore >=
-                              (currentItem.questions?.length || 0) / 2
+                              (currentItem.questions?.reduce(
+                                (total, q) => total + (q.marks || 1),
+                                0
+                              ) || 0) /
+                                2
                             ? "Well done! You passed the quiz."
                             : "Keep practicing! Review the material and try again."}
                         </p>

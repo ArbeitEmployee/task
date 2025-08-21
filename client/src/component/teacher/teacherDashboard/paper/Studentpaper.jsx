@@ -1,4 +1,5 @@
 /* eslint-disable no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
@@ -13,21 +14,17 @@ import {
   FiChevronDown,
   FiChevronUp,
 } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import axios from "axios";
 import { MdDelete } from "react-icons/md";
 
 const Studentpaper = () => {
-  const navigate = useNavigate();
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeView, setActiveView] = useState("dashboard");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [gradingData, setGradingData] = useState({});
   const [totalScore, setTotalScore] = useState(0);
   const [maxTotalScore, setMaxTotalScore] = useState(0);
@@ -49,7 +46,6 @@ const Studentpaper = () => {
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("teacherToken")}`,
-            teacher_id: teacherId,
           },
         }
       );
@@ -64,13 +60,13 @@ const Studentpaper = () => {
 
   useEffect(() => {
     fetchSubmissions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle grading submission
   const handleGradeSubmission = async () => {
     try {
       const answersToSubmit = Object.values(gradingData).map((answer) => ({
+        answerId: answer.answerId,
         question: answer.question,
         marks: Number(answer.marks),
         feedback: answer.feedback,
@@ -80,10 +76,15 @@ const Studentpaper = () => {
       const response = await axios.put(
         `${base_url}/api/teacher/grade-submission`,
         {
-          studentEmail: selectedSubmission.student.email,
+          studentEmail:
+            selectedSubmission.student?.email ||
+            selectedSubmission.student?.user?.email ||
+            (selectedSubmission.student &&
+            typeof selectedSubmission.student === "object"
+              ? selectedSubmission.student.email || ""
+              : ""),
           contentTitle: selectedSubmission.contentItem.title,
           answers: answersToSubmit,
-          teacher_id: teacherId,
         },
         {
           headers: {
@@ -109,15 +110,17 @@ const Studentpaper = () => {
 
   // Filter submissions based on search and filter
   const filteredSubmissions = submissions.filter((submission) => {
+    const studentName = (
+      submission.student?.full_name ||
+      submission.student?.name ||
+      ""
+    ).toLowerCase();
     const matchesSearch =
-      submission.student.name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
+      studentName.includes(searchTerm.toLowerCase()) ||
       submission.courseTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
       submission.contentItem.title
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
-
     const matchesFilter =
       filter === "all" ||
       (filter === "ungraded" &&
@@ -126,11 +129,6 @@ const Studentpaper = () => {
 
     return matchesSearch && matchesFilter;
   });
-
-  // Toggle sidebar
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
 
   // Toggle question expansion
   const toggleQuestionExpansion = (questionId) => {
@@ -151,19 +149,22 @@ const Studentpaper = () => {
     const initialExpanded = {};
 
     submission.answers.forEach((answer, index) => {
-      initialGradingData[answer.question] = {
+      // Use answerId as unique key instead of question text
+      const answerKey = answer.answerId || `${answer.question}-${index}`;
+      initialGradingData[answerKey] = {
+        answerId: answer.answerId,
         question: answer.question,
-        type: answer.questionType,
+        type: answer.type || answer.questionType, // Handle both possible field names
         marks: answer.marksObtained || 0,
-        feedback: answer.teacherFeedback || "",
+        feedback: answer.feedback || answer.teacherFeedback || "",
         maxMarks: answer.maxMarks,
         studentAnswer: answer.studentAnswer,
         correctAnswer: answer.correctAnswer,
         isCorrect: answer.isCorrect || false,
       };
 
-      // Auto-expand the first question
-      initialExpanded[answer.question] = index === 0;
+      // Auto-expand the first question using answerKey
+      initialExpanded[answerKey] = index === 0;
 
       total += answer.marksObtained || 0;
       maxTotal += answer.maxMarks;
@@ -214,8 +215,8 @@ const Studentpaper = () => {
   };
 
   // Auto-grade function for MCQ questions
-  const autoGradeMCQ = (question) => {
-    const answerData = gradingData[question];
+  const autoGradeMCQ = (answerKey) => {
+    const answerData = gradingData[answerKey];
     if (!answerData) return 0;
 
     let isCorrect = false;
@@ -233,17 +234,17 @@ const Studentpaper = () => {
 
     const marks = isCorrect ? answerData.maxMarks : 0;
 
-    handleGradeChange(question, "marks", marks);
-    handleGradeChange(question, "isCorrect", isCorrect);
+    handleGradeChange(answerKey, "marks", marks);
+    handleGradeChange(answerKey, "isCorrect", isCorrect);
     return marks;
   };
 
   // Auto-grade all MCQ questions
   const autoGradeAllMCQs = () => {
     let newTotal = 0;
-    Object.entries(gradingData).forEach(([question, answer]) => {
+    Object.entries(gradingData).forEach(([answerKey, answer]) => {
       if (answer.type === "mcq-single" || answer.type === "mcq-multiple") {
-        newTotal += autoGradeMCQ(question);
+        newTotal += autoGradeMCQ(answerKey);
       } else {
         newTotal += answer.marks || 0;
       }
@@ -254,13 +255,13 @@ const Studentpaper = () => {
   };
 
   // Toggle correct/incorrect status for a question
-  const toggleCorrectStatus = (question) => {
-    const currentData = gradingData[question];
+  const toggleCorrectStatus = (answerKey) => {
+    const currentData = gradingData[answerKey];
     const newIsCorrect = !currentData.isCorrect;
     const newMarks = newIsCorrect ? currentData.maxMarks : 0;
 
-    handleGradeChange(question, "isCorrect", newIsCorrect);
-    handleGradeChange(question, "marks", newMarks);
+    handleGradeChange(answerKey, "isCorrect", newIsCorrect);
+    handleGradeChange(answerKey, "marks", newMarks);
   };
 
   // Format answer display based on type
@@ -277,8 +278,11 @@ const Studentpaper = () => {
   };
 
   return (
-    <div className=" min-h-screen">
+    <div className="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
       <div className="flex w-full h-[100vh] bg-white overflow-hidden">
+        {/* Sidebar Section */}
+
+        {/* Main Content Section */}
         <div className="flex-1 h-full overflow-auto">
           <motion.div
             initial={{ opacity: 0 }}
@@ -297,13 +301,13 @@ const Studentpaper = () => {
                     <input
                       type="text"
                       placeholder="Search submissions..."
-                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-grya-500"
+                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
                   <select
-                    className="w-full md:w-auto border border-gray-400 rounded-lg px-4 py-2 focus:outline-none focus:border-gray-600"
+                    className="w-full md:w-auto border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
                   >
@@ -348,12 +352,13 @@ const Studentpaper = () => {
                           >
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
-                                <div className="ml-4">
+                                <div className="">
                                   <div className="text-sm font-medium text-gray-900">
-                                    {submission.student.name}
+                                    {submission.student?.name ||
+                                      "Unknown student"}
                                   </div>
                                   <div className="text-sm text-gray-500">
-                                    {submission.student.email}
+                                    {submission.student?.email || "No email"}
                                   </div>
                                 </div>
                               </div>
@@ -393,7 +398,7 @@ const Studentpaper = () => {
                                       : submission.gradingStatus ===
                                         "partially-graded"
                                       ? "bg-yellow-100 text-yellow-800"
-                                      : "bg-gray-100 text-gray-800"
+                                      : "bg-blue-100 text-blue-800"
                                   }`}
                               >
                                 {submission.gradingStatus === "manually-graded"
@@ -419,7 +424,7 @@ const Studentpaper = () => {
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                               <button
                                 onClick={() => viewSubmission(submission)}
-                                className="text-gray-600 hover:text-gray-900 mr-4 flex items-center"
+                                className="text-blue-600 hover:text-blue-900 mr-4 flex items-center"
                               >
                                 <FiEye className="inline mr-1" /> View/Grade
                               </button>
@@ -447,15 +452,15 @@ const Studentpaper = () => {
               <div className="fixed inset-0 bg-[rgba(0,0,0,0.4)] bg-opacity-50 flex items-center justify-center z-[1000] p-4">
                 <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
                   {/* Modal Header */}
-                  <div className="bg-gray-800 text-white p-4 rounded-t-lg">
+                  <div className="bg-gray-800 !text-white p-4 rounded-t-lg">
                     <div className="flex justify-between items-center">
                       <div>
-                        <h2 className="text-xl font-bold">
+                        <h2 className="text-xl !text-white font-bold">
                           Grading: {selectedSubmission.contentItem.title}
                         </h2>
                         <p className="text-sm text-gray-300 mt-1">
-                          Student: {selectedSubmission.student.name} (
-                          {selectedSubmission.student.email})
+                          Student: {selectedSubmission.student?.name} (
+                          {selectedSubmission.student?.email})
                         </p>
                       </div>
                       <button
@@ -499,7 +504,7 @@ const Studentpaper = () => {
                     </div>
 
                     {/* Grading Summary */}
-                    <div className="mb-6 p-4 rounded-lg border border-gray-200 bg-gray-50">
+                    <div className="mb-6 p-4 rounded-lg border border-gray-200 bg-blue-50">
                       <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
                         <div className="mb-3 md:mb-0">
                           <h3 className="text-lg font-semibold text-gray-800">
@@ -527,7 +532,7 @@ const Studentpaper = () => {
                         <div className="flex flex-wrap gap-2">
                           <button
                             onClick={autoGradeAllMCQs}
-                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm flex items-center"
+                            className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm flex items-center"
                           >
                             <FiCheck className="mr-2" /> Auto-Grade MCQs
                           </button>
@@ -536,9 +541,9 @@ const Studentpaper = () => {
                             onClick={() => {
                               // Reset all marks to 0
                               const resetGradingData = {};
-                              Object.keys(gradingData).forEach((question) => {
-                                resetGradingData[question] = {
-                                  ...gradingData[question],
+                              Object.keys(gradingData).forEach((answerKey) => {
+                                resetGradingData[answerKey] = {
+                                  ...gradingData[answerKey],
                                   marks: 0,
                                   isCorrect: false,
                                 };
@@ -562,14 +567,16 @@ const Studentpaper = () => {
                     <div className="space-y-4">
                       {selectedSubmission.answers.map((answer, index) => (
                         <div
-                          key={index}
+                          key={answer.answerId || `${answer.question}-${index}`}
                           className="border rounded-lg overflow-hidden"
                         >
                           {/* Question Header */}
                           <div
                             className="flex justify-between items-center p-4 bg-gray-50 cursor-pointer hover:bg-gray-100"
                             onClick={() =>
-                              toggleQuestionExpansion(answer.question)
+                              toggleQuestionExpansion(
+                                answer.answerId || `${answer.question}-${index}`
+                              )
                             }
                           >
                             <div className="flex items-center">
@@ -583,20 +590,31 @@ const Studentpaper = () => {
                             <div className="flex items-center">
                               <span
                                 className={`px-2 py-1 text-xs font-medium rounded mr-3 ${
-                                  gradingData[answer.question]?.isCorrect
+                                  gradingData[
+                                    answer.answerId ||
+                                      `${answer.question}-${index}`
+                                  ]?.isCorrect
                                     ? "bg-green-100 text-green-800"
                                     : "bg-red-100 text-red-800"
                                 }`}
                               >
-                                {gradingData[answer.question]?.isCorrect
+                                {gradingData[
+                                  answer.answerId ||
+                                    `${answer.question}-${index}`
+                                ]?.isCorrect
                                   ? "Correct"
                                   : "Incorrect"}
                               </span>
                               <span className="text-sm text-gray-500 mr-3">
-                                {gradingData[answer.question]?.marks || 0}/
-                                {answer.maxMarks} pts
+                                {gradingData[
+                                  answer.answerId ||
+                                    `${answer.question}-${index}`
+                                ]?.marks || 0}
+                                /{answer.maxMarks} pts
                               </span>
-                              {expandedQuestions[answer.question] ? (
+                              {expandedQuestions[
+                                answer.answerId || `${answer.question}-${index}`
+                              ] ? (
                                 <FiChevronUp className="text-gray-500" />
                               ) : (
                                 <FiChevronDown className="text-gray-500" />
@@ -605,11 +623,13 @@ const Studentpaper = () => {
                           </div>
 
                           {/* Question Content - Collapsible */}
-                          {expandedQuestions[answer.question] && (
+                          {expandedQuestions[
+                            answer.answerId || `${answer.question}-${index}`
+                          ] && (
                             <div className="p-4 bg-white">
                               {/* Question Type and Max Marks */}
                               <div className="flex flex-wrap gap-2 mb-4">
-                                <span className="text-xs font-medium px-2.5 py-0.5 rounded bg-gray-100 text-gray-800">
+                                <span className="text-xs font-medium px-2.5 py-0.5 rounded bg-blue-100 text-blue-800">
                                   {answer.questionType}
                                 </span>
                                 <span className="text-xs font-medium px-2.5 py-0.5 rounded bg-purple-100 text-purple-800">
@@ -666,7 +686,10 @@ const Studentpaper = () => {
                                       max={answer.maxMarks}
                                       step="0.5"
                                       value={
-                                        gradingData[answer.question]?.marks || 0
+                                        gradingData[
+                                          answer.answerId ||
+                                            `${answer.question}-${index}`
+                                        ]?.marks || 0
                                       }
                                       onChange={(e) => {
                                         const value = Math.min(
@@ -674,12 +697,13 @@ const Studentpaper = () => {
                                           answer.maxMarks
                                         );
                                         handleGradeChange(
-                                          answer.question,
+                                          answer.answerId ||
+                                            `${answer.question}-${index}`,
                                           "marks",
                                           value
                                         );
                                       }}
-                                      className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
+                                      className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                     />
                                     <span className="ml-2 text-sm text-gray-500">
                                       / {answer.maxMarks}
@@ -697,17 +721,20 @@ const Studentpaper = () => {
                                     id={`feedback-${index}`}
                                     rows={2}
                                     value={
-                                      gradingData[answer.question]?.feedback ||
-                                      ""
+                                      gradingData[
+                                        answer.answerId ||
+                                          `${answer.question}-${index}`
+                                      ]?.feedback || ""
                                     }
                                     onChange={(e) =>
                                       handleGradeChange(
-                                        answer.question,
+                                        answer.answerId ||
+                                          `${answer.question}-${index}`,
                                         "feedback",
                                         e.target.value
                                       )
                                     }
-                                    className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
+                                    className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                     placeholder="Provide feedback for the student..."
                                   />
                                 </div>
@@ -717,15 +744,24 @@ const Studentpaper = () => {
                               <div className="flex justify-end mt-4 space-x-2">
                                 <button
                                   onClick={() =>
-                                    toggleCorrectStatus(answer.question)
+                                    toggleCorrectStatus(
+                                      answer.answerId ||
+                                        `${answer.question}-${index}`
+                                    )
                                   }
                                   className={`px-3 py-1 rounded-md text-sm flex items-center ${
-                                    gradingData[answer.question]?.isCorrect
+                                    gradingData[
+                                      answer.answerId ||
+                                        `${answer.question}-${index}`
+                                    ]?.isCorrect
                                       ? "bg-green-100 text-green-700 hover:bg-green-200"
                                       : "bg-red-100 text-red-700 hover:bg-red-200"
                                   }`}
                                 >
-                                  {gradingData[answer.question]?.isCorrect ? (
+                                  {gradingData[
+                                    answer.answerId ||
+                                      `${answer.question}-${index}`
+                                  ]?.isCorrect ? (
                                     <>
                                       <FiCheck className="mr-1" /> Mark
                                       Incorrect
@@ -741,9 +777,12 @@ const Studentpaper = () => {
                                   answer.questionType === "mcq-multiple") && (
                                   <button
                                     onClick={() =>
-                                      autoGradeMCQ(answer.question)
+                                      autoGradeMCQ(
+                                        answer.answerId ||
+                                          `${answer.question}-${index}`
+                                      )
                                     }
-                                    className="px-3 py-1 bg-gray-100 text-gray-700 rounded-md text-sm hover:bg-gray-200 flex items-center"
+                                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200 flex items-center"
                                   >
                                     <FiCheck className="mr-1" /> Auto-Grade
                                   </button>
@@ -767,13 +806,13 @@ const Studentpaper = () => {
                     <div className="flex space-x-3">
                       <button
                         onClick={() => setIsModalOpen(false)}
-                        className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                        className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={handleGradeSubmission}
-                        className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                        className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                       >
                         Submit Grades
                       </button>

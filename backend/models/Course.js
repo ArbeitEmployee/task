@@ -201,8 +201,8 @@ const courseSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["active", "inactive"],
-      default: "active",
+      enum: ["active", "inactive", "draft"],
+      default: "draft",
     },
     categories: [{ type: String }],
     tags: [String],

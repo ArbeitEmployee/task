@@ -1692,7 +1692,6 @@ Teaceherrouter.get(
     try {
       // Get teacher_id from authenticated user (set by authenticateTeacher middleware)
       const teacher_id = req.teacher._id;
-      console.log("Fetching submissions for teacher:", teacher_id);
 
       // 1. Get all courses taught by this teacher
       const courses = await Course.find({ instructor: teacher_id })
@@ -1754,8 +1753,8 @@ Teaceherrouter.get(
 
               return {
                 student: {
-                  name: enrollment.studentId?.full_name || "Unknown student",
-                  email: enrollment.studentId?.email || "No email",
+                  name: enrollment.studentId?.full_name, // ← CORRECT
+                  email: enrollment.studentId?.email, // ← CORRECT
                 },
                 courseTitle: course.title || "Untitled course",
                 contentItem: {

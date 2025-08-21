@@ -1,201 +1,31 @@
 // CountryData.js
+// CountryData.js
 import React from "react";
+
 export const countryFlags = {
-  finland: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="36" fill="#fff" />
-      <rect x="10" width="6" height="36" fill="#003580" />
-      <rect y="15" width="36" height="6" fill="#003580" />
-    </svg>
-  ),
-  estonia: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="12" fill="#fff" />
-      <rect y="12" width="36" height="12" fill="#000" />
-      <rect y="24" width="36" height="12" fill="#4891d9" />
-    </svg>
-  ),
-  denmark: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="36" fill="#c60c30" />
-      <rect x="12" width="6" height="36" fill="#fff" />
-      <rect y="15" width="36" height="6" fill="#fff" />
-    </svg>
-  ),
-  sweden: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="36" fill="#005293" />
-      <rect x="12" width="6" height="36" fill="#fecb00" />
-      <rect y="15" width="36" height="6" fill="#fecb00" />
-    </svg>
-  ),
-  norway: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="36" fill="#ef2b2d" />
-      <rect x="4" y="4" width="28" height="28" fill="#fff" />
-      <rect x="8" y="8" width="20" height="20" fill="#002868" />
-      <rect x="12" y="0" width="4" height="36" fill="#fff" />
-      <rect x="0" y="16" width="36" height="4" fill="#fff" />
-      <rect x="12" y="4" width="2" height="28" fill="#ef2b2d" />
-      <rect x="4" y="16" width="28" height="2" fill="#ef2b2d" />
-    </svg>
-  ),
-  hungary: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="12" fill="#fff" />
-      <rect y="12" width="36" height="12" fill="#cd2a3e" />
-      <rect y="24" width="36" height="12" fill="#436f4d" />
-    </svg>
-  ),
-  usa: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="36" fill="#3c3b6e" />
-      <rect width="18" height="18" fill="#fff" />
-      <path
-        fill="#b22234"
-        d="M0 0h36v2H0zm0 4h36v2H0zm0 4h36v2H0zm0 4h36v2H0zm0 4h36v2H0zm0 4h36v2H0z"
-      />
-      <path
-        fill="#fff"
-        d="M0 2h18v2H0zm0 4h18v2H0zm0 4h18v2H0zm0 4h18v2H0zm0 4h18v2H0zm0 4h18v2H0z"
-      />
-      <rect width="8" height="8" fill="#3c3b6e" />
-      <path
-        fill="#fff"
-        d="M2 2h1v1H2zm2 0h1v1H4zm4 0h1v1H8zm1 2h1v1H9zm1 2h1v1h-1zm1 2h1v1h-1zm-1 2h1v1H9zm-1 2h1v1H8zm-4 0h1v1H4zm-2 0h1v1H2zm0-2h1v1H2zm0-2h1v1H2zm0-2h1v1H2zm0-2h1v1H2z"
-      />
-    </svg>
-  ),
-  uk: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="36" fill="#012169" />
-      <path fill="#fff" d="M0 0l18 18L0 36zm36 0L18 18l18 18z" />
-      <path fill="#c8102e" d="M0 0l12 12L0 24zm36 0L24 12l12 12z" />
-      <path fill="#fff" d="M18 0v12h18v12H18v12H6v-12H0V12h6V0z" />
-      <path fill="#c8102e" d="M12 0v8h16v8h-8v8h-8v-8H0v-8h8V0z" />
-    </svg>
-  ),
-  australia: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="36" fill="#012169" />
-      <path fill="#fff" d="M0 0l18 18L0 36zm36 0L18 18l18 18z" />
-      <path fill="#c8102e" d="M0 0l12 12L0 24zm36 0L24 12l12 12z" />
-      <path fill="#fff" d="M18 0v12h18v12H18v12H6v-12H0V12h6V0z" />
-      <path fill="#c8102e" d="M12 0v8h16v8h-8v8h-8v-8H0v-8h8V0z" />
-      <circle cx="24" cy="12" r="4" fill="#fff" />
-      <circle cx="24" cy="12" r="2" fill="#c8102e" />
-      <circle cx="12" cy="24" r="4" fill="#fff" />
-      <circle cx="12" cy="24" r="2" fill="#c8102e" />
-    </svg>
-  ),
-  italy: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="12" height="36" fill="#009246" />
-      <rect x="12" width="12" height="36" fill="#fff" />
-      <rect x="24" width="12" height="36" fill="#ce2b37" />
-    </svg>
-  ),
-  spain: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="36" fill="#ad1519" />
-      <rect y="8" width="36" height="4" fill="#fbbf00" />
-      <rect y="16" width="36" height="4" fill="#fbbf00" />
-      <rect y="24" width="36" height="4" fill="#fbbf00" />
-    </svg>
-  ),
-  portugal: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="16" height="36" fill="#046a38" />
-      <rect x="16" width="20" height="36" fill="#da291c" />
-      <circle cx="8" cy="18" r="5" fill="#ffed00" />
-      <path fill="#da291c" d="M8 13l2 6-5-3.5h6l-5 3.5z" />
-    </svg>
-  ),
-  greece: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="36" fill="#0d5eaf" />
-      <rect width="36" height="6" fill="#fff" />
-      <rect y="12" width="36" height="6" fill="#fff" />
-      <rect y="18" width="36" height="6" fill="#fff" />
-      <rect y="24" width="36" height="6" fill="#fff" />
-      <rect x="0" y="0" width="12" height="12" fill="#fff" />
-      <rect x="3" y="0" width="3" height="12" fill="#0d5eaf" />
-      <rect x="0" y="3" width="12" height="3" fill="#0d5eaf" />
-    </svg>
-  ),
-  poland: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="18" fill="#fff" />
-      <rect y="18" width="36" height="18" fill="#d71634" />
-    </svg>
-  ),
-  lithuania: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="12" fill="#006747" />
-      <rect y="12" width="36" height="12" fill="#fcd116" />
-      <rect y="24" width="36" height="12" fill="#d90000" />
-    </svg>
-  ),
-  latvia: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="12" fill="#9e1b32" />
-      <rect y="12" width="36" height="12" fill="#fff" />
-      <rect y="24" width="36" height="12" fill="#9e1b32" />
-    </svg>
-  ),
-  cyprus: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="36" fill="#d0c937" />
-      <path
-        fill="#fff"
-        d="M13.3 15.1c-1.7 1.4-3.6 2.5-5.7 3.2 0 0 0.7-3.2 1.6-5.1 1-1.9 2.7-3.5 4.4-4.7 2.1-1.6 5.1-3.1 7.3-1.7 2.3 1.2 2.4 4.3 1.5 5.8-0.7 1.4-3 3.1-4.6 2.5z"
-      />
-    </svg>
-  ),
-  malta: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="36" fill="#ff0000" />
-      <rect width="18" height="36" fill="#fff" />
-    </svg>
-  ),
-  czechRepublic: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="18" fill="#d7141c" />
-      <polygon points="0,0 18,9 0,18" fill="#fff" />
-      <rect y="18" width="36" height="18" fill="#005cbf" />
-    </svg>
-  ),
-  romania: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="12" height="36" fill="#fcd116" />
-      <rect x="12" width="12" height="36" fill="#002b7f" />
-      <rect x="24" width="12" height="36" fill="#fcd116" />
-    </svg>
-  ),
-  china: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="36" fill="#de2910" />
-      <path fill="#fff" d="M7.5 6l-2.6 7h-7l5.6 4.2L2 26l7.1-5.3L7.5 6z" />
-    </svg>
-  ),
-  malaysia: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="36" fill="#ff0000" />
-      <rect y="6" width="36" height="2" fill="#fff" />
-      <rect y="12" width="36" height="2" fill="#fff" />
-      <rect y="18" width="36" height="2" fill="#fff" />
-      <rect y="24" width="36" height="2" fill="#fff" />
-      <rect y="30" width="36" height="2" fill="#fff" />
-    </svg>
-  ),
-  thailand: (
-    <svg viewBox="0 0 36 36" className="w-6 h-6">
-      <rect width="36" height="36" fill="#e70010" />
-      <rect width="36" height="12" fill="#ffffff" />
-      <rect y="12" width="36" height="12" fill="#0033a0" />
-      <rect y="24" width="36" height="12" fill="#ffffff" />
-    </svg>
-  ),
+  finland: <span className="fi fi-fi w-6 h-6" />,
+  estonia: <span className="fi fi-ee w-6 h-6" />,
+  denmark: <span className="fi fi-dk w-6 h-6" />,
+  sweden: <span className="fi fi-se w-6 h-6" />,
+  norway: <span className="fi fi-no w-6 h-6" />,
+  hungary: <span className="fi fi-hu w-6 h-6" />,
+  usa: <span className="fi fi-us w-6 h-6" />,
+  uk: <span className="fi fi-gb w-6 h-6" />,
+  australia: <span className="fi fi-au w-6 h-6" />,
+  italy: <span className="fi fi-it w-6 h-6" />,
+  spain: <span className="fi fi-es w-6 h-6" />,
+  portugal: <span className="fi fi-pt w-6 h-6" />,
+  greece: <span className="fi fi-gr w-6 h-6" />,
+  poland: <span className="fi fi-pl w-6 h-6" />,
+  lithuania: <span className="fi fi-lt w-6 h-6" />,
+  latvia: <span className="fi fi-lv w-6 h-6" />,
+  cyprus: <span className="fi fi-cy w-6 h-6" />,
+  malta: <span className="fi fi-mt w-6 h-6" />,
+  czechRepublic: <span className="fi fi-cz w-6 h-6" />,
+  romania: <span className="fi fi-ro w-6 h-6" />,
+  china: <span className="fi fi-cn w-6 h-6" />,
+  malaysia: <span className="fi fi-my w-6 h-6" />,
+  thailand: <span className="fi fi-th w-6 h-6" />,
 };
 
 export const allCountries = [

@@ -39,9 +39,10 @@ Courseplayer.get("/single-courses/:id", async (req, res) => {
         maxScore: progress?.maxScore,
         attempts: progress?.attempts,
         lastAccessed: progress?.lastAccessed,
-        answers: progress?.answers, // Include previous answers
+        answers: progress?.answers,
         passed: progress?.passed,
-        timeSpent: progress?.timeSpent || 0 // Include time spent
+        timeSpent: progress?.timeSpent || 0,
+        gradingStatus: progress?.gradingStatus,
       };
     });
 
@@ -60,8 +61,8 @@ Courseplayer.get("/single-courses/:id", async (req, res) => {
       enrollmentStatus: {
         enrolledAt: enrollment.enrolledAt,
         completed: enrollment.completed,
-        certificate: enrollment.certificate
-      }
+        certificate: enrollment.certificate,
+      },
     });
   } catch (error) {
     console.log(error);
@@ -74,7 +75,7 @@ Courseplayer.post("/:courseId/access", async (req, res) => {
   try {
     const course = await Course.findOne({
       _id: req.params.courseId,
-      "enrollments.studentId": req.body.user_id
+      "enrollments.studentId": req.body.user_id,
     });
 
     if (!course) {
@@ -103,7 +104,7 @@ Courseplayer.post("/:courseId/track-watch-time", async (req, res) => {
     const { contentItemId, duration, currentTime, totalDuration } = req.body;
     const course = await Course.findOne({
       _id: req.params.courseId,
-      "enrollments.studentId": req.user._id
+      "enrollments.studentId": req.user._id,
     });
 
     if (!course) {
@@ -140,7 +141,7 @@ Courseplayer.post("/:courseId/track-watch-time", async (req, res) => {
         progress: 0,
         completed: false,
         timeSpent: 0,
-        status: "in-progress"
+        status: "in-progress",
       };
       enrollment.progress.push(progressRecord);
     }
@@ -165,7 +166,7 @@ Courseplayer.post("/:courseId/track-watch-time", async (req, res) => {
       duration,
       contentItemId: contentItem._id,
       action: "watched",
-      progress: progressPercentage
+      progress: progressPercentage,
     });
 
     enrollment.lastAccessed = now;
@@ -194,7 +195,7 @@ Courseplayer.post("/:courseId/track-watch-time", async (req, res) => {
       progress: progressRecord.progress,
       timeSpent: progressRecord.timeSpent,
       completed: progressRecord.completed,
-      courseCompleted: allCompleted
+      courseCompleted: allCompleted,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -208,7 +209,7 @@ Courseplayer.post("/:courseId/track-tutorial-time", async (req, res) => {
 
     const course = await Course.findOne({
       _id: req.params.courseId,
-      "enrollments.studentId": userId
+      "enrollments.studentId": userId,
     });
 
     if (!course) {
@@ -245,7 +246,7 @@ Courseplayer.post("/:courseId/track-tutorial-time", async (req, res) => {
         progress: 0,
         completed: false,
         timeSpent: 0,
-        status: "in-progress"
+        status: "in-progress",
       };
       enrollment.progress.push(progressRecord);
     }
@@ -270,7 +271,7 @@ Courseplayer.post("/:courseId/track-tutorial-time", async (req, res) => {
       duration,
       contentItemId: contentItem._id,
       action: "watched",
-      progress: progressPercentage
+      progress: progressPercentage,
     });
 
     enrollment.lastAccessed = now;
@@ -299,7 +300,7 @@ Courseplayer.post("/:courseId/track-tutorial-time", async (req, res) => {
       progress: progressRecord.progress,
       timeSpent: progressRecord.timeSpent,
       completed: progressRecord.completed,
-      courseCompleted: allCompleted
+      courseCompleted: allCompleted,
     });
   } catch (error) {
     console.error("Error tracking tutorial time:", error);
@@ -318,7 +319,7 @@ Courseplayer.post("/:courseId/track-video-time", async (req, res) => {
 
     const course = await Course.findOne({
       _id: req.params.courseId,
-      "enrollments.studentId": userId
+      "enrollments.studentId": userId,
     });
 
     if (!course) {
@@ -355,7 +356,7 @@ Courseplayer.post("/:courseId/track-video-time", async (req, res) => {
         progress: 0,
         completed: false,
         timeSpent: 0,
-        status: "in-progress"
+        status: "in-progress",
       };
       enrollment.progress.push(progressRecord);
     }
@@ -380,7 +381,7 @@ Courseplayer.post("/:courseId/track-video-time", async (req, res) => {
       duration: secondsWatched - (progressRecord.timeSpent || 0),
       contentItemId: contentItem._id,
       action: "watched",
-      progress: progressPercentage
+      progress: progressPercentage,
     });
 
     enrollment.lastAccessed = now;
@@ -411,13 +412,13 @@ Courseplayer.post("/:courseId/track-video-time", async (req, res) => {
       progress: progressRecord.progress,
       timeSpent: progressRecord.timeSpent,
       completed: progressRecord.completed,
-      courseCompleted: allCompleted
+      courseCompleted: allCompleted,
     });
   } catch (error) {
     console.error("Error tracking video time:", error);
     res.status(500).json({
       message: "Failed to track video time",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -432,7 +433,6 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
       return res.status(404).json({ message: "Course not found" });
     }
 
-    // Check if student is enrolled
     const enrollment = course.enrollments.find(
       (e) => e.studentId.toString() === studentId.toString()
     );
@@ -448,7 +448,6 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
       return res.status(404).json({ message: "Quiz not found" });
     }
 
-    // Check if quiz was already submitted
     const existingProgress = enrollment.progress.find(
       (p) =>
         p.contentItemId.toString() === contentItemId.toString() && p.completed
@@ -464,11 +463,12 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
         passed: existingProgress.passed,
         answers: existingProgress.answers,
         attempts: existingProgress.attempts,
-        certificateUrl: enrollment.certificate
+        certificateUrl: enrollment.certificate,
+        courseCompleted: enrollment.completed,
+        gradingStatus: existingProgress.gradingStatus,
       });
     }
 
-    // Calculate results
     let score = 0;
     let maxScore = 0;
     const detailedAnswers = [];
@@ -478,12 +478,12 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
       maxScore += question.marks;
 
       const userAnswer = answers[question._id];
-      if (!userAnswer) return;
+
+      if (userAnswer === undefined || userAnswer === null) return;
 
       let isCorrect = false;
       let marksObtained = 0;
 
-      // Check answer correctness based on question type
       switch (question.type) {
         case "mcq-single":
           isCorrect = userAnswer === question.correctAnswer;
@@ -501,7 +501,7 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
         case "short-answer":
         case "broad-answer":
           needsManualGrading = true;
-          isCorrect = false; // Default to false for manual grading
+          isCorrect = false;
           break;
       }
 
@@ -521,17 +521,16 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
         maxMarks: question.marks,
         explanation: question.explanation,
         needsManualGrading:
-          question.type === "short-answer" || question.type === "broad-answer"
+          question.type === "short-answer" || question.type === "broad-answer",
       });
     });
 
     const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
-    const passed = percentage >= quiz.passingScore;
+    const passed = percentage >= (quiz.passingScore || 70);
     const gradingStatus = needsManualGrading
       ? "partially-graded"
       : "auto-graded";
 
-    // Find or create progress record
     let progress = enrollment.progress.find(
       (p) => p.contentItemId.toString() === contentItemId.toString()
     );
@@ -551,12 +550,11 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
         bestScore: 0,
         bestAttempt: 0,
         status: "in-progress",
-        gradingStatus: "not-graded"
+        gradingStatus: "not-graded",
       };
       enrollment.progress.push(progress);
     }
 
-    // Update progress
     progress.answers = detailedAnswers;
     progress.score = score;
     progress.maxScore = maxScore;
@@ -569,23 +567,20 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
     progress.status = "completed";
     progress.gradingStatus = gradingStatus;
 
-    // Update best score
     if (score > progress.bestScore) {
       progress.bestScore = score;
       progress.bestAttempt = progress.attempts;
     }
 
-    // Update enrollment
     enrollment.accessHistory.push({
       accessedAt: now,
       duration: 0,
       contentItemId: quiz._id,
-      action: "quiz-submitted"
+      action: "quiz-submitted",
     });
 
     enrollment.lastAccessed = now;
 
-    // Check course completion
     const allContentIds = course.content.map((item) => item._id.toString());
     const completedContentIds = enrollment.progress
       .filter((p) => p.completed)
@@ -603,11 +598,9 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
 
     await course.save();
 
-    // Generate certificate if course is completed
     let certificateUrl = null;
     if (allCompleted) {
       certificateUrl = `/certificates/${course._id}/${studentId}`;
-      // In a real app, you would generate and save the certificate here
     }
 
     res.json({
@@ -618,12 +611,13 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
       passed,
       answers: detailedAnswers,
       attempts: progress.attempts,
-      remainingAttempts: quiz.maxAttempts - progress.attempts,
+      remainingAttempts: (quiz.maxAttempts || 3) - progress.attempts,
       certificateUrl,
-      courseCompleted: allCompleted
+      courseCompleted: allCompleted,
+      gradingStatus,
     });
   } catch (error) {
-    console.log(error);
+    console.log("Quiz submission error:", error);
     res.status(500).json({ message: error.message });
   }
 });
