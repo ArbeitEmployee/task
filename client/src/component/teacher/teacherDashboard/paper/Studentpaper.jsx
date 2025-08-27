@@ -32,6 +32,7 @@ const Studentpaper = () => {
   const [passed, setPassed] = useState(false);
   const [expandedQuestions, setExpandedQuestions] = useState({});
   const base_url = import.meta.env.VITE_API_KEY_Base_URL;
+  const [lockedQuestions, setLockedQuestions] = useState({});
 
   // Get teacher ID from localStorage
   const teacherData = JSON.parse(localStorage.getItem("teacherData"));
@@ -76,13 +77,6 @@ const Studentpaper = () => {
       const response = await axios.put(
         `${base_url}/api/teacher/grade-submission`,
         {
-          studentEmail:
-            selectedSubmission.student?.email ||
-            selectedSubmission.student?.user?.email ||
-            (selectedSubmission.student &&
-            typeof selectedSubmission.student === "object"
-              ? selectedSubmission.student.email || ""
-              : ""),
           contentTitle: selectedSubmission.contentItem.title,
           answers: answersToSubmit,
         },
@@ -110,13 +104,12 @@ const Studentpaper = () => {
 
   // Filter submissions based on search and filter
   const filteredSubmissions = submissions.filter((submission) => {
-    const studentName = (
-      submission.student?.full_name ||
-      submission.student?.name ||
-      ""
-    ).toLowerCase();
+    // Only show quiz submissions
+    if (submission.contentItem.type !== "quiz") {
+      return false;
+    }
+
     const matchesSearch =
-      studentName.includes(searchTerm.toLowerCase()) ||
       submission.courseTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
       submission.contentItem.title
         .toLowerCase()
@@ -129,7 +122,6 @@ const Studentpaper = () => {
 
     return matchesSearch && matchesFilter;
   });
-
   // Toggle question expansion
   const toggleQuestionExpansion = (questionId) => {
     setExpandedQuestions((prev) => ({
@@ -141,7 +133,7 @@ const Studentpaper = () => {
   // View submission details
   const viewSubmission = (submission) => {
     setSelectedSubmission(submission);
-
+    const storedLocks = loadLocks(submission);
     // Initialize grading data and calculate totals
     const initialGradingData = {};
     let total = 0;
@@ -151,6 +143,26 @@ const Studentpaper = () => {
     submission.answers.forEach((answer, index) => {
       // Use answerId as unique key instead of question text
       const answerKey = answer.answerId || `${answer.question}-${index}`;
+
+      // Handle different answer formats
+      let studentAnswer = answer.studentAnswer;
+
+      // If it's a single MCQ stored as an object, extract the value
+      if (
+        (answer.type === "mcq-single" ||
+          answer.questionType === "mcq-single") &&
+        typeof studentAnswer === "object" &&
+        studentAnswer !== null
+      ) {
+        if (studentAnswer.text) {
+          studentAnswer = studentAnswer.text;
+        } else if (studentAnswer.value) {
+          studentAnswer = studentAnswer.value;
+        } else if (studentAnswer.option) {
+          studentAnswer = studentAnswer.option;
+        }
+      }
+
       initialGradingData[answerKey] = {
         answerId: answer.answerId,
         question: answer.question,
@@ -158,9 +170,10 @@ const Studentpaper = () => {
         marks: answer.marksObtained || 0,
         feedback: answer.feedback || answer.teacherFeedback || "",
         maxMarks: answer.maxMarks,
-        studentAnswer: answer.studentAnswer,
+        studentAnswer: studentAnswer,
         correctAnswer: answer.correctAnswer,
         isCorrect: answer.isCorrect || false,
+        locked: Boolean(storedLocks[answerKey]),
       };
 
       // Auto-expand the first question using answerKey
@@ -179,16 +192,35 @@ const Studentpaper = () => {
   };
 
   // Calculate percentage and pass/fail status
-  const calculateResults = (score, maxScore, submission) => {
+  const PASS_THRESHOLD_PERCENT = 40;
+
+  // 2) REPLACE your existing calculateResults with this:
+  const calculateResults = (score, maxScore, _submission = null) => {
     const calculatedPercentage =
       maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
-    const passingScore = submission?.contentItem?.passingScore || 70;
-    const isPassed = calculatedPercentage >= passingScore;
+
+    // Pass if percentage is >= 40%, otherwise fail
+    const isPassed = calculatedPercentage >= PASS_THRESHOLD_PERCENT;
 
     setPercentage(calculatedPercentage);
     setPassed(isPassed);
   };
 
+  const getSubmissionPercentage = (s) => {
+    if (
+      typeof s?.score !== "number" ||
+      typeof s?.maxScore !== "number" ||
+      s.maxScore <= 0
+    )
+      return null;
+    return Math.round((s.score / s.maxScore) * 100);
+  };
+
+  const isSubmissionPassed = (s) => {
+    const pct = getSubmissionPercentage(s);
+    if (pct === null) return null; // not graded yet
+    return pct >= PASS_THRESHOLD_PERCENT;
+  };
   // Update grading data and recalculate totals
   const handleGradeChange = (question, field, value) => {
     const updatedGradingData = {
@@ -216,39 +248,71 @@ const Studentpaper = () => {
 
   // Auto-grade function for MCQ questions
   const autoGradeMCQ = (answerKey) => {
-    const answerData = gradingData[answerKey];
-    if (!answerData) return 0;
+    setGradingData((prev) => {
+      const answerData = prev[answerKey];
+      if (!answerData) return prev;
 
-    let isCorrect = false;
-    const { type, studentAnswer, correctAnswer } = answerData;
+      // compute correctness
+      let isCorrect = false;
+      const { type, studentAnswer, correctAnswer } = answerData;
 
-    if (type === "mcq-single") {
-      isCorrect = studentAnswer === correctAnswer;
-    } else if (type === "mcq-multiple") {
-      if (Array.isArray(studentAnswer) && Array.isArray(correctAnswer)) {
-        isCorrect =
-          studentAnswer.length === correctAnswer.length &&
-          studentAnswer.every((ans) => correctAnswer.includes(ans));
+      if (type === "mcq-single") {
+        isCorrect = studentAnswer === correctAnswer;
+      } else if (type === "mcq-multiple") {
+        if (Array.isArray(studentAnswer) && Array.isArray(correctAnswer)) {
+          isCorrect =
+            studentAnswer.length === correctAnswer.length &&
+            studentAnswer.every((ans) => correctAnswer.includes(ans));
+        }
       }
-    }
 
-    const marks = isCorrect ? answerData.maxMarks : 0;
+      const marks = isCorrect ? answerData.maxMarks : 0;
 
-    handleGradeChange(answerKey, "marks", marks);
-    handleGradeChange(answerKey, "isCorrect", isCorrect);
-    return marks;
+      // build the new grading data WITH the lock set
+      const updated = {
+        ...prev,
+        [answerKey]: {
+          ...answerData,
+          marks,
+          isCorrect,
+          locked: true, // 🔒 lock immediately
+        },
+      };
+
+      // recompute totals immediately for instant summary update
+      const newTotal = Object.values(updated).reduce(
+        (sum, a) => sum + (Number(a.marks) || 0),
+        0
+      );
+      setTotalScore(newTotal);
+      calculateResults(newTotal, maxTotalScore, selectedSubmission);
+
+      // persist lock instantly
+      const locks = loadLocks(selectedSubmission);
+      locks[answerKey] = true;
+      saveLocks(selectedSubmission, locks);
+
+      return updated; // ✅ this triggers the re-render that uses `isLocked`
+    });
+
+    // no return needed
   };
 
   // Auto-grade all MCQ questions
   const autoGradeAllMCQs = () => {
     let newTotal = 0;
+    const locks = loadLocks(selectedSubmission);
+
     Object.entries(gradingData).forEach(([answerKey, answer]) => {
       if (answer.type === "mcq-single" || answer.type === "mcq-multiple") {
-        newTotal += autoGradeMCQ(answerKey);
+        newTotal += autoGradeMCQ(answerKey); // this sets gradingData + saves lock
+        locks[answerKey] = true; // make sure persisted set contains it
       } else {
         newTotal += answer.marks || 0;
       }
     });
+
+    saveLocks(selectedSubmission, locks);
     setTotalScore(newTotal);
     calculateResults(newTotal, maxTotalScore, selectedSubmission);
     toast.success("Auto-graded all MCQ questions");
@@ -257,6 +321,8 @@ const Studentpaper = () => {
   // Toggle correct/incorrect status for a question
   const toggleCorrectStatus = (answerKey) => {
     const currentData = gradingData[answerKey];
+    if (!currentData || currentData.locked) return; // 🚫 ignore if locked
+
     const newIsCorrect = !currentData.isCorrect;
     const newMarks = newIsCorrect ? currentData.maxMarks : 0;
 
@@ -266,6 +332,11 @@ const Studentpaper = () => {
 
   // Format answer display based on type
   const formatAnswer = (answer, type) => {
+    // Handle numeric answers (like MCQ option indices)
+    if (typeof answer === "number") {
+      return answer.toString();
+    }
+
     if (Array.isArray(answer)) {
       return answer.join(", ");
     }
@@ -274,9 +345,89 @@ const Studentpaper = () => {
       return answer ? "True" : "False";
     }
 
+    // Handle single MCQ answers that might be objects
+    if (
+      type === "mcq-single" &&
+      typeof answer === "object" &&
+      answer !== null
+    ) {
+      // If it's an object with text property, return the text
+      if (answer.text) {
+        return answer.text;
+      }
+      // If it's an object with value property, return the value
+      if (answer.value) {
+        return answer.value;
+      }
+      // If it's an object with option property, return the option
+      if (answer.option) {
+        return answer.option;
+      }
+      // Otherwise, stringify the object
+      return JSON.stringify(answer);
+    }
+
     return answer || "No answer provided";
   };
+  // put this above the return()
+  const hasMeaningfulValue = (val) => {
+    const placeholderStrings = new Set([
+      "no correct answer provided",
+      "no answer provided",
+      "n/a",
+      "na",
+      "none",
+    ]);
 
+    if (val === null || val === undefined) return false;
+
+    if (typeof val === "string") {
+      const s = val.trim();
+      if (!s) return false;
+      return !placeholderStrings.has(s.toLowerCase());
+    }
+
+    if (Array.isArray(val)) return val.length > 0;
+
+    if (typeof val === "object") {
+      // object is meaningful if any nested value is meaningful
+      return Object.values(val).some((v) => hasMeaningfulValue(v));
+    }
+
+    // numbers and booleans are meaningful (e.g., 0 or false could be valid)
+    if (typeof val === "number" || typeof val === "boolean") return true;
+
+    return false;
+  };
+  const getSubmissionKey = (s) => {
+    // Build a stable key per submission. Prefer an id if present, else fall back.
+    return (
+      s?.submissionId ||
+      s?._id ||
+      `${s?.courseTitle || ""}|${s?.contentItem?.title || ""}|${
+        s?.studentId || s?.userId || ""
+      }`
+    );
+  };
+
+  const loadLocks = (submission) => {
+    const key = `mcqLocks:${getSubmissionKey(submission)}`;
+    try {
+      return JSON.parse(localStorage.getItem(key) || "{}");
+    } catch {
+      return {};
+    }
+  };
+
+  const saveLocks = (submission, locksObj) => {
+    const key = `mcqLocks:${getSubmissionKey(submission)}`;
+    localStorage.setItem(key, JSON.stringify(locksObj || {}));
+  };
+
+  const clearLocks = (submission) => {
+    const key = `mcqLocks:${getSubmissionKey(submission)}`;
+    localStorage.removeItem(key);
+  };
   return (
     <div className="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
       <div className="flex w-full h-[100vh] bg-white overflow-hidden">
@@ -301,13 +452,13 @@ const Studentpaper = () => {
                     <input
                       type="text"
                       placeholder="Search submissions..."
-                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
                   <select
-                    className="w-full md:w-auto border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full md:w-auto border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500"
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
                   >
@@ -323,9 +474,6 @@ const Studentpaper = () => {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Student
-                        </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Course
                         </th>
@@ -351,19 +499,6 @@ const Studentpaper = () => {
                             className="hover:bg-gray-50 transition-colors"
                           >
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div className="">
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {submission.student?.name ||
-                                      "Unknown student"}
-                                  </div>
-                                  <div className="text-sm text-gray-500">
-                                    {submission.student?.email || "No email"}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
                                 {submission.courseTitle}
                               </div>
@@ -382,9 +517,9 @@ const Studentpaper = () => {
                                   ? `${submission.score}/${submission.maxScore}`
                                   : "Not graded"}
                               </div>
-                              {submission.percentage !== undefined && (
+                              {getSubmissionPercentage(submission) !== null && (
                                 <div className="text-sm text-gray-500">
-                                  {submission.percentage}%
+                                  {getSubmissionPercentage(submission)}%
                                 </div>
                               )}
                             </td>
@@ -398,7 +533,7 @@ const Studentpaper = () => {
                                       : submission.gradingStatus ===
                                         "partially-graded"
                                       ? "bg-yellow-100 text-yellow-800"
-                                      : "bg-blue-100 text-blue-800"
+                                      : "bg-gray-100 text-gray-800"
                                   }`}
                               >
                                 {submission.gradingStatus === "manually-graded"
@@ -408,23 +543,25 @@ const Studentpaper = () => {
                                   ? "Partially Graded"
                                   : "Not Graded"}
                               </span>
-                              {submission.passed !== undefined && (
+                              {isSubmissionPassed(submission) !== null && (
                                 <span
                                   className={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                    ${
-                                      submission.passed
-                                        ? "bg-green-100 text-green-800"
-                                        : "bg-red-100 text-red-800"
-                                    }`}
+      ${
+        isSubmissionPassed(submission)
+          ? "bg-green-100 text-green-800"
+          : "bg-red-100 text-red-800"
+      }`}
                                 >
-                                  {submission.passed ? "Passed" : "Failed"}
+                                  {isSubmissionPassed(submission)
+                                    ? "Passed"
+                                    : "Failed"}
                                 </span>
                               )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                               <button
                                 onClick={() => viewSubmission(submission)}
-                                className="text-blue-600 hover:text-blue-900 mr-4 flex items-center"
+                                className="text-gray-600 hover:text-gray-900 mr-4 flex items-center"
                               >
                                 <FiEye className="inline mr-1" /> View/Grade
                               </button>
@@ -458,10 +595,6 @@ const Studentpaper = () => {
                         <h2 className="text-xl !text-white font-bold">
                           Grading: {selectedSubmission.contentItem.title}
                         </h2>
-                        <p className="text-sm text-gray-300 mt-1">
-                          Student: {selectedSubmission.student?.name} (
-                          {selectedSubmission.student?.email})
-                        </p>
                       </div>
                       <button
                         onClick={() => setIsModalOpen(false)}
@@ -504,7 +637,7 @@ const Studentpaper = () => {
                     </div>
 
                     {/* Grading Summary */}
-                    <div className="mb-6 p-4 rounded-lg border border-gray-200 bg-blue-50">
+                    <div className="mb-6 p-4 rounded-lg border border-gray-200 bg-gray-50">
                       <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
                         <div className="mb-3 md:mb-0">
                           <h3 className="text-lg font-semibold text-gray-800">
@@ -532,20 +665,20 @@ const Studentpaper = () => {
                         <div className="flex flex-wrap gap-2">
                           <button
                             onClick={autoGradeAllMCQs}
-                            className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm flex items-center"
+                            className="px-4 py-2 bg-blue-100 text-gray-700 rounded-lg hover:bg-blue-200 text-sm flex items-center"
                           >
                             <FiCheck className="mr-2" /> Auto-Grade MCQs
                           </button>
                           <button
-                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm flex items-center"
+                            className="px-4 py-2 bg-blue-100 text-gray-700 rounded-lg hover:bg-blue-200 text-sm flex items-center"
                             onClick={() => {
-                              // Reset all marks to 0
                               const resetGradingData = {};
                               Object.keys(gradingData).forEach((answerKey) => {
                                 resetGradingData[answerKey] = {
                                   ...gradingData[answerKey],
                                   marks: 0,
                                   isCorrect: false,
+                                  locked: false, // 🔓 unlock in state
                                 };
                               });
                               setGradingData(resetGradingData);
@@ -555,6 +688,8 @@ const Studentpaper = () => {
                                 maxTotalScore,
                                 selectedSubmission
                               );
+
+                              clearLocks(selectedSubmission); // 🔓 remove persisted locks
                             }}
                           >
                             <FiXCircle className="mr-2" /> Reset All
@@ -565,233 +700,230 @@ const Studentpaper = () => {
 
                     {/* Questions List */}
                     <div className="space-y-4">
-                      {selectedSubmission.answers.map((answer, index) => (
-                        <div
-                          key={answer.answerId || `${answer.question}-${index}`}
-                          className="border rounded-lg overflow-hidden"
-                        >
-                          {/* Question Header */}
+                      {selectedSubmission.answers.map((answer, index) => {
+                        const aKey =
+                          answer.answerId || `${answer.question}-${index}`;
+                        const isLocked = gradingData[aKey]?.locked;
+
+                        return (
                           <div
-                            className="flex justify-between items-center p-4 bg-gray-50 cursor-pointer hover:bg-gray-100"
-                            onClick={() =>
-                              toggleQuestionExpansion(
-                                answer.answerId || `${answer.question}-${index}`
-                              )
-                            }
+                            key={aKey}
+                            className="border rounded-lg overflow-hidden"
                           >
-                            <div className="flex items-center">
-                              <span className="bg-gray-200 text-gray-800 text-sm font-medium mr-3 px-2.5 py-0.5 rounded">
-                                Q{index + 1}
-                              </span>
-                              <h3 className="font-medium text-gray-800 line-clamp-1">
-                                {answer.question}
-                              </h3>
-                            </div>
-                            <div className="flex items-center">
-                              <span
-                                className={`px-2 py-1 text-xs font-medium rounded mr-3 ${
-                                  gradingData[
-                                    answer.answerId ||
-                                      `${answer.question}-${index}`
-                                  ]?.isCorrect
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-red-100 text-red-800"
-                                }`}
-                              >
-                                {gradingData[
-                                  answer.answerId ||
-                                    `${answer.question}-${index}`
-                                ]?.isCorrect
-                                  ? "Correct"
-                                  : "Incorrect"}
-                              </span>
-                              <span className="text-sm text-gray-500 mr-3">
-                                {gradingData[
-                                  answer.answerId ||
-                                    `${answer.question}-${index}`
-                                ]?.marks || 0}
-                                /{answer.maxMarks} pts
-                              </span>
-                              {expandedQuestions[
-                                answer.answerId || `${answer.question}-${index}`
-                              ] ? (
-                                <FiChevronUp className="text-gray-500" />
-                              ) : (
-                                <FiChevronDown className="text-gray-500" />
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Question Content - Collapsible */}
-                          {expandedQuestions[
-                            answer.answerId || `${answer.question}-${index}`
-                          ] && (
-                            <div className="p-4 bg-white">
-                              {/* Question Type and Max Marks */}
-                              <div className="flex flex-wrap gap-2 mb-4">
-                                <span className="text-xs font-medium px-2.5 py-0.5 rounded bg-blue-100 text-blue-800">
-                                  {answer.questionType}
+                            {/* Question Header */}
+                            <div
+                              className="flex justify-between items-center p-4 bg-gray-50 cursor-pointer hover:bg-gray-100"
+                              onClick={() => toggleQuestionExpansion(aKey)}
+                            >
+                              <div className="flex items-center">
+                                <span className="bg-gray-200 text-gray-800 text-sm font-medium mr-3 px-2.5 py-0.5 rounded">
+                                  Q{index + 1}
                                 </span>
-                                <span className="text-xs font-medium px-2.5 py-0.5 rounded bg-purple-100 text-purple-800">
-                                  Max Marks: {answer.maxMarks}
-                                </span>
+                                <h3 className="font-medium text-gray-800 line-clamp-1">
+                                  {answer.question}
+                                </h3>
                               </div>
+                              <div className="flex items-center">
+                                <span
+                                  className={`px-2 py-1 text-xs font-medium rounded mr-3 ${
+                                    gradingData[aKey]?.isCorrect
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-red-100 text-red-800"
+                                  }`}
+                                >
+                                  {gradingData[aKey]?.isCorrect
+                                    ? "Correct"
+                                    : "Incorrect"}
+                                </span>
+                                <span className="text-sm text-gray-500 mr-3">
+                                  {gradingData[aKey]?.marks || 0}/
+                                  {answer.maxMarks} pts
+                                </span>
+                                {expandedQuestions[aKey] ? (
+                                  <FiChevronUp className="text-gray-500" />
+                                ) : (
+                                  <FiChevronDown className="text-gray-500" />
+                                )}
+                              </div>
+                            </div>
 
-                              {/* Student Answer and Correct Answer */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <div className="border rounded-lg p-3 bg-gray-50">
-                                  <h4 className="text-sm font-medium text-gray-700 mb-2">
-                                    Student Answer:
-                                  </h4>
-                                  <div className="p-3 bg-white rounded border border-gray-200">
-                                    <p className="text-sm text-gray-800 break-words">
-                                      {formatAnswer(
-                                        answer.studentAnswer,
-                                        answer.questionType
-                                      )}
-                                    </p>
-                                  </div>
+                            {/* Question Content */}
+                            {expandedQuestions[aKey] && (
+                              <div className="p-4 bg-white">
+                                {/* Question Type and Max Marks */}
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                  <span className="text-xs font-medium px-2.5 py-0.5 rounded bg-gray-100 text-gray-800">
+                                    {answer.questionType}
+                                  </span>
+                                  <span className="text-xs font-medium px-2.5 py-0.5 rounded bg-purple-100 text-purple-800">
+                                    Max Marks: {answer.maxMarks}
+                                  </span>
                                 </div>
-                                {answer.correctAnswer && (
+
+                                {/* Student & Correct Answer */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                   <div className="border rounded-lg p-3 bg-gray-50">
                                     <h4 className="text-sm font-medium text-gray-700 mb-2">
-                                      Correct Answer:
+                                      Student Answer:
                                     </h4>
                                     <div className="p-3 bg-white rounded border border-gray-200">
                                       <p className="text-sm text-gray-800 break-words">
                                         {formatAnswer(
-                                          answer.correctAnswer,
+                                          answer.studentAnswer,
                                           answer.questionType
                                         )}
                                       </p>
                                     </div>
                                   </div>
-                                )}
-                              </div>
 
-                              {/* Grading Controls */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                  <label
-                                    htmlFor={`marks-${index}`}
-                                    className="block text-sm font-medium text-gray-700 mb-1"
-                                  >
-                                    Marks Awarded
-                                  </label>
-                                  <div className="flex items-center">
-                                    <input
-                                      type="number"
-                                      id={`marks-${index}`}
-                                      min="0"
-                                      max={answer.maxMarks}
-                                      step="0.5"
-                                      value={
-                                        gradingData[
-                                          answer.answerId ||
-                                            `${answer.question}-${index}`
-                                        ]?.marks || 0
-                                      }
-                                      onChange={(e) => {
-                                        const value = Math.min(
-                                          Math.max(Number(e.target.value), 0),
-                                          answer.maxMarks
-                                        );
-                                        handleGradeChange(
-                                          answer.answerId ||
-                                            `${answer.question}-${index}`,
-                                          "marks",
-                                          value
-                                        );
-                                      }}
-                                      className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                                    />
-                                    <span className="ml-2 text-sm text-gray-500">
-                                      / {answer.maxMarks}
-                                    </span>
+                                  {hasMeaningfulValue(answer.correctAnswer) && (
+                                    <div className="border rounded-lg p-3 bg-gray-50">
+                                      <h4 className="text-sm font-medium text-gray-700 mb-2">
+                                        Correct Answer:
+                                      </h4>
+                                      <div className="p-3 bg-white rounded border border-gray-200">
+                                        <p className="text-sm text-gray-800 break-words">
+                                          {formatAnswer(
+                                            answer.correctAnswer,
+                                            answer.questionType
+                                          )}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Grading Controls */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div>
+                                    <label
+                                      htmlFor={`marks-${index}`}
+                                      className="block text-sm font-medium text-gray-700 mb-1"
+                                    >
+                                      Marks Awarded
+                                    </label>
+
+                                    {isLocked ? (
+                                      <div className="flex items-center">
+                                        <span className="inline-block px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-800">
+                                          {gradingData[aKey]?.marks || 0}
+                                        </span>
+                                        <span className="ml-2 text-sm text-gray-500">
+                                          / {answer.maxMarks}
+                                        </span>
+                                        <span className="ml-2 text-xs text-gray-400 italic">
+                                          (auto)
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center">
+                                        <input
+                                          type="number"
+                                          id={`marks-${index}`}
+                                          min="0"
+                                          max={answer.maxMarks}
+                                          step="0.5"
+                                          value={gradingData[aKey]?.marks || 0}
+                                          onChange={(e) => {
+                                            const value = Math.min(
+                                              Math.max(
+                                                Number(e.target.value),
+                                                0
+                                              ),
+                                              answer.maxMarks
+                                            );
+                                            handleGradeChange(
+                                              aKey,
+                                              "marks",
+                                              value
+                                            );
+                                          }}
+                                          className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
+                                        />
+                                        <span className="ml-2 text-sm text-gray-500">
+                                          / {answer.maxMarks}
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
-                                </div>
-                                <div>
-                                  <label
-                                    htmlFor={`feedback-${index}`}
-                                    className="block text-sm font-medium text-gray-700 mb-1"
-                                  >
-                                    Feedback
-                                  </label>
-                                  <textarea
-                                    id={`feedback-${index}`}
-                                    rows={2}
-                                    value={
-                                      gradingData[
-                                        answer.answerId ||
-                                          `${answer.question}-${index}`
-                                      ]?.feedback || ""
-                                    }
-                                    onChange={(e) =>
-                                      handleGradeChange(
-                                        answer.answerId ||
-                                          `${answer.question}-${index}`,
-                                        "feedback",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                                    placeholder="Provide feedback for the student..."
-                                  />
-                                </div>
-                              </div>
 
-                              {/* Quick Actions */}
-                              <div className="flex justify-end mt-4 space-x-2">
-                                <button
-                                  onClick={() =>
-                                    toggleCorrectStatus(
-                                      answer.answerId ||
-                                        `${answer.question}-${index}`
-                                    )
-                                  }
-                                  className={`px-3 py-1 rounded-md text-sm flex items-center ${
-                                    gradingData[
-                                      answer.answerId ||
-                                        `${answer.question}-${index}`
-                                    ]?.isCorrect
-                                      ? "bg-green-100 text-green-700 hover:bg-green-200"
-                                      : "bg-red-100 text-red-700 hover:bg-red-200"
-                                  }`}
-                                >
-                                  {gradingData[
-                                    answer.answerId ||
-                                      `${answer.question}-${index}`
-                                  ]?.isCorrect ? (
+                                  {/* Feedback - hidden for MCQs */}
+                                  {!["mcq-single", "mcq-multiple"].includes(
+                                    answer.questionType || answer.type
+                                  ) && (
+                                    <div>
+                                      <label
+                                        htmlFor={`feedback-${index}`}
+                                        className="block text-sm font-medium text-gray-700 mb-1"
+                                      >
+                                        Feedback
+                                      </label>
+                                      <textarea
+                                        id={`feedback-${index}`}
+                                        rows={2}
+                                        value={
+                                          gradingData[aKey]?.feedback || ""
+                                        }
+                                        onChange={(e) =>
+                                          handleGradeChange(
+                                            aKey,
+                                            "feedback",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
+                                        placeholder="Provide feedback for the student..."
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Quick Actions */}
+                                <div className="flex justify-end mt-4 space-x-2">
+                                  {!isLocked && (
                                     <>
-                                      <FiCheck className="mr-1" /> Mark
-                                      Incorrect
-                                    </>
-                                  ) : (
-                                    <>
-                                      <FiXCircle className="mr-1" /> Mark
-                                      Correct
+                                      <button
+                                        onClick={() =>
+                                          toggleCorrectStatus(aKey)
+                                        }
+                                        className={`px-3 py-1 rounded-md text-sm flex items-center ${
+                                          gradingData[aKey]?.isCorrect
+                                            ? "bg-red-100 text-red-700 hover:bg-red-200"
+                                            : "bg-green-100 text-green-700 hover:bg-green-200"
+                                        }`}
+                                      >
+                                        {gradingData[aKey]?.isCorrect ? (
+                                          <>
+                                            <FiXCircle className="mr-1" /> Mark
+                                            Incorrect
+                                          </>
+                                        ) : (
+                                          <>
+                                            <FiCheck className="mr-1" /> Mark
+                                            Correct
+                                          </>
+                                        )}
+                                      </button>
+
+                                      {(answer.questionType === "mcq-single" ||
+                                        answer.questionType ===
+                                          "mcq-multiple") && (
+                                        <button
+                                          onClick={() => autoGradeMCQ(aKey)}
+                                          className="px-3 py-1 bg-gray-100 text-gray-700 rounded-md text-sm hover:bg-gray-200 flex items-center"
+                                        >
+                                          <FiCheck className="mr-1" />{" "}
+                                          Auto-Grade
+                                        </button>
+                                      )}
                                     </>
                                   )}
-                                </button>
-                                {(answer.questionType === "mcq-single" ||
-                                  answer.questionType === "mcq-multiple") && (
-                                  <button
-                                    onClick={() =>
-                                      autoGradeMCQ(
-                                        answer.answerId ||
-                                          `${answer.question}-${index}`
-                                      )
-                                    }
-                                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200 flex items-center"
-                                  >
-                                    <FiCheck className="mr-1" /> Auto-Grade
-                                  </button>
-                                )}
+                                </div>
                               </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -806,13 +938,13 @@ const Studentpaper = () => {
                     <div className="flex space-x-3">
                       <button
                         onClick={() => setIsModalOpen(false)}
-                        className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={handleGradeSubmission}
-                        className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                       >
                         Submit Grades
                       </button>

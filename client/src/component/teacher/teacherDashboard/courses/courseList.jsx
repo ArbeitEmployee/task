@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 /* eslint-disable no-unused-vars */
 import React, { useState } from "react";
 import { motion } from "framer-motion";
@@ -426,10 +427,12 @@ const CourseList = () => {
                           <div className="text-sm font-medium text-gray-900">
                             {course.title}
                           </div>
-                     <div 
-  className="text-sm text-gray-500 line-clamp-1 overflow-hidden"
-  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(course.description) }}
-/>
+                          <div
+                            className="text-sm text-gray-500 line-clamp-1 overflow-hidden"
+                            dangerouslySetInnerHTML={{
+                              __html: DOMPurify.sanitize(course.description),
+                            }}
+                          />
                         </div>
                       </div>
                     </td>

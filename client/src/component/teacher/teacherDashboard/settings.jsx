@@ -34,7 +34,6 @@ const TeacherSettings = () => {
     linkedin_url: "",
     hourly_rate: 0,
     profile_photo: "",
-    isVerified: false,
     createdAt: "",
   });
   const [editMode, setEditMode] = useState({
@@ -56,7 +55,7 @@ const TeacherSettings = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [documents, setDocuments] = useState([]);
+
   const [newDocument, setNewDocument] = useState({
     name: "",
     file: null,
@@ -65,7 +64,6 @@ const TeacherSettings = () => {
     profile: false,
     password: false,
     photo: false,
-    documents: false,
   });
 
   // Get teacher ID from localStorage
@@ -106,14 +104,8 @@ const TeacherSettings = () => {
           linkedin_url: data.linkedin_url || "",
           hourly_rate: data.hourly_rate || 0,
           profile_photo: data.profile_photo || "",
-          isVerified: data.isVerified || false,
           createdAt: data.createdAt || "",
         });
-
-        // Fetch documents if they exist
-        if (data.documents) {
-          setDocuments(data.documents);
-        }
       } catch (error) {
         console.error("Error fetching teacher data:", error);
         toast.error("Failed to load teacher profile");
@@ -285,69 +277,6 @@ const TeacherSettings = () => {
     });
   };
 
-  // Handle document upload
-  const handleDocumentUpload = async (e) => {
-    e.preventDefault();
-    if (!newDocument.name || !newDocument.file) {
-      toast.error("Please provide both document name and file");
-      return;
-    }
-
-    try {
-      setLoading({ ...loading, documents: true });
-      const token = localStorage.getItem("teacherToken");
-      const formData = new FormData();
-      formData.append("name", newDocument.name);
-      formData.append("document", newDocument.file);
-
-      const response = await axios.post(
-        `${base_url}/api/teacher/upload-document/${teacherId}`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      setDocuments([...documents, response.data.document]);
-      setNewDocument({
-        name: "",
-        file: null,
-      });
-      toast.success("Document uploaded successfully");
-    } catch (error) {
-      console.error("Error uploading document:", error);
-      toast.error(error.response?.data?.message || "Failed to upload document");
-    } finally {
-      setLoading({ ...loading, documents: false });
-    }
-  };
-
-  // Handle delete document
-  const handleDeleteDocument = async (documentId) => {
-    try {
-      setLoading({ ...loading, documents: true });
-      await axios.delete(
-        `${base_url}/api/teacher/delete-document/${teacherId}/${documentId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("teacherToken")}`,
-          },
-        }
-      );
-
-      setDocuments(documents.filter((doc) => doc._id !== documentId));
-      toast.success("Document deleted successfully");
-    } catch (error) {
-      console.error("Error deleting document:", error);
-      toast.error(error.response?.data?.message || "Failed to delete document");
-    } finally {
-      setLoading({ ...loading, documents: false });
-    }
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -385,16 +314,6 @@ const TeacherSettings = () => {
             }`}
           >
             Password
-          </button>
-          <button
-            onClick={() => setActiveTab("documents")}
-            className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
-              activeTab === "documents"
-                ? "border-gray-500 text-gray-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
-          >
-            Documents
           </button>
         </nav>
       </div>
@@ -443,15 +362,6 @@ const TeacherSettings = () => {
                     {teacherData.createdAt
                       ? formatDate(teacherData.createdAt)
                       : ""}
-                  </span>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs ${
-                      teacherData.isVerified
-                        ? "bg-green-100 text-green-800"
-                        : "bg-yellow-100 text-yellow-800"
-                    }`}
-                  >
-                    {teacherData.isVerified ? "Verified" : "Not Verified"}
                   </span>
                 </div>
               </div>
@@ -514,12 +424,6 @@ const TeacherSettings = () => {
                 <span className="text-xs text-gray-500">Cannot be changed</span>
               </div>
               <p className="text-gray-800">{teacherData.email}</p>
-              {!teacherData.isVerified && (
-                <p className="text-sm text-yellow-600 mt-1">
-                  Your email is not verified. Please check your inbox for
-                  verification instructions.
-                </p>
-              )}
             </div>
 
             {/* Phone Field */}
@@ -929,156 +833,6 @@ const TeacherSettings = () => {
                 )}
               </AnimatePresence>
             </div>
-          </div>
-        )}
-
-        {activeTab === "documents" && (
-          <div className="space-y-6">
-            <h2 className="text-lg font-medium text-gray-800">
-              Your Documents
-            </h2>
-            <p className="text-gray-600 text-sm">
-              Upload your certificates, diplomas, or other relevant documents to
-              verify your qualifications.
-            </p>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden p-4">
-              <form onSubmit={handleDocumentUpload} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Document Name
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={newDocument.name}
-                    onChange={handleDocumentInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gray-500"
-                    placeholder="e.g., Teaching Certificate, Degree, etc."
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Document File
-                  </label>
-                  <div className="flex items-center">
-                    <label className="flex-1">
-                      <div className="w-full px-4 py-2 border border-gray-300 rounded-lg cursor-pointer bg-white hover:bg-gray-50 transition-colors">
-                        {newDocument.file
-                          ? newDocument.file.name
-                          : "Choose file..."}
-                      </div>
-                      <input
-                        type="file"
-                        onChange={handleDocumentFileChange}
-                        className="hidden"
-                        required
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        document.querySelector('input[type="file"]').click()
-                      }
-                      className="ml-2 p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                    >
-                      <FiUpload size={20} />
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Supported formats: PDF, DOC, DOCX, JPG, PNG (Max 5MB)
-                  </p>
-                </div>
-
-                <div className="pt-2">
-                  <motion.button
-                    type="submit"
-                    disabled={loading.documents}
-                    className="cursor-pointer w-full px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-                    whileHover={{
-                      scale: 1.005,
-                      boxShadow: "0px 4px 15px rgba(0, 0, 0, 0.2)",
-                    }}
-                    whileTap={{ scale: 1.005 }}
-                  >
-                    {loading.documents ? "Uploading..." : "Upload Document"}
-                  </motion.button>
-                </div>
-              </form>
-            </div>
-
-            {documents.length > 0 ? (
-              <div className="space-y-4">
-                <h3 className="text-md font-medium text-gray-800">
-                  Uploaded Documents
-                </h3>
-                <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg">
-                  <table className="min-w-full divide-y divide-gray-300">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                          Document Name
-                        </th>
-                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          Type
-                        </th>
-                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          Upload Date
-                        </th>
-                        <th className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                          <span className="sr-only">Actions</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
-                      {documents.map((document) => (
-                        <tr key={document._id}>
-                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                            {document.name}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            {document.fileType}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            {new Date(document.uploadDate).toLocaleDateString()}
-                          </td>
-                          <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                            <a
-                              href={`${base_url}/${document.filePath}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-gray-600 hover:text-gray-900 mr-4"
-                            >
-                              View
-                            </a>
-                            <button
-                              onClick={() => handleDeleteDocument(document._id)}
-                              className="text-red-600 hover:text-red-900"
-                              disabled={loading.documents}
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <FiFile className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
-                  No documents
-                </h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Upload your certificates, diplomas, or other relevant
-                  documents.
-                </p>
-              </div>
-            )}
           </div>
         )}
       </div>
