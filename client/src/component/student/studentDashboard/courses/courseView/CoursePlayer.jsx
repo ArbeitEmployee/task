@@ -16,6 +16,7 @@ import {
   FiAward,
   FiBook,
   FiBarChart2,
+  FiBarChart,
   FiCopy,
   FiLink,
   FiUser,
@@ -517,11 +518,58 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
     return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
   };
 
-  const downloadCertificate = () => {
-    if (certificateUrl) {
-      window.open(`${base_url}${certificateUrl}`, "_blank");
-    } else {
-      toast.error("Certificate not available yet");
+  const downloadCertificate = async (courseId) => {
+    try {
+      // Get the course object from the `course` state (instead of myCourses)
+      const course = course.content.find((c) => c.id === courseId);
+      if (!course) {
+        toast.error("Course not found");
+        return;
+      }
+
+      if (!courseCompleted) {
+        toast.error("Please complete the course to get your certificate");
+        return;
+      }
+
+      // Show loading indicator
+      toast.loading("Generating your certificate...");
+
+      // Generate/download certificate
+      const response = await axios.get(
+        `${base_url}/api/student/certificate/${courseId}/${studentdata.id}`,
+        {
+          responseType: "blob", // Important for file downloads
+        }
+      );
+
+      // Create blob URL for the PDF
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+
+      // Create a temporary anchor element to trigger the download
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `${course.title.replace(
+          /\s+/g,
+          "_"
+        )}_Certificate_${studentdata.full_name.replace(/\s+/g, "_")}.pdf`
+      );
+      document.body.appendChild(link);
+      link.click();
+
+      // Clean up
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.dismiss();
+      toast.success("Certificate downloaded successfully");
+    } catch (error) {
+      toast.dismiss();
+      toast.error("Failed to download certificate");
+      console.error("Certificate download error:", error);
     }
   };
 
@@ -580,11 +628,6 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
           >
             <FiChevronLeft className="mr-1" /> Back to course
           </button>
-          <div className="flex items-center space-x-4">
-            <div className="hidden md:block">
-              <h1 className="text-xl font-bold">{course.title}</h1>
-            </div>
-          </div>
         </div>
       </header>
 
@@ -614,7 +657,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
 
                     {/* YouTube info overlay */}
                     <div className="absolute top-4 right-4 bg-black/70 text-white text-sm px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      Use YouTube controls to play/pause and adjust settings
+                      Using YouTube controls to play/pause and adjust settings
                     </div>
                   </>
                 ) : currentItem.content?.path ? (
@@ -993,35 +1036,35 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                     </div>
 
                     <div className="ml-4 flex-1">
-                      <div className="flex justify-between items-start">
+                      <div className="flex justify-between items-center space-x-2">
                         <h3
-                          className={`font-medium ${
+                          className={`font-semibold text-xl ${
                             currentContent === index
                               ? "text-indigo-700"
                               : "text-gray-800"
-                          }`}
+                          } transition-colors duration-300 ease-in-out hover:text-indigo-600 w-[300px]`} // Adjust the width as needed
                         >
                           {item.title}
                         </h3>
-                        <span className="text-xs text-gray-500 flex items-center">
-                          <FiClock className="mr-1" />
-                          {item.type === "quiz"
-                            ? `${item.questions?.length || 0} questions`
-                            : item.type === "live"
-                            ? "Live Session"
-                            : item.duration
-                            ? formatTime(item.duration)
-                            : "0:00"}
-                          {item.timeSpent > 0 && item.type !== "quiz" && (
-                            <span className="ml-2">
-                              • {Math.floor(item.timeSpent / 60)} min watched
+
+                        {item.type === "quiz" && (
+                          <span className="text-xs text-gray-600 flex items-center">
+                            <FiBarChart className="mr-1 text-gray-400 transition-transform duration-300 ease-in-out transform hover:rotate-180" />
+                            <span className="text-gray-600">
+                              {item.questions?.length || 0} questions
                             </span>
-                          )}
-                        </span>
+                          </span>
+                        )}
                       </div>
+
                       <p className="text-sm text-gray-600 mt-1">
                         {item.description.replace(/<[^>]+>/g, "")}
                       </p>
+                      {item.type === "tutorial" && (
+                        <span className="inline-block mt-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                          Tutorial Video
+                        </span>
+                      )}
                       {item.type === "quiz" && (
                         <span className="inline-block mt-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
                           Quiz
@@ -1153,7 +1196,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                                       isChecked
                                         ? previousAnswer?.isCorrect
                                           ? "border-green-500 bg-green-50"
-                                          : "border-red-500 bg-red-50"
+                                          : "border-indigo-500 bg-indigo-50"
                                         : isCorrectAnswer && previousAnswer
                                         ? "border-green-500 bg-green-50"
                                         : "border-gray-200 hover:border-gray-400"
@@ -1168,7 +1211,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                                         handleAnswerChange(question._id, oIndex)
                                       }
                                       disabled={!!previousAnswer}
-                                      className="h-5 w-5 text-indigo-600 focus:ring-indigo-500"
+                                      className="h-5 w-5 text-indigo-600 focus:border-indigo-500"
                                     />
                                     <span>{option}</span>
                                     {previousAnswer && isCorrectAnswer && (
@@ -1199,7 +1242,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                                       isChecked
                                         ? previousAnswer?.isCorrect
                                           ? "border-green-500 bg-green-50"
-                                          : "border-red-500 bg-red-50"
+                                          : "border-indigo-500 bg-indigo-50"
                                         : isCorrectAnswer && previousAnswer
                                         ? "border-green-500 bg-green-50"
                                         : "border-gray-200 hover:border-gray-400"
@@ -1225,7 +1268,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                                         }
                                       }}
                                       disabled={!!previousAnswer}
-                                      className="h-5 w-5 text-indigo-600 focus:ring-indigo-500"
+                                      className="h-5 w-5 text-indigo-600 focus:border-indigo-500"
                                     />
                                     <span>{option}</span>
                                     {previousAnswer && isCorrectAnswer && (
@@ -1256,7 +1299,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                                   )
                                 }
                                 disabled={!!previousAnswer}
-                                className={`w-full p-4 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                                className={`w-full p-4 border rounded-lg  focus:border-indigo-500 ${
                                   previousAnswer
                                     ? previousAnswer.isCorrect
                                       ? "border-green-500 bg-green-50"
@@ -1308,13 +1351,8 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                           Quiz Submitted for Grading
                         </h3>
                         <p className="text-gray-600 mb-6">
-                          Some of your answers require teacher review. Your
-                          current score is {quizScore}/
-                          {currentItem.questions?.reduce(
-                            (total, q) => total + (q.marks || 1),
-                            0
-                          ) || 0}
-                          . We'll notify you when grading is complete.
+                          Some of your answers require teacher review. We'll
+                          notify you when grading is complete.
                         </p>
                       </>
                     ) : (

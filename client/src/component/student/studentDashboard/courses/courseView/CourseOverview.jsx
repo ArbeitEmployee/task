@@ -138,7 +138,7 @@ const CourseOverview = ({ courseId, setActiveView }) => {
                 </span>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4">
+              <h1 className="text-2xl sm:text-3xl !text-white md:text-4xl font-bold mb-4">
                 {course.title}
               </h1>
 

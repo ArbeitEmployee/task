@@ -452,13 +452,13 @@ const Studentpaper = () => {
                     <input
                       type="text"
                       placeholder="Search submissions..."
-                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none border-gray-300 hover:border-gray-500 focus:border-gray-500"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
                   <select
-                    className="w-full md:w-auto border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                    className="cursor-pointer w-full md:w-auto border rounded-lg px-4 py-2 focus:outline-none border-gray-300 hover:border-gray-500 focus:border-gray-500"
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
                   >
@@ -805,42 +805,64 @@ const Studentpaper = () => {
 
                                     {isLocked ? (
                                       <div className="flex items-center">
-                                        <span className="inline-block px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-800">
+                                        <span className="inline-block py-2 text-sm text-gray-800">
                                           {gradingData[aKey]?.marks || 0}
                                         </span>
-                                        <span className="ml-2 text-sm text-gray-500">
+                                        <span className="ml-1 text-sm text-gray-500">
                                           / {answer.maxMarks}
                                         </span>
-                                        <span className="ml-2 text-xs text-gray-400 italic">
+                                        <span
+                                          className="ml-2 py-2 text-sm tracking-wider
+             bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500
+             bg-clip-text text-transparent 
+             animate-text-shine
+             drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]
+             transition-all duration-300 ease-in-out
+             hover:scale-110 hover:drop-shadow-[0_0_18px_rgba(236,72,153,0.9)]"
+                                        >
                                           (auto)
                                         </span>
                                       </div>
                                     ) : (
-                                      <div className="flex items-center">
-                                        <input
-                                          type="number"
-                                          id={`marks-${index}`}
-                                          min="0"
-                                          max={answer.maxMarks}
-                                          step="0.5"
-                                          value={gradingData[aKey]?.marks || 0}
-                                          onChange={(e) => {
-                                            const value = Math.min(
-                                              Math.max(
-                                                Number(e.target.value),
-                                                0
-                                              ),
-                                              answer.maxMarks
-                                            );
-                                            handleGradeChange(
-                                              aKey,
-                                              "marks",
-                                              value
-                                            );
-                                          }}
-                                          className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
-                                        />
-                                        <span className="ml-2 text-sm text-gray-500">
+                                      <div className="flex items-center space-x-2">
+                                        <div className="relative">
+                                          <input
+                                            type="number"
+                                            id={`marks-${index}`}
+                                            min="0"
+                                            max={answer.maxMarks}
+                                            step="0.5"
+                                            value={
+                                              gradingData[aKey]?.marks || ""
+                                            }
+                                            onChange={(e) => {
+                                              const value = Math.min(
+                                                Math.max(
+                                                  Number(e.target.value),
+                                                  0
+                                                ),
+                                                answer.maxMarks
+                                              );
+                                              handleGradeChange(
+                                                aKey,
+                                                "marks",
+                                                value
+                                              );
+                                            }}
+                                            placeholder="0"
+                                            className="block w-24 rounded-xl border border-gray-300 
+                 py-2 px-3 text-center font-semibold text-gray-700 
+                 shadow-md outline-none
+                 focus:border-transparent focus:ring-2 
+                 focus:ring-pink-500 focus:ring-offset-1
+                 transition-all duration-200"
+                                          />
+                                          <span className="absolute inset-y-0 right-3 flex items-center text-gray-400 text-xs italic">
+                                            pts
+                                          </span>
+                                        </div>
+
+                                        <span className="text-sm font-semibold text-gray-600">
                                           / {answer.maxMarks}
                                         </span>
                                       </div>

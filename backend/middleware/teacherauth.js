@@ -15,7 +15,7 @@ exports.authenticateTeacher = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({
         status: "fail",
-        message: "You are not logged in. Please log in to get access."
+        message: "You are not logged in. Please log in to get access.",
       });
     }
 
@@ -27,7 +27,7 @@ exports.authenticateTeacher = async (req, res, next) => {
     if (!currentTeacher) {
       return res.status(401).json({
         status: "fail",
-        message: "The teacher belonging to this token no longer exists."
+        message: "The teacher belonging to this token no longer exists.",
       });
     }
 
@@ -35,7 +35,7 @@ exports.authenticateTeacher = async (req, res, next) => {
     if (currentTeacher.status !== "approved") {
       return res.status(403).json({
         status: "fail",
-        message: "Your account is not yet approved. Please contact admin."
+        message: "Your account is not yet approved. Please contact admin.",
       });
     }
 
@@ -43,7 +43,7 @@ exports.authenticateTeacher = async (req, res, next) => {
     if (decoded.role !== "teacher") {
       return res.status(403).json({
         status: "fail",
-        message: "You are not authorized to access this resource."
+        message: "You are not authorized to access this resource.",
       });
     }
 
@@ -54,19 +54,19 @@ exports.authenticateTeacher = async (req, res, next) => {
     if (err.name === "JsonWebTokenError") {
       return res.status(401).json({
         status: "fail",
-        message: "Invalid token. Please log in again."
+        message: "Invalid token. Please log in again.",
       });
     }
     if (err.name === "TokenExpiredError") {
       return res.status(401).json({
         status: "fail",
-        message: "Your token has expired. Please log in again."
+        message: "Your token has expired. Please log in again.",
       });
     }
     console.error("Authentication error:", err);
     res.status(500).json({
       status: "error",
-      message: "An error occurred during authentication"
+      message: "An error occurred during authentication",
     });
   }
 };

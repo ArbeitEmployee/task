@@ -1,8 +1,7 @@
 const express = require("express");
-const MCQ = require("../models/MCQ");
+
 const { authenticateTeacher } = require("../middleware/teacherauth");
 const { create } = require("../models/Admin");
-const Question = require("../models/Question");
 const Course = require("../models/Course");
 const Teaceherrouter = express.Router();
 const multer = require("multer");
@@ -345,21 +344,20 @@ Teaceherrouter.put(
   async (req, res) => {
     try {
       const teacherId = req.params.id;
-      const updates = req.body;
+      const updates = { ...req.body };
 
       // Find the teacher
       const teacher = await Teacher.findById(teacherId);
-
       if (!teacher) {
-        return res.status(404).json({
-          success: false,
-          message: "Teacher not found",
-        });
+        return res
+          .status(404)
+          .json({ success: false, message: "Teacher not found" });
       }
 
-      // List of allowed fields to update
+      // Whitelist fields (now includes 'email')
       const allowedUpdates = [
         "full_name",
+        "email",
         "phone",
         "specialization",
         "qualifications",
@@ -368,19 +366,32 @@ Teaceherrouter.put(
         "profile_photo",
       ];
 
-      // Validate updates
-      const isValidOperation = Object.keys(updates).every((update) =>
-        allowedUpdates.includes(update)
+      // Validate requested fields
+      const isValidOperation = Object.keys(updates).every((k) =>
+        allowedUpdates.includes(k)
       );
-
       if (!isValidOperation) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid updates!",
-        });
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid updates!" });
       }
 
-      // Special validation for phone number if being updated
+      // Normalize/trim string inputs
+      [
+        "full_name",
+        "email",
+        "phone",
+        "specialization",
+        "qualifications",
+        "linkedin_url",
+        "profile_photo",
+      ].forEach((k) => {
+        if (updates[k] != null && typeof updates[k] === "string") {
+          updates[k] = updates[k].trim();
+        }
+      });
+
+      // PHONE (E.164)
       if (updates.phone && !/^\+[1-9]\d{1,14}$/.test(updates.phone)) {
         return res.status(400).json({
           success: false,
@@ -388,43 +399,77 @@ Teaceherrouter.put(
         });
       }
 
-      // Special validation for full_name if being updated
-      if (
-        updates.full_name &&
-        updates.full_name.trim().split(/\s+/).length < 2
-      ) {
+      // FULL NAME (first + last)
+      if (updates.full_name && updates.full_name.split(/\s+/).length < 2) {
         return res.status(400).json({
           success: false,
           message: "Must include first and last name",
         });
       }
 
-      // Special validation for hourly_rate if being updated
-      if (updates.hourly_rate !== undefined && updates.hourly_rate < 10) {
-        return res.status(400).json({
-          success: false,
-          message: "Minimum $10/hour",
+      // HOURLY RATE (number, minimum 10)
+      if (updates.hourly_rate !== undefined) {
+        const rate = Number(updates.hourly_rate);
+        if (Number.isNaN(rate)) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Hourly rate must be a number" });
+        }
+        if (rate < 10) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Minimum $10/hour" });
+        }
+        updates.hourly_rate = Math.round(rate * 100) / 100; // normalize to 2 decimals
+      }
+
+      // EMAIL (format + uniqueness)
+      if (updates.email !== undefined) {
+        const email = updates.email.toLowerCase();
+        const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        if (!emailOk) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Invalid email address" });
+        }
+        const existing = await Teacher.findOne({
+          email,
+          _id: { $ne: teacherId },
         });
+        if (existing) {
+          return res
+            .status(409)
+            .json({ success: false, message: "Email is already in use" });
+        }
+        updates.email = email;
+      }
+
+      // LINKEDIN URL (optional validation)
+      if (updates.linkedin_url) {
+        try {
+          const u = new URL(updates.linkedin_url);
+          if (!["http:", "https:"].includes(u.protocol)) throw new Error();
+        } catch {
+          return res
+            .status(400)
+            .json({ success: false, message: "Invalid LinkedIn URL" });
+        }
       }
 
       // Apply updates
-      Object.keys(updates).forEach((update) => {
-        teacher[update] = updates[update];
+      Object.keys(updates).forEach((k) => {
+        teacher[k] = updates[k];
       });
-
-      // Update last_modified timestamp
       teacher.last_updated = Date.now();
-
       await teacher.save();
 
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         message: "Profile updated successfully",
-        data: teacher,
       });
     } catch (error) {
       console.error("Error updating profile:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: "Failed to update profile",
         error: error.message,
@@ -432,6 +477,7 @@ Teaceherrouter.put(
     }
   }
 );
+
 // Teacher routes for courses
 Teaceherrouter.get(
   "/my-courses/:teacherId",
@@ -911,10 +957,39 @@ function getNextRecommendedContent(contentProgress, courseContent) {
   };
 }
 // -------------------------- Profile Photo Update ----------------------------
+const storages = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = "./public/uploads/teachers";
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const baseName = path.basename(file.originalname, ext);
+    const dir = "./public/uploads/teachers";
+
+    let finalName = file.originalname;
+    let counter = 1;
+
+    while (fs.existsSync(path.join(dir, finalName))) {
+      finalName = `${baseName}(${counter})${ext}`;
+      counter++;
+    }
+
+    cb(null, finalName);
+  },
+});
+
+// Configure multer instance with error handling
+const uploads = multer({
+  storage: storages,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+});
 Teaceherrouter.put(
   "/update-profile-photo/:id",
   authenticateTeacher,
-  upload.single("profile_photo"),
+  uploads.single("profile_photo"),
   async (req, res) => {
     try {
       const teacherId = req.params.id;
@@ -926,353 +1001,61 @@ Teaceherrouter.put(
         });
       }
 
-      // Find the teacher
       const teacher = await Teacher.findById(teacherId);
-
       if (!teacher) {
-        // Delete the uploaded file if teacher not found
-        fs.unlinkSync(req.file.path);
-        return res.status(404).json({
-          success: false,
-          message: "Teacher not found",
-        });
+        // remove uploaded file if teacher not found
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch {}
+        return res
+          .status(404)
+          .json({ success: false, message: "Teacher not found" });
       }
 
-      // Delete old profile photo if exists
+      // Delete old profile photo if exists (we store filename, not full path)
       if (teacher.profile_photo) {
-        try {
-          fs.unlinkSync(teacher.profile_photo);
-        } catch (err) {
-          console.error("Error deleting old profile photo:", err);
+        const oldPath = path.join(
+          "public",
+          "uploads",
+          "teachers",
+          teacher.profile_photo
+        );
+        if (fs.existsSync(oldPath)) {
+          try {
+            fs.unlinkSync(oldPath);
+          } catch (err) {
+            console.error("Error deleting old profile photo:", err);
+          }
         }
       }
 
-      // Update profile photo path
-      teacher.profile_photo = req.file.path;
+      // Save only the filename; express.static("public") will serve /uploads/teachers/<filename>
+      teacher.profile_photo = req.file.filename;
       teacher.last_updated = Date.now();
       await teacher.save();
 
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         message: "Profile photo updated successfully",
         data: {
+          // return filename so frontend can build URL
           profile_photo: teacher.profile_photo,
+          last_updated: teacher.last_updated,
         },
       });
     } catch (error) {
       console.error("Error updating profile photo:", error);
-      // Delete the uploaded file if error occurs
+      // cleanup if needed
       if (req.file) {
-        fs.unlinkSync(req.file.path);
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch {}
       }
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: "Failed to update profile photo",
         error: error.message,
       });
-    }
-  }
-);
-// Create a new MCQ
-Teaceherrouter.post("/create-mcq", authenticateTeacher, async (req, res) => {
-  try {
-    const { question, options, correctAnswer, explanation, points } = req.body;
-
-    // Validate required fields
-    if (
-      !question ||
-      !options ||
-      correctAnswer === undefined ||
-      points === undefined
-    ) {
-      return res.status(400).send({ error: "Missing required fields" });
-    }
-
-    // Create the MCQ
-    const mcq = new MCQ({
-      question,
-      options,
-      correctAnswer,
-      explanation: explanation || "", // Default to empty string if not provided
-      points,
-      createdBy: req.body.user_id,
-    });
-
-    await mcq.save();
-    res.status(201).send(mcq);
-  } catch (error) {
-    console.log(error);
-    res.status(500).send({ error: "Server error while creating MCQ" });
-  }
-});
-
-// Get all MCQs
-Teaceherrouter.get("/all-mcq", authenticateTeacher, async (req, res) => {
-  try {
-    const mcqs = await MCQ.find().sort({ createdAt: -1 });
-    res.send(mcqs);
-  } catch (error) {
-    res.status(500).send();
-  }
-});
-Teaceherrouter.get(
-  "/teacher-own-mcq/:id",
-  authenticateTeacher,
-  async (req, res) => {
-    try {
-      const mcqs = await MCQ.find({ createdBy: req.params.id }).sort({
-        createdAt: -1,
-      });
-      res.send(mcqs);
-    } catch (error) {
-      res.status(500).send();
-    }
-  }
-);
-// Get a specific MCQ
-Teaceherrouter.get("/single-mcq/:id", authenticateTeacher, async (req, res) => {
-  try {
-    const mcq = await MCQ.findById(req.params.id);
-    if (!mcq) {
-      return res.status(404).send();
-    }
-    res.send(mcq);
-  } catch (error) {
-    res.status(500).send();
-  }
-});
-
-// Update an MCQ
-Teaceherrouter.put("/update-mcq/:id", authenticateTeacher, async (req, res) => {
-  const updates = Object.keys(req.body);
-  const allowedUpdates = [
-    "question",
-    "options",
-    "correctAnswer",
-    "category",
-    "difficulty",
-    "explanation",
-  ];
-
-  try {
-    const mcq = await MCQ.findOne({
-      _id: req.params.id,
-      createdBy: req.body.user_id,
-    });
-
-    if (!mcq) {
-      return res.status(404).send();
-    }
-
-    updates.forEach((update) => (mcq[update] = req.body[update]));
-    await mcq.save();
-    res.send(mcq);
-  } catch (error) {
-    res.status(400).send(error);
-  }
-});
-
-// Delete an MCQ
-Teaceherrouter.delete(
-  "/delete-mcq/:id",
-  authenticateTeacher,
-  async (req, res) => {
-    try {
-      const mcq = await MCQ.findOneAndDelete({
-        _id: req.params.id,
-        createdBy: req.body.user_id,
-      });
-      if (!mcq) {
-        return res.status(404).send();
-      }
-      res.send(mcq);
-    } catch (error) {
-      console.log(error);
-      res.status(500).send();
-    }
-  }
-);
-
-// ---------------------------------------question-routes----------------------------
-// Get all questions
-Teaceherrouter.get("/", authenticateTeacher, async (req, res) => {
-  try {
-    const questions = await Question.find({}).sort({ createdAt: -1 });
-    res.send(questions);
-  } catch (error) {
-    res.status(500).send({ error: error.message });
-  }
-});
-
-// Get a specific question
-Teaceherrouter.get(
-  "/single-question/:id",
-  authenticateTeacher,
-  async (req, res) => {
-    try {
-      const question = await Question.findById(req.params.id).populate(
-        "author",
-        "username"
-      ); // Adjust fields as needed
-
-      if (!question) {
-        return res.status(404).send({ error: "Question not found" });
-      }
-
-      // Increment view count
-      question.views += 1;
-      await question.save();
-
-      res.send(question);
-    } catch (error) {
-      res.status(500).send({ error: error.message });
-    }
-  }
-);
-// Create a new question
-Teaceherrouter.post(
-  "/create-question",
-  authenticateTeacher,
-  async (req, res) => {
-    try {
-      const { questions, user_id } = req.body;
-
-      // Validate input
-      if (!questions || !Array.isArray(questions)) {
-        return res.status(400).json({
-          error: "Validation failed",
-          message: "Questions array is required",
-        });
-      }
-
-      if (!user_id) {
-        return res.status(400).json({
-          error: "Validation failed",
-          message: "User ID is required",
-        });
-      }
-
-      // Process each question
-      const createdQuestions = [];
-      for (const q of questions) {
-        // Validate required fields for each question
-        if (!q.title || !q.content || q.number === undefined) {
-          return res.status(400).json({
-            error: "Validation failed",
-            message: "Each question must have title, content, and number",
-          });
-        }
-
-        const question = new Question({
-          title: q.title,
-          content: q.content,
-          type: q.type || "block",
-          number: q.number,
-          tags: q.tags || [],
-          author: user_id,
-        });
-
-        await question.save();
-        createdQuestions.push({
-          _id: question._id,
-          title: question.title,
-          type: question.type,
-          number: question.number,
-          tags: question.tags,
-          createdAt: question.createdAt,
-        });
-      }
-
-      res.status(201).json({
-        message: `${createdQuestions.length} question(s) created successfully`,
-        questions: createdQuestions,
-      });
-    } catch (error) {
-      console.error("Error creating question:", error);
-
-      if (error.name === "ValidationError") {
-        return res.status(400).json({
-          error: "Validation failed",
-          details: Object.values(error.errors).map((err) => err.message),
-        });
-      }
-
-      res.status(500).json({
-        error: "Internal server error",
-        message: error.message,
-      });
-    }
-  }
-);
-Teaceherrouter.get(
-  "/teacher-own-cq/:id",
-  authenticateTeacher,
-  async (req, res) => {
-    try {
-      const mcqs = await Question.find({ author: req.params.id }).sort({
-        createdAt: -1,
-      });
-      res.send(mcqs);
-    } catch (error) {
-      res.status(500).send();
-    }
-  }
-);
-// Update a question
-Teaceherrouter.put(
-  "/update-question/:id",
-  authenticateTeacher,
-  async (req, res) => {
-    const updates = Object.keys(req.body);
-    const allowedUpdates = ["title", "content", "type", "number", "tags"];
-    const isValidOperation = updates.every((update) =>
-      allowedUpdates.includes(update)
-    );
-
-    if (!isValidOperation) {
-      return res.status(400).send({ error: "Invalid updates!" });
-    }
-
-    try {
-      const question = await Question.findOne({
-        _id: req.params.id,
-        author: req.user._id,
-      });
-
-      if (!question) {
-        return res
-          .status(404)
-          .send({ error: "Question not found or not authorized" });
-      }
-
-      updates.forEach((update) => (question[update] = req.body[update]));
-      question.updatedAt = Date.now();
-      await question.save();
-
-      res.send(question);
-    } catch (error) {
-      res.status(400).send({ error: error.message });
-    }
-  }
-);
-// Delete a question
-Teaceherrouter.delete(
-  "/delete-question/:id",
-  authenticateTeacher,
-  async (req, res) => {
-    try {
-      const question = await Question.findOneAndDelete({
-        _id: req.params.id,
-      });
-      if (!question) {
-        return res
-          .status(404)
-          .send({ error: "Question not found or not authorized" });
-      }
-
-      res.send(question);
-    } catch (error) {
-      res.status(500).send({ error: error.message });
     }
   }
 );
