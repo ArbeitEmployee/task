@@ -820,7 +820,7 @@ const MyCourses = ({ setActiveView }) => {
             </p>
             <button
               onClick={() => setActiveView("courseList")}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition-all"
+              className="px-6 py-2 bg-gray-600 text-white rounded-lg shadow-md hover:bg-gray-700 transition-all"
             >
               Browse Courses
             </button>

@@ -104,7 +104,9 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
 
         if (
           response.data.content[currentContent]?.type === "quiz" &&
-          response.data.content[currentContent]?.completed
+          response.data.content[currentContent]?.completed &&
+          response.data.content[currentContent]?.answers && // Check if answers exist
+          response.data.content[currentContent]?.answers.length > 0 // Check if there are actual answers
         ) {
           setQuizSubmitted(true);
           setQuizScore(response.data.content[currentContent].score);
@@ -157,16 +159,23 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
   useEffect(() => {
     if (!course) return;
 
-    if (course.content[currentContent]?.type === "quiz") {
-      setShowQuiz(true);
+    const currentItem = course.content[currentContent];
+
+    if (currentItem?.type === "quiz") {
+      // Only auto-open if it's a new quiz navigation, not when reopening
+      if (!showQuiz) {
+        setShowQuiz(true);
+      }
       setIsPlaying(false);
 
-      if (course.content[currentContent]?.completed) {
+      if (
+        currentItem?.completed &&
+        currentItem?.answers &&
+        currentItem.answers.length > 0
+      ) {
         setQuizSubmitted(true);
-        setQuizScore(course.content[currentContent].score);
-        setAwaitingGrading(
-          course.content[currentContent].gradingStatus === "partially-graded"
-        );
+        setQuizScore(currentItem.score);
+        setAwaitingGrading(currentItem.gradingStatus === "partially-graded");
       }
     } else {
       setShowQuiz(false);
@@ -418,6 +427,9 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
         setCertificateUrl(response.data.certificateUrl || null);
         setCourseCompleted(response.data.courseCompleted || false);
         setAwaitingGrading(response.data.gradingStatus === "partially-graded");
+
+        // Force the results view to show
+        setShowQuiz(true); // Add this line
         return;
       }
 
@@ -436,6 +448,9 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
         },
       }));
 
+      // Force the results view to show immediately after submission
+      setShowQuiz(true); // Add this line
+
       toast.success(
         response.data.passed
           ? "Quiz submitted successfully!"
@@ -451,12 +466,8 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
 
   const closeQuiz = () => {
     setShowQuiz(false);
-    if (course && currentContent < course.content.length - 1) {
-      setCurrentContent(currentContent + 1);
-    }
     setIsPlaying(true);
   };
-
   const calculateOverallProgress = () => {
     if (!course) return 0;
 
@@ -965,6 +976,22 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
               </button>
             </div>
           </div>
+          {currentItem.type === "quiz" && !showQuiz && (
+            <div className="bg-white p-4 border-t border-gray-200">
+              <div className="max-w-5xl mx-auto flex justify-center">
+                <button
+                  onClick={() => {
+                    setShowQuiz(true);
+                    setIsPlaying(false);
+                  }}
+                  className="flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors"
+                >
+                  <FiBarChart2 className="mr-2" />
+                  Open Quiz
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Content tracking - Right side */}
@@ -998,6 +1025,10 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                     setLastTrackedTime(0);
                     if (item.type !== "quiz") {
                       setIsPlaying(true);
+                      setShowQuiz(false); // Ensure quiz modal is closed for non-quiz content
+                    } else {
+                      setShowQuiz(true); // Show quiz modal for quiz content
+                      setIsPlaying(false); // Pause video if playing
                     }
                   }}
                   className={`p-4 rounded-xl cursor-pointer border transition-all ${
@@ -1395,36 +1426,39 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                         );
                         const isCorrect = answerRecord?.isCorrect;
                         const needsGrading = answerRecord?.needsManualGrading;
+                        const marksObtained = answerRecord?.marksObtained || 0;
+                        const maxMarks = question.marks || 1;
 
                         return (
                           <div
                             key={question._id}
-                            className="border-b border-gray-200 pb-4"
+                            className="border border-gray-200 rounded-xl p-5 relative"
                           >
-                            <div className="flex items-start">
+                            {/* Question number and grade badge */}
+                            <div className="flex justify-between items-center mb-4">
+                              <div className="bg-indigo-100 text-indigo-800 w-8 h-8 rounded-full flex items-center justify-center font-medium">
+                                {qIndex + 1}
+                              </div>
                               <div
-                                className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
+                                className={`px-3 py-1 rounded-full text-sm font-medium ${
                                   isCorrect
-                                    ? "bg-green-100 text-green-600"
+                                    ? "bg-green-100 text-green-800"
                                     : needsGrading
-                                    ? "bg-yellow-100 text-yellow-600"
-                                    : "bg-red-100 text-red-600"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-red-100 text-red-800"
                                 }`}
                               >
-                                {isCorrect ? (
-                                  <FiCheck />
-                                ) : needsGrading ? (
-                                  <FiAlertCircle />
-                                ) : (
-                                  <FiX />
-                                )}
+                                {marksObtained}/{maxMarks}
                               </div>
+                            </div>
+
+                            <div className="flex items-start">
                               <div>
-                                <h4 className="font-medium">
+                                <h4 className="font-medium text-lg">
                                   {question.question}
                                 </h4>
                                 <p className="text-sm text-gray-600 mt-1">
-                                  <span className="font-medium">
+                                  <span className="font-bold !text-gray-900">
                                     Your answer:
                                   </span>{" "}
                                   {Array.isArray(userAnswer)
@@ -1433,12 +1467,15 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                                         .join(", ")
                                     : question.type === "mcq-single"
                                     ? question.options[userAnswer]
-                                    : userAnswer}
+                                    : userAnswer || "No answer provided"}
                                 </p>
                                 {!needsGrading && (
-                                  <p className="text-sm text-gray-600">
-                                    <span className="font-medium">
-                                      Correct answer:
+                                  <p className="text-sm text-gray-600 mt-2">
+                                    <span className="font-bold !text-gray-900">
+                                      {question.type === "mcq-single" ||
+                                      question.type === "mcq-multiple"
+                                        ? "Correct answer:"
+                                        : "Expected answer:"}
                                     </span>{" "}
                                     {Array.isArray(question.correctAnswer)
                                       ? question.correctAnswer
@@ -1446,7 +1483,9 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                                           .join(", ")
                                       : question.type === "mcq-single"
                                       ? question.options[question.correctAnswer]
-                                      : question.correctAnswer}
+                                      : question.expectedAnswer ||
+                                        question.correctAnswer ||
+                                        "No expected answer provided"}
                                   </p>
                                 )}
                                 {needsGrading && (

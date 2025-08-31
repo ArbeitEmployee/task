@@ -21,7 +21,6 @@ import TeacherDashboard from "./component/teacher/teacherDashboard/teacherDashbo
 
 import CourseOverview from "./component/student/studentDashboard/courses/courseView/CourseOverview";
 import CoursePlayer from "./component/student/studentDashboard/courses/courseView/CoursePlayer";
-import Editcourse from "./component/admin/adminDashboard/courses/Editcourse";
 
 import AppRoutes from "./component/Home/App";
 import EmployeeLogin from "./component/employee/EmployeeLogin";
@@ -128,7 +127,7 @@ const App = () => {
             element={<ResetPasswordStudent setAuthMode={setAuthMode} />}
           />
           <Route path="/student/dashboard" element={<StudentDashboard />} />
-          <Route path="/admin/courses/edit/:id" element={<Editcourse />} />
+
           {/* ------------------------------teacher-all-route---------------------------------------- */}
 
           {/* ------------------------------Employee-all-route---------------------------------------- */}

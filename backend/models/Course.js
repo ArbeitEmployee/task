@@ -11,7 +11,20 @@ const questionSchema = new Schema({
     enum: ["mcq-single", "mcq-multiple", "short-answer", "broad-answer"],
   },
   options: [String],
-  correctAnswer: Schema.Types.Mixed,
+  // Change correctAnswer to be conditional
+  correctAnswer: {
+    type: Schema.Types.Mixed,
+    required: function () {
+      return ["mcq-single", "mcq-multiple"].includes(this.type);
+    },
+  },
+  // Add expectedAnswer for short and broad answers
+  expectedAnswer: {
+    type: String,
+    required: function () {
+      return ["short-answer", "broad-answer"].includes(this.type);
+    },
+  },
   marks: { type: Number, default: 1 },
   explanation: String,
   needsManualGrading: {
@@ -301,6 +314,7 @@ courseSchema.methods.calculateQuizResults = function (quizId, answers) {
         break;
       case "short-answer":
       case "broad-answer":
+        // For short/broad answers, we don't auto-grade
         needsManualGrading = true;
         isCorrect = false; // Default to false for manual grading
         break;
@@ -317,7 +331,10 @@ courseSchema.methods.calculateQuizResults = function (quizId, answers) {
       questionType: question.type,
       answer: userAnswer.answer,
       isCorrect,
-      correctAnswer: question.correctAnswer,
+      // For MCQ, use correctAnswer; for short/broad, use expectedAnswer
+      correctAnswer: ["mcq-single", "mcq-multiple"].includes(question.type)
+        ? question.correctAnswer
+        : question.expectedAnswer,
       marksObtained,
       maxMarks: question.marks,
       explanation: question.explanation,

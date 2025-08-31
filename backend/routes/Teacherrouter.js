@@ -1467,7 +1467,6 @@ Teaceherrouter.get("/all-category", authenticateTeacher, async (req, res) => {
 // -------------------------- All Student Submissions Routes ----------------------------
 
 // Get all student submissions across all courses taught by the teacher
-// Get all student submissions across all courses taught by the teacher
 Teaceherrouter.get(
   "/all-submissions",
   authenticateTeacher,
@@ -1476,11 +1475,12 @@ Teaceherrouter.get(
       // Get teacher_id from authenticated user (set by authenticateTeacher middleware)
       const teacher_id = req.teacher._id;
 
-      // 1. Get all courses taught by this teacher
+      // 1. Get all courses taught by this teacher with proper population
       const courses = await Course.find({ instructor: teacher_id })
         .populate({
           path: "enrollments.studentId",
           select: "full_name email",
+          model: "Student", // Explicitly specify the model
         })
         .populate({
           path: "content",
@@ -1496,7 +1496,7 @@ Teaceherrouter.get(
         });
       }
 
-      // 2. Transform the data to show submissions
+      // 2. Transform the data to show only quiz submissions
       const submissions = courses
         .flatMap((course) => {
           if (!course.enrollments || course.enrollments.length === 0) {
@@ -1508,52 +1508,118 @@ Teaceherrouter.get(
               return [];
             }
 
-            return enrollment.progress.map((progress) => {
-              // Find the content item details
-              const contentItem = course.content.find(
-                (c) =>
-                  c &&
-                  c._id &&
-                  progress.contentItemId &&
-                  c._id.toString() === progress.contentItemId.toString()
-              );
+            // Filter to only include quiz submissions with answers
+            return enrollment.progress
+              .filter((progress) => {
+                // Only include quiz content that has been submitted (has answers)
+                const contentItem = course.content.find(
+                  (c) =>
+                    c &&
+                    c._id &&
+                    progress.contentItemId &&
+                    c._id.toString() === progress.contentItemId.toString()
+                );
 
-              // Safely process answers
-              const answers = (progress.answers || []).map((answer) => ({
-                question: answer.questionText || "Unknown question",
-                type: answer.questionType || "unknown",
-                studentAnswer:
-                  answer.answer !== undefined ? answer.answer : "No answer",
-                correctAnswer:
-                  answer.correctAnswer !== undefined
-                    ? answer.correctAnswer
-                    : "No correct answer provided",
-                isCorrect: answer.isCorrect || false,
-                marksObtained: answer.marksObtained || 0,
-                maxMarks: answer.maxMarks || 0,
-                feedback: answer.teacherFeedback || "Not graded yet",
-              }));
+                return (
+                  contentItem &&
+                  contentItem.type === "quiz" &&
+                  progress.answers &&
+                  progress.answers.length > 0
+                );
+              })
+              .map((progress) => {
+                // Find the content item details
+                const contentItem = course.content.find(
+                  (c) =>
+                    c &&
+                    c._id &&
+                    progress.contentItemId &&
+                    c._id.toString() === progress.contentItemId.toString()
+                );
 
-              return {
-                student: {
-                  name: enrollment.studentId?.full_name, // ← CORRECT
-                  email: enrollment.studentId?.email, // ← CORRECT
-                },
-                courseTitle: course.title || "Untitled course",
-                contentItem: {
-                  title: contentItem?.title || "Unknown content",
-                  type: contentItem?.type || "unknown",
-                },
-                status: progress.status || "unknown",
-                gradingStatus: progress.gradingStatus || "not-graded",
-                score: progress.score || 0,
-                maxScore: progress.maxScore || 0,
-                percentage: progress.percentage || 0,
-                passed: progress.passed || false,
-                lastAccessed: progress.lastAccessed || new Date(),
-                answers,
-              };
-            });
+                // Safely process answers
+
+                const answers = (progress.answers || []).map((answer) => {
+                  // Find the original question from course content to get the expected answer
+                  const contentItem = course.content.find(
+                    (c) =>
+                      c &&
+                      c._id &&
+                      progress.contentItemId &&
+                      c._id.toString() === progress.contentItemId.toString()
+                  );
+
+                  let originalQuestion = null;
+                  if (contentItem && contentItem.questions) {
+                    originalQuestion = contentItem.questions.find(
+                      (q) =>
+                        q &&
+                        q._id &&
+                        answer.questionId &&
+                        q._id.toString() === answer.questionId.toString()
+                    );
+                  }
+
+                  // Determine the correct/expected answer based on question type
+                  let correctOrExpectedAnswer = "No expected answer provided";
+
+                  if (originalQuestion) {
+                    if (
+                      originalQuestion.type === "mcq-single" ||
+                      originalQuestion.type === "mcq-multiple"
+                    ) {
+                      correctOrExpectedAnswer =
+                        originalQuestion.correctAnswer !== undefined
+                          ? originalQuestion.correctAnswer
+                          : "No correct answer provided";
+                    } else if (
+                      originalQuestion.type === "short-answer" ||
+                      originalQuestion.type === "broad-answer"
+                    ) {
+                      correctOrExpectedAnswer =
+                        originalQuestion.expectedAnswer !== undefined
+                          ? originalQuestion.expectedAnswer
+                          : "No expected answer provided";
+                    }
+                  }
+
+                  return {
+                    answerId: answer._id,
+                    question: answer.questionText || "Unknown question",
+                    questionType: answer.questionType || "unknown",
+                    studentAnswer:
+                      answer.answer !== undefined
+                        ? answer.answer
+                        : "No answer provided",
+                    correctAnswer: correctOrExpectedAnswer,
+                    isCorrect: answer.isCorrect || false,
+                    marksObtained: answer.marksObtained || 0,
+                    maxMarks: answer.maxMarks || 0,
+                    teacherFeedback: answer.teacherFeedback || "",
+                  };
+                });
+
+                return {
+                  student: {
+                    name: enrollment.studentId?.full_name || "Unknown Student",
+                    email: enrollment.studentId?.email || "No email",
+                  },
+                  courseTitle: course.title || "Untitled course",
+                  contentItem: {
+                    title: contentItem?.title || "Unknown content",
+                    type: contentItem?.type || "unknown",
+                    passingScore: contentItem?.passingScore || 70,
+                  },
+                  status: progress.status || "unknown",
+                  gradingStatus: progress.gradingStatus || "not-graded",
+                  score: progress.score || 0,
+                  maxScore: progress.maxScore || 0,
+                  percentage: progress.percentage || 0,
+                  passed: progress.passed || false,
+                  lastAccessed: progress.lastAccessed || new Date(),
+                  answers,
+                };
+              });
           });
         })
         .filter((submission) => submission !== null);
@@ -1574,6 +1640,7 @@ Teaceherrouter.get(
     }
   }
 );
+const mongoose = require("mongoose");
 // Grade a student's submission
 Teaceherrouter.put(
   "/grade-submission",
@@ -1581,25 +1648,35 @@ Teaceherrouter.put(
   async (req, res) => {
     try {
       const { studentEmail, contentTitle, answers } = req.body;
-      console.log(req.teacher._id);
 
-      // 1. Find the course and enrollment
+      // 1. Find the student first
+      const Student = mongoose.model("Student");
+      const student = await Student.findOne({ email: studentEmail });
+
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          message: "Student not found",
+        });
+      }
+
+      // 2. Find the course taught by this teacher
       const course = await Course.findOne({
         instructor: req.teacher._id,
-      }).populate({
-        path: "enrollments.studentId",
-        match: { email: studentEmail },
+        "enrollments.studentId": student._id,
       });
 
       if (!course) {
         return res.status(404).json({
           success: false,
-          message: "Course not found for this teacher",
+          message: "Course not found for this teacher and student",
         });
       }
 
-      // 2. Find the specific enrollment
-      const enrollment = course.enrollments.find((e) => e.studentId);
+      // 3. Find the specific enrollment
+      const enrollment = course.enrollments.find(
+        (e) => e.studentId.toString() === student._id.toString()
+      );
 
       if (!enrollment) {
         return res.status(404).json({
@@ -1615,12 +1692,12 @@ Teaceherrouter.put(
         });
       }
 
-      // 3. Find the progress item for the content
+      // 4. Find the progress item for the content
       const progress = enrollment.progress.find((p) => {
         const contentItem = course.content.find(
           (c) => c._id.toString() === p.contentItemId.toString()
         );
-        return contentItem?.title === contentTitle;
+        return contentItem && contentItem.title === contentTitle;
       });
 
       if (!progress) {
@@ -1637,40 +1714,46 @@ Teaceherrouter.put(
         });
       }
 
-      // 4. Update each answer with grading
+      // 5. Update each answer with grading
       let newScore = 0;
       const now = new Date();
 
       answers.forEach((gradedAnswer) => {
-        const answer = progress.answers.find(
-          (a) => a.questionText === gradedAnswer.question
-        );
+        // Find answer by ID instead of question text
+        const answer = progress.answers.id(gradedAnswer.answerId);
 
         if (answer) {
           answer.marksObtained = gradedAnswer.marks;
           answer.teacherFeedback = gradedAnswer.feedback;
-          answer.isCorrect = gradedAnswer.marks >= answer.maxMarks * 0.5;
+          answer.isCorrect = gradedAnswer.isCorrect;
+          answer.gradedBy = req.teacher._id;
           answer.gradedAt = now;
 
           newScore += gradedAnswer.marks;
+        } else {
+          console.warn(`Answer with ID ${gradedAnswer.answerId} not found`);
         }
       });
 
-      // 5. Update progress metrics
+      // 6. Update progress metrics
       progress.score = newScore;
       progress.percentage = Math.round((newScore / progress.maxScore) * 100);
-      progress.passed = progress.percentage >= 70; // Assuming 70% passing
+
+      // Always use 40% as passing score - FIXED THIS LINE
+      const passingScore = 40;
+
+      progress.passed = progress.percentage >= passingScore;
       progress.gradingStatus = "manually-graded";
       progress.status = "graded";
 
-      // 6. Save the changes
+      // 7. Save the changes
       await course.save();
 
       res.status(200).json({
         success: true,
         message: "Submission graded successfully",
         data: {
-          student: enrollment.studentId.email,
+          student: studentEmail,
           content: contentTitle,
           newScore,
           maxScore: progress.maxScore,

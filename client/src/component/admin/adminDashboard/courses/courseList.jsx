@@ -16,8 +16,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { toast } from "react-hot-toast";
 import DOMPurify from "dompurify";
-import ReactQuill from "react-quill";
-import "react-quill/dist/quill.snow.css";
 import { FiImage } from "react-icons/fi";
 import { FiUpload } from "react-icons/fi";
 import { FiYoutube } from "react-icons/fi";
@@ -52,27 +50,6 @@ const CourseList = () => {
   const [existingAttachments, setExistingAttachments] = useState([]);
   const [removedAttachments, setRemovedAttachments] = useState([]);
   // React Quill modules configuration
-  const quillModules = {
-    toolbar: [
-      [{ header: [1, 2, 3, false] }],
-      ["bold", "italic", "underline", "strike"],
-      [{ list: "ordered" }, { list: "bullet" }],
-      ["link", "image"],
-      ["clean"],
-    ],
-  };
-
-  const quillFormats = [
-    "header",
-    "bold",
-    "italic",
-    "underline",
-    "strike",
-    "list",
-    "bullet",
-    "link",
-    "image",
-  ];
 
   const fetchCategories = async () => {
     try {
@@ -415,23 +392,31 @@ const CourseList = () => {
       id: Date.now(),
       question: "",
       type: questionType,
-      answer: "",
       marks: 1,
     };
 
     let question;
     switch (questionType) {
       case "mcq-single":
+        question = {
+          ...baseQuestion,
+          options: ["", ""],
+          correctAnswer: 0,
+        };
+        break;
       case "mcq-multiple":
         question = {
           ...baseQuestion,
           options: ["", ""],
-          correctAnswer: questionType === "mcq-single" ? 0 : [],
+          correctAnswer: [],
         };
         break;
       case "short-answer":
       case "broad-answer":
-        question = baseQuestion;
+        question = {
+          ...baseQuestion,
+          expectedAnswer: "", // Use expectedAnswer instead of answer
+        };
         break;
       default:
         question = baseQuestion;
@@ -659,7 +644,14 @@ const CourseList = () => {
             ...item,
             questions: item.questions.map((q) => {
               if (q.id === questionId || q._id === questionId) {
-                return { ...q, answer: value };
+                // For short/broad answers, update expectedAnswer
+                if (["short-answer", "broad-answer"].includes(q.type)) {
+                  return { ...q, expectedAnswer: value };
+                }
+                // For MCQ questions, update answer (for student responses)
+                else {
+                  return { ...q, answer: value };
+                }
               }
               return q;
             }),
@@ -761,9 +753,6 @@ const CourseList = () => {
     return tmp.textContent || tmp.innerText || "";
   };
 
-  const convertNewlinesToHtml = (text) => {
-    return text.replace(/\n/g, "<br />");
-  };
   const updateCourse = async () => {
     try {
       // Validate required fields
@@ -856,9 +845,7 @@ const CourseList = () => {
             );
           }
         }
-        if (contentItem.description) {
-          contentItem.description = stripHtml(contentItem.description);
-        }
+
         // Validate quizzes
         if (contentItem.type === "quiz") {
           if (contentItem.questions.length === 0) {
@@ -899,15 +886,6 @@ const CourseList = () => {
                   `Please select at least one correct answer for multiple-choice questions in quiz "${contentItem.title}"`
                 );
               }
-              if (
-                question.answer &&
-                ["short-answer", "broad-answer"].includes(question.type)
-              ) {
-                return {
-                  ...question,
-                  answer: stripHtml(question.answer),
-                };
-              }
             }
             return question;
           });
@@ -917,10 +895,9 @@ const CourseList = () => {
       });
 
       // Prepare form data for upload
-      const plainTextDescription = stripHtml(courseData.description);
       const formData = new FormData();
       formData.append("title", courseData.title);
-      formData.append("description", plainTextDescription);
+      formData.append("description", courseData.description);
 
       // Handle thumbnail
       if (courseData.thumbnail) {
@@ -1074,7 +1051,7 @@ const CourseList = () => {
             <input
               type="text"
               placeholder="Search courses..."
-              className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
+              className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg  focus:border-gray-500"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -1200,7 +1177,7 @@ const CourseList = () => {
                     <option
                       key={level}
                       value={level.toLowerCase()}
-                      className="checked:bg-blue-100"
+                      className="checked:bg-gray-100"
                     >
                       {level.charAt(0).toUpperCase() + level.slice(1)}
                     </option>
@@ -1279,25 +1256,22 @@ const CourseList = () => {
                               name="title"
                               value={courseData.title}
                               onChange={handleInputChange}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-[6px] focus:outline-blue-600 transition-colors"
+                              className="w-full px-4 py-2 border border-gray-300 rounded-[6px] hover:border-gray-600 focus:border-gray-600 transition-colors"
                               required
                             />
                           </div>
-                          <div className="h-[300px]">
+                          <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                               Course Description *
                             </label>
-                            <ReactQuill
-                              theme="snow"
+                            <textarea
+                              name="description"
                               value={courseData.description}
-                              onChange={(value) =>
-                                handleInputChange({
-                                  target: { name: "description", value },
-                                })
-                              }
-                              modules={quillModules}
-                              formats={quillFormats}
-                              className="rounded-lg h-[250px] "
+                              onChange={handleInputChange}
+                              rows={6}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 resize-vertical"
+                              required
+                              placeholder="Enter course description"
                             />
                           </div>
 
@@ -1467,7 +1441,7 @@ const CourseList = () => {
                                   name="type"
                                   value={courseData.type}
                                   onChange={handleInputChange}
-                                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                  className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500"
                                   required
                                 >
                                   <option value="free">Free</option>
@@ -1573,7 +1547,7 @@ const CourseList = () => {
                                 name="category"
                                 value={courseData.category}
                                 onChange={handleInputChange}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500"
                                 required
                               >
                                 <option value="">Select a category</option>
@@ -1729,19 +1703,18 @@ const CourseList = () => {
                                           <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Description
                                           </label>
-                                          <ReactQuill
-                                            theme="snow"
+                                          <textarea
                                             value={item.description}
-                                            onChange={(value) =>
+                                            onChange={(e) =>
                                               handleContentChange(
                                                 item.id || item._id,
                                                 "description",
-                                                value
+                                                e.target.value
                                               )
                                             }
-                                            modules={quillModules}
-                                            formats={quillFormats}
-                                            className="border border-gray-300 rounded-lg hover:border-gray-500 focus-within:border-gray-500 focus-within:ring-2 focus-within:ring-blue-200"
+                                            rows={4}
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 resize-vertical"
+                                            placeholder="Enter tutorial description"
                                           />
                                         </div>
                                         {courseData.type === "free" ? (
@@ -1893,19 +1866,18 @@ const CourseList = () => {
                                           <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Description
                                           </label>
-                                          <ReactQuill
-                                            theme="snow"
+                                          <textarea
                                             value={item.description}
-                                            onChange={(value) =>
+                                            onChange={(e) =>
                                               handleContentChange(
                                                 item.id || item._id,
                                                 "description",
-                                                value
+                                                e.target.value
                                               )
                                             }
-                                            modules={quillModules}
-                                            formats={quillFormats}
-                                            className="border border-gray-300 rounded-lg hover:border-gray-500 focus-within:border-gray-500 focus-within:ring-2 focus-within:ring-blue-200"
+                                            rows={4}
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 resize-vertical"
+                                            placeholder="Enter quiz description"
                                           />
                                         </div>
 
@@ -1941,7 +1913,7 @@ const CourseList = () => {
                                                 e.target.value
                                               )
                                             }
-                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500"
                                             required
                                           />
                                         </div>
@@ -1975,28 +1947,27 @@ const CourseList = () => {
                                           <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Description
                                           </label>
-                                          <ReactQuill
-                                            theme="snow"
+                                          <textarea
                                             value={item.description}
-                                            onChange={(value) =>
+                                            onChange={(e) =>
                                               handleContentChange(
                                                 item.id || item._id,
                                                 "description",
-                                                value
+                                                e.target.value
                                               )
                                             }
-                                            modules={quillModules}
-                                            formats={quillFormats}
-                                            className="border border-gray-300 rounded-lg hover:border-gray-500 focus-within:border-gray-500 focus-within:ring-2 focus-within:ring-blue-200"
+                                            rows={4}
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 resize-vertical"
+                                            placeholder="Enter live class description"
                                           />
                                         </div>
-                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
                                           <div className="flex justify-between items-center">
-                                            <span className="text-sm font-medium text-blue-800">
+                                            <span className="text-sm font-medium text-gray-800">
                                               Total Quiz Marks:{" "}
                                               {calculateQuizTotalMarks(item)}
                                             </span>
-                                            <span className="text-xs text-blue-600">
+                                            <span className="text-xs text-gray-600">
                                               {(item.questions || []).length}{" "}
                                               question
                                               {(item.questions || []).length !==
@@ -2128,7 +2099,7 @@ const CourseList = () => {
                                                       )
                                                     }
                                                     placeholder="Enter marks for this question"
-                                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
+                                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500 transition-colors"
                                                     required
                                                   />
                                                 </div>
@@ -2264,11 +2235,14 @@ const CourseList = () => {
                                                   "short-answer" ? (
                                                   <div className="mt-2">
                                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                      Answer
+                                                      Expected Answer
                                                     </label>
                                                     <input
                                                       type="text"
-                                                      value={question.answer}
+                                                      value={
+                                                        question.expectedAnswer ||
+                                                        ""
+                                                      }
                                                       onChange={(e) =>
                                                         handleAnswerChange(
                                                           item.id || item._id,
@@ -2277,43 +2251,43 @@ const CourseList = () => {
                                                           e.target.value
                                                         )
                                                       }
-                                                      placeholder="Enter expected short answer"
+                                                      placeholder="Enter expected answer"
                                                       className={`w-full px-4 py-2 border rounded-lg  focus:border-gray-500 transition-colors ${
-                                                        question.answer
+                                                        question.expectedAnswer
                                                           ? "border-green-500 bg-green-50"
                                                           : "border-gray-300"
                                                       }`}
                                                     />
                                                   </div>
-                                                ) : (
+                                                ) : question.type ===
+                                                  "broad-answer" ? (
                                                   <div className="mt-2">
                                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                      Answer
+                                                      Expected Answer
                                                     </label>
-                                                    <div
-                                                      className={`border rounded-lg ${
-                                                        question.answer
+                                                    <textarea
+                                                      value={
+                                                        question.expectedAnswer ||
+                                                        ""
+                                                      }
+                                                      onChange={(e) =>
+                                                        handleAnswerChange(
+                                                          item.id || item._id,
+                                                          question.id ||
+                                                            question._id,
+                                                          e.target.value
+                                                        )
+                                                      }
+                                                      rows={6}
+                                                      className={`w-full px-4 py-2 border rounded-lg  focus:border-gray-500 resize-vertical ${
+                                                        question.expectedAnswer
                                                           ? "border-green-500 bg-green-50"
                                                           : "border-gray-300"
                                                       }`}
-                                                    >
-                                                      <ReactQuill
-                                                        theme="snow"
-                                                        value={question.answer}
-                                                        onChange={(value) =>
-                                                          handleAnswerChange(
-                                                            item.id || item._id,
-                                                            question.id ||
-                                                              question._id,
-                                                            value
-                                                          )
-                                                        }
-                                                        modules={quillModules}
-                                                        formats={quillFormats}
-                                                      />
-                                                    </div>
+                                                      placeholder="Enter expected answer"
+                                                    />
                                                   </div>
-                                                )}
+                                                ) : null}
                                               </motion.div>
                                             )
                                           )}

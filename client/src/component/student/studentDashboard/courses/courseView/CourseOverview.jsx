@@ -326,24 +326,32 @@ const CourseOverview = ({ courseId, setActiveView }) => {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="font-semibold text-lg mb-4">Course Attachments</h3>
               <div className="space-y-3">
-                {course.attachments.map((file) => (
-                  <div
-                    key={file._id}
-                    className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors"
-                  >
-                    <div className="flex items-center">
-                      <div className="p-2 bg-gray-100 rounded-lg mr-3">
-                        <FiFile className="text-gray-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{file.filename}</p>
-                        <p className="text-xs text-gray-500">
-                          {(file.size / (1024 * 1024)).toFixed(1)} MB
-                        </p>
+                {course.attachments.map((file) => {
+                  // Calculate file size in appropriate format
+                  const fileSize =
+                    file.size > 0
+                      ? file.size >= 1024 * 1024
+                        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+                        : `${(file.size / 1024).toFixed(1)} KB`
+                      : "0.0 KB";
+
+                  return (
+                    <div
+                      key={file._id}
+                      className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                      <div className="flex items-center">
+                        <div className="p-2 bg-gray-100 rounded-lg mr-3">
+                          <FiFile className="text-gray-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{file.filename}</p>
+                          <p className="text-xs text-gray-500">{fileSize}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

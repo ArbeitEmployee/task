@@ -855,6 +855,66 @@ Adminrouter.post(
       let parsedContent =
         typeof content === "string" ? JSON.parse(content) : content;
 
+      // Validate quiz questions structure
+      if (Array.isArray(parsedContent)) {
+        for (const item of parsedContent) {
+          if (item.type === "quiz" && Array.isArray(item.questions)) {
+            for (const question of item.questions) {
+              // Validate question structure based on type
+              if (!question.type || !question.question) {
+                return res.status(400).json({
+                  success: false,
+                  message: "All questions must have a type and question text",
+                });
+              }
+
+              // Validate MCQ questions
+              if (["mcq-single", "mcq-multiple"].includes(question.type)) {
+                if (
+                  !Array.isArray(question.options) ||
+                  question.options.length < 2
+                ) {
+                  return res.status(400).json({
+                    success: false,
+                    message: "MCQ questions must have at least 2 options",
+                  });
+                }
+                if (
+                  question.correctAnswer === undefined ||
+                  question.correctAnswer === null
+                ) {
+                  return res.status(400).json({
+                    success: false,
+                    message:
+                      "MCQ questions must have a correct answer selected",
+                  });
+                }
+              }
+
+              // Validate short/broad answer questions
+              if (["short-answer", "broad-answer"].includes(question.type)) {
+                if (
+                  question.expectedAnswer === undefined ||
+                  question.expectedAnswer === null ||
+                  question.expectedAnswer.trim() === ""
+                ) {
+                  return res.status(400).json({
+                    success: false,
+                    message:
+                      "Short and broad answer questions must have an expected answer",
+                  });
+                }
+
+                // Remove correctAnswer field if it exists for short/broad answers
+                if (question.correctAnswer !== undefined) {
+                  delete question.correctAnswer;
+                }
+              }
+            }
+          }
+        }
+      }
+
       // Create a map of video filenames to their file objects for quick lookup
       const videoFilesMap = {};
       if (req.files?.contentVideos) {
@@ -1138,7 +1198,75 @@ Adminrouter.put(
       let parsedContent =
         typeof content === "string" ? JSON.parse(content) : content;
 
+      // Validate quiz questions structure
       if (Array.isArray(parsedContent)) {
+        for (const item of parsedContent) {
+          if (item.type === "quiz" && Array.isArray(item.questions)) {
+            for (const question of item.questions) {
+              // Validate question structure based on type
+              if (!question.type || !question.question) {
+                return res.status(400).json({
+                  success: false,
+                  message: "All questions must have a type and question text",
+                });
+              }
+
+              // Validate MCQ questions
+              if (["mcq-single", "mcq-multiple"].includes(question.type)) {
+                if (
+                  !Array.isArray(question.options) ||
+                  question.options.length < 2
+                ) {
+                  return res.status(400).json({
+                    success: false,
+                    message: "MCQ questions must have at least 2 options",
+                  });
+                }
+                if (
+                  question.correctAnswer === undefined ||
+                  question.correctAnswer === null
+                ) {
+                  return res.status(400).json({
+                    success: false,
+                    message:
+                      "MCQ questions must have a correct answer selected",
+                  });
+                }
+
+                // Remove expectedAnswer field if it exists for MCQ questions
+                if (question.expectedAnswer !== undefined) {
+                  delete question.expectedAnswer;
+                }
+              }
+
+              // Validate short/broad answer questions
+              if (["short-answer", "broad-answer"].includes(question.type)) {
+                if (
+                  question.expectedAnswer === undefined ||
+                  question.expectedAnswer === null ||
+                  question.expectedAnswer.trim() === ""
+                ) {
+                  return res.status(400).json({
+                    success: false,
+                    message:
+                      "Short and broad answer questions must have an expected answer",
+                  });
+                }
+
+                // Remove correctAnswer field if it exists for short/broad answers
+                if (question.correctAnswer !== undefined) {
+                  delete question.correctAnswer;
+                }
+
+                // Remove options field if it exists for short/broad answers
+                if (question.options !== undefined) {
+                  delete question.options;
+                }
+              }
+            }
+          }
+        }
+
         // For live courses, validate all items are live sessions
         if (type === "live") {
           const invalidItems = parsedContent.filter(

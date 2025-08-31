@@ -13,8 +13,7 @@ import {
   FiChevronDown,
   FiChevronUp,
 } from "react-icons/fi";
-import ReactQuill from "react-quill";
-import "react-quill/dist/quill.snow.css";
+
 import toast from "react-hot-toast";
 import axios from "axios";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
@@ -88,28 +87,6 @@ const CourseCreator = () => {
   });
   const [expandedSections, setExpandedSections] = useState({});
   const [availableCategories, setAvailableCategories] = useState([]);
-  const quillModules = {
-    toolbar: [
-      [{ header: [1, 2, 3, false] }],
-      ["bold", "italic", "underline", "strike", "blockquote"],
-      [{ list: "ordered" }, { list: "bullet" }],
-      ["link", "image"],
-      ["clean"],
-    ],
-  };
-
-  const quillFormats = [
-    "header",
-    "bold",
-    "italic",
-    "underline",
-    "strike",
-    "blockquote",
-    "list",
-    "bullet",
-    "link",
-    "image",
-  ];
 
   const moveContentItem = (dragIndex, hoverIndex) => {
     setCourseData((prev) => {
@@ -209,23 +186,31 @@ const CourseCreator = () => {
       id: Date.now(),
       question: "",
       type: questionType,
-      answer: "",
       marks: 1,
     };
 
     let question;
     switch (questionType) {
       case "mcq-single":
+        question = {
+          ...baseQuestion,
+          options: ["", ""],
+          correctAnswer: 0,
+        };
+        break;
       case "mcq-multiple":
         question = {
           ...baseQuestion,
           options: ["", ""],
-          correctAnswer: questionType === "mcq-single" ? 0 : [],
+          correctAnswer: [],
         };
         break;
       case "short-answer":
       case "broad-answer":
-        question = baseQuestion;
+        question = {
+          ...baseQuestion,
+          expectedAnswer: "", // Use expectedAnswer instead of correctAnswer
+        };
         break;
       default:
         question = baseQuestion;
@@ -244,7 +229,6 @@ const CourseCreator = () => {
       }),
     }));
   };
-
   const addOption = (quizId, questionId) => {
     setCourseData((prev) => ({
       ...prev,
@@ -382,7 +366,14 @@ const CourseCreator = () => {
             ...item,
             questions: item.questions.map((q) => {
               if (q.id === questionId) {
-                return { ...q, answer: value };
+                // For short/broad answers, update expectedAnswer
+                if (["short-answer", "broad-answer"].includes(q.type)) {
+                  return { ...q, expectedAnswer: value };
+                }
+                // For MCQ questions, update answer (for student responses)
+                else {
+                  return { ...q, answer: value };
+                }
               }
               return q;
             }),
@@ -487,36 +478,34 @@ const CourseCreator = () => {
   const publishCourse = async () => {
     try {
       // Convert HTML descriptions to plain text
-      const plainTextDescription = stripHtmlTags(courseData.description);
+      // Use the description and content as is (no HTML stripping needed)
       const contentWithPlainText = courseData.content.map((item) => {
-        const plainTextItem = {
-          ...item,
-          description: item.description ? stripHtmlTags(item.description) : "",
-        };
         if (item.type === "quiz") {
           return {
-            ...plainTextItem,
+            ...item,
             questions: item.questions.map((question) => {
-              const plainTextQuestion = {
-                ...question,
-                question: stripHtmlTags(question.question),
-              };
-
+              // For broad answer questions, ensure we use expectedAnswer
               if (question.type === "broad-answer") {
                 return {
-                  ...plainTextQuestion,
-                  answer: question.answer ? stripHtmlTags(question.answer) : "",
+                  ...question,
+                  // Remove any answer field if it exists
+                  answer: undefined,
                 };
               }
-              return plainTextQuestion;
+              return question;
             }),
           };
         }
-        return plainTextItem;
+        return item;
       });
 
       // Validate required fields
-      if (!courseData.title || !plainTextDescription || !courseData.thumbnail) {
+      // Validate required fields
+      if (
+        !courseData.title ||
+        !courseData.description ||
+        !courseData.thumbnail
+      ) {
         throw new Error("Please fill all required fields");
       }
       if (!courseData.category) {
@@ -601,7 +590,7 @@ const CourseCreator = () => {
       // Prepare form data for upload
       const formData = new FormData();
       formData.append("title", courseData.title);
-      formData.append("description", plainTextDescription);
+      formData.append("description", courseData.description);
       formData.append("categories", JSON.stringify([courseData.category]));
       formData.append("level", courseData.level);
       formData.append("type", courseType);
@@ -726,7 +715,7 @@ const CourseCreator = () => {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setCourseType("free")}
-                  className="bg-white p-8 rounded-xl shadow-md border border-gray-200 hover:border-gray-500 transition-all flex flex-col items-center w-64"
+                  className="bg-white p-8 rounded-xl shadow-md border border-gray-200 hover:border-gray-500 focus:border-gray-500 transition-all flex flex-col items-center w-64"
                 >
                   <div className="bg-gray-100 p-4 rounded-full mb-4">
                     <FiYoutube className="text-gray-600 text-2xl" />
@@ -744,7 +733,7 @@ const CourseCreator = () => {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setCourseType("premium")}
-                  className="bg-white p-8 rounded-xl shadow-md border border-gray-200 hover:border-gray-500 transition-all flex flex-col items-center w-64"
+                  className="bg-white p-8 rounded-xl shadow-md border border-gray-200 hover:border-gray-500 focus:border-gray-500 transition-all flex flex-col items-center w-64"
                 >
                   <div className="bg-gray-100 p-4 rounded-full mb-4">
                     <FiDollarSign className="text-gray-600 text-2xl" />
@@ -822,7 +811,7 @@ const CourseCreator = () => {
                       name="title"
                       value={courseData.title}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500"
                       required
                     />
                   </div>
@@ -830,17 +819,14 @@ const CourseCreator = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Course Description *
                     </label>
-                    <ReactQuill
-                      theme="snow"
+                    <textarea
+                      name="description"
                       value={courseData.description}
-                      onChange={(value) =>
-                        handleInputChange({
-                          target: { name: "description", value },
-                        })
-                      }
-                      modules={quillModules}
-                      formats={quillFormats}
-                      className="mb-4"
+                      onChange={handleInputChange}
+                      rows={6}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 resize-vertical"
+                      required
+                      placeholder="Enter course description"
                     />
                   </div>
                   {/* ▼ Single‐select dropdown for Categories ▼ */}
@@ -1079,7 +1065,7 @@ const CourseCreator = () => {
                                         e.target.value
                                       )
                                     }
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500"
                                     required
                                   />
                                 </div>
@@ -1087,19 +1073,18 @@ const CourseCreator = () => {
                                   <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Description
                                   </label>
-                                  <ReactQuill
-                                    theme="snow"
+                                  <textarea
                                     value={item.description}
-                                    onChange={(value) =>
+                                    onChange={(e) =>
                                       handleContentChange(
                                         item.id,
                                         "description",
-                                        value
+                                        e.target.value
                                       )
                                     }
-                                    modules={quillModules}
-                                    formats={quillFormats}
-                                    className="mb-4"
+                                    rows={4}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 resize-vertical"
+                                    placeholder="Enter tutorial description"
                                   />
                                 </div>
                                 {courseType === "free" ? (
@@ -1120,7 +1105,7 @@ const CourseCreator = () => {
                                           )
                                         }
                                         placeholder="https://www.youtube.com/watch?v=..."
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500"
                                         required
                                       />
                                     </div>
@@ -1194,7 +1179,7 @@ const CourseCreator = () => {
                                         e.target.value
                                       )
                                     }
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500"
                                     required
                                   />
                                 </div>
@@ -1202,19 +1187,18 @@ const CourseCreator = () => {
                                   <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Description
                                   </label>
-                                  <ReactQuill
-                                    theme="snow"
+                                  <textarea
                                     value={item.description}
-                                    onChange={(value) =>
+                                    onChange={(e) =>
                                       handleContentChange(
                                         item.id,
                                         "description",
-                                        value
+                                        e.target.value
                                       )
                                     }
-                                    modules={quillModules}
-                                    formats={quillFormats}
-                                    className="mb-4"
+                                    rows={4}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 resize-vertical"
+                                    placeholder="Enter quiz description"
                                   />
                                 </div>
                                 <div>
@@ -1232,7 +1216,7 @@ const CourseCreator = () => {
                                       )
                                     }
                                     placeholder="https://zoom.us/j/... or https://meet.google.com/..."
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500"
                                   />
                                 </div>
                                 <div className="mb-4">
@@ -1250,7 +1234,7 @@ const CourseCreator = () => {
                                         e.target.value
                                       );
                                     }}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500"
                                     required
                                   />
                                 </div>
@@ -1272,7 +1256,7 @@ const CourseCreator = () => {
                                         e.target.value
                                       )
                                     }
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500"
                                     required
                                   />
                                 </div>
@@ -1280,29 +1264,28 @@ const CourseCreator = () => {
                                   <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Description
                                   </label>
-                                  <ReactQuill
-                                    theme="snow"
+                                  <textarea
                                     value={item.description}
-                                    onChange={(value) =>
+                                    onChange={(e) =>
                                       handleContentChange(
                                         item.id,
                                         "description",
-                                        value
+                                        e.target.value
                                       )
                                     }
-                                    modules={quillModules}
-                                    formats={quillFormats}
-                                    className="mb-4"
+                                    rows={4}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 resize-vertical"
+                                    placeholder="Enter live class description"
                                   />
                                 </div>
 
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
                                   <div className="flex justify-between items-center">
-                                    <span className="text-sm font-medium text-blue-800">
+                                    <span className="text-sm font-medium text-gray-800">
                                       Total Quiz Marks:{" "}
                                       {calculateQuizTotalMarks(item)}
                                     </span>
-                                    <span className="text-xs text-blue-600">
+                                    <span className="text-xs text-gray-600">
                                       {item.questions.length} question
                                       {item.questions.length !== 1 ? "s" : ""}
                                     </span>
@@ -1330,7 +1313,7 @@ const CourseCreator = () => {
                                                 e.target.value
                                               )
                                             }
-                                            className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                            className="text-sm border border-gray-300 rounded px-2 py-1  focus:border-gray-500 hover:border-gray-500"
                                           >
                                             <option value="mcq-single">
                                               Single Choice MCQ
@@ -1388,7 +1371,7 @@ const CourseCreator = () => {
                                             )
                                           }
                                           placeholder="Enter question"
-                                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                          className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500"
                                           required
                                         />
                                       </div>
@@ -1411,7 +1394,7 @@ const CourseCreator = () => {
                                             )
                                           }
                                           placeholder="Enter marks for this question"
-                                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                                          className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500"
                                           required
                                         />
                                       </div>
@@ -1525,11 +1508,13 @@ const CourseCreator = () => {
                                       ) : question.type === "short-answer" ? (
                                         <div className="mt-2">
                                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Answer
+                                            Expected Answer
                                           </label>
                                           <input
                                             type="text"
-                                            value={question.answer}
+                                            value={
+                                              question.expectedAnswer || ""
+                                            }
                                             onChange={(e) =>
                                               handleAnswerChange(
                                                 item.id,
@@ -1537,43 +1522,45 @@ const CourseCreator = () => {
                                                 e.target.value
                                               )
                                             }
-                                            placeholder="Enter expected short answer"
-                                            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 ${
-                                              question.answer
+                                            placeholder="Enter expected answer"
+                                            className={`w-full px-4 py-2 border rounded-lg  focus:border-gray-500 ${
+                                              question.expectedAnswer
                                                 ? "border-green-500 bg-green-50"
                                                 : "border-gray-300"
                                             }`}
                                           />
                                         </div>
-                                      ) : (
+                                      ) : question.type === "broad-answer" ? (
                                         <div className="mt-2">
                                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Answer
+                                            Expected Answer
                                           </label>
-                                          <div
-                                            className={`border rounded-lg ${
-                                              question.answer
-                                                ? "border-green-500 bg-green-50"
-                                                : "border-gray-300"
-                                            }`}
-                                          >
-                                            <ReactQuill
-                                              theme="snow"
-                                              value={question.answer}
-                                              onChange={(value) =>
+                                          <div className="mt-2">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                              Expected Answer
+                                            </label>
+                                            <textarea
+                                              value={
+                                                question.expectedAnswer || ""
+                                              }
+                                              onChange={(e) =>
                                                 handleAnswerChange(
                                                   item.id,
                                                   question.id,
-                                                  value
+                                                  e.target.value
                                                 )
                                               }
-                                              modules={quillModules}
-                                              formats={quillFormats}
-                                              className="mb-4"
+                                              rows={6}
+                                              className={`w-full px-4 py-2 border rounded-lg  focus:border-gray-500 resize-vertical ${
+                                                question.expectedAnswer
+                                                  ? "border-green-500 bg-green-50"
+                                                  : "border-gray-300"
+                                              }`}
+                                              placeholder="Enter expected answer"
                                             />
                                           </div>
                                         </div>
-                                      )}
+                                      ) : null}
                                     </div>
                                   ))}
                                   <div className="flex flex-wrap gap-2">
@@ -1638,7 +1625,7 @@ const CourseCreator = () => {
                       placeholder="Enter course price"
                       min="0"
                       step="0.01"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500"
                       required
                     />
                   </div>
