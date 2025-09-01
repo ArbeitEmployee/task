@@ -473,20 +473,45 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
     let maxScore = 0;
     const detailedAnswers = [];
     let needsManualGrading = false;
+    let autoGradedScore = 0;
+    let autoGradedMaxScore = 0;
 
     quiz.questions.forEach((question) => {
       maxScore += question.marks;
 
       const userAnswer = answers[question._id];
 
-      if (userAnswer === undefined || userAnswer === null) return;
+      if (userAnswer === undefined || userAnswer === null) {
+        // No answer provided for this question
+        detailedAnswers.push({
+          questionId: question._id,
+          questionText: question.question,
+          questionType: question.type,
+          answer: userAnswer,
+          isCorrect: false,
+          correctAnswer: question.correctAnswer,
+          marksObtained: 0,
+          maxMarks: question.marks,
+          explanation: question.explanation,
+          needsManualGrading: false,
+          status: "not-answered",
+        });
+        return;
+      }
 
       let isCorrect = false;
       let marksObtained = 0;
+      let questionNeedsManualGrading = false;
 
       switch (question.type) {
         case "mcq-single":
           isCorrect = userAnswer === question.correctAnswer;
+          if (isCorrect) {
+            marksObtained = question.marks;
+            score += question.marks;
+            autoGradedScore += question.marks;
+          }
+          autoGradedMaxScore += question.marks;
           break;
         case "mcq-multiple":
           if (
@@ -496,18 +521,23 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
             isCorrect =
               userAnswer.length === question.correctAnswer.length &&
               userAnswer.every((ans) => question.correctAnswer.includes(ans));
+            if (isCorrect) {
+              marksObtained = question.marks;
+              score += question.marks;
+              autoGradedScore += question.marks;
+            }
           }
+          autoGradedMaxScore += question.marks;
           break;
         case "short-answer":
         case "broad-answer":
+          // For manual grading questions, set marks to 0 initially
+          // and mark as needing manual grading
+          questionNeedsManualGrading = true;
           needsManualGrading = true;
-          isCorrect = false;
+          isCorrect = false; // Will be determined by teacher later
+          marksObtained = 0; // Initial score is 0 until graded
           break;
-      }
-
-      if (isCorrect) {
-        marksObtained = question.marks;
-        score += question.marks;
       }
 
       detailedAnswers.push({
@@ -520,13 +550,31 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
         marksObtained,
         maxMarks: question.marks,
         explanation: question.explanation,
-        needsManualGrading:
-          question.type === "short-answer" || question.type === "broad-answer",
+        needsManualGrading: questionNeedsManualGrading,
+        status: questionNeedsManualGrading
+          ? "awaiting-grading"
+          : isCorrect
+          ? "correct"
+          : "incorrect",
       });
     });
 
-    const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
-    const passed = percentage >= (quiz.passingScore || 70);
+    // Calculate percentage based on auto-graded questions only
+    // Manual graded questions will contribute 0 until graded
+    const autoGradedPercentage =
+      autoGradedMaxScore > 0
+        ? Math.round((autoGradedScore / autoGradedMaxScore) * 100)
+        : 0;
+
+    // For now, use auto-graded score only until manual grading is complete
+    const currentScore = score;
+    const currentPercentage =
+      maxScore > 0 ? Math.round((currentScore / maxScore) * 100) : 0;
+    // Only consider quiz as passed if no manual grading is needed
+    // OR if auto-graded portion already meets passing criteria
+    const passed = !needsManualGrading
+      ? currentPercentage >= 40
+      : autoGradedPercentage >= 40;
     const gradingStatus = needsManualGrading
       ? "partially-graded"
       : "auto-graded";
@@ -556,9 +604,9 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
     }
 
     progress.answers = detailedAnswers;
-    progress.score = score;
+    progress.score = currentScore;
     progress.maxScore = maxScore;
-    progress.percentage = percentage;
+    progress.percentage = currentPercentage;
     progress.passed = passed;
     progress.completed = true;
     progress.completedAt = now;
@@ -567,8 +615,8 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
     progress.status = "completed";
     progress.gradingStatus = gradingStatus;
 
-    if (score > progress.bestScore) {
-      progress.bestScore = score;
+    if (currentScore > progress.bestScore) {
+      progress.bestScore = currentScore;
       progress.bestAttempt = progress.attempts;
     }
 
@@ -581,9 +629,11 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
 
     enrollment.lastAccessed = now;
 
+    // Check if all content is completed (but don't mark course as completed
+    // if there are quizzes awaiting manual grading)
     const allContentIds = course.content.map((item) => item._id.toString());
     const completedContentIds = enrollment.progress
-      .filter((p) => p.completed)
+      .filter((p) => p.completed && p.gradingStatus !== "partially-graded")
       .map((p) => p.contentItemId.toString());
 
     const allCompleted = allContentIds.every((id) =>
@@ -605,9 +655,9 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
 
     res.json({
       success: true,
-      score,
+      score: currentScore,
       maxScore,
-      percentage,
+      percentage: currentPercentage,
       passed,
       answers: detailedAnswers,
       attempts: progress.attempts,
@@ -615,6 +665,10 @@ Courseplayer.post("/submit-quiz", async (req, res) => {
       certificateUrl,
       courseCompleted: allCompleted,
       gradingStatus,
+      needsManualGrading,
+      autoGradedScore,
+      autoGradedMaxScore,
+      autoGradedPercentage,
     });
   } catch (error) {
     console.log("Quiz submission error:", error);

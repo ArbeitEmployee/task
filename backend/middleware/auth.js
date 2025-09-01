@@ -20,7 +20,7 @@ const authenticateToken = async (req, res, next) => {
 
     if (user.status !== "active") {
       return res.status(403).json({
-        message: `Account is ${user.status}. Please contact admin.`
+        message: `Account is ${user.status}. Please contact admin.`,
       });
     }
 
@@ -32,7 +32,7 @@ const authenticateToken = async (req, res, next) => {
       );
       if (decoded.iat < changedTimestamp) {
         return res.status(403).json({
-          message: "Password was changed. Please login again."
+          message: "Password was changed. Please login again.",
         });
       }
     }
@@ -58,7 +58,7 @@ const authenticateToken = async (req, res, next) => {
 const authorizeAdmin = (req, res, next) => {
   if (req.role !== "admin") {
     return res.status(403).json({
-      message: "Access denied. Requires admin privileges."
+      message: "Access denied. Requires admin privileges.",
     });
   }
   next();
@@ -67,7 +67,7 @@ const authorizeAdmin = (req, res, next) => {
 const authorizeSubAdmin = (req, res, next) => {
   if (!["admin", "subadmin"].includes(req.role)) {
     return res.status(403).json({
-      message: "Access denied. Requires at least subadmin privileges."
+      message: "Access denied. Requires at least subadmin privileges.",
     });
   }
   next();
@@ -77,7 +77,7 @@ const checkAccountStatus = (requiredStatus) => {
   return (req, res, next) => {
     if (req.admin.status !== requiredStatus) {
       return res.status(403).json({
-        message: `Access denied. Account must be ${requiredStatus}.`
+        message: `Access denied. Account must be ${requiredStatus}.`,
       });
     }
     next();
@@ -88,5 +88,5 @@ module.exports = {
   authenticateToken,
   authorizeAdmin,
   authorizeSubAdmin,
-  checkAccountStatus
+  checkAccountStatus,
 };
