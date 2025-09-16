@@ -14,6 +14,10 @@ const employeeRoutes = require("./routes/Employee");
 const app = express();
 const PORT = process.env.PORT || 3500;
 
+//Muslim
+const criteriaRoutes = require('./routes/criteria');
+
+
 // CORS Configuration
 const corsOptions = {
   origin: ["http://localhost:5173", "http://localhost:5174"], // Allow only this origin
@@ -38,6 +42,9 @@ app.use(express.static("public"));
 app.use("/api/hero", heroSectionRoutes);
 app.use("/api/employee", employeeRoutes);
 app.use("/api/employee/visa", employeeRoutes);
+
+//Muslim
+app.use('/api/criterias', criteriaRoutes);
 
 // DB Connection
 connectDB();

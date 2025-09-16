@@ -19,6 +19,9 @@ import ConsultationManagement from "./consultancy/ConsultationManagement";
 import EmployeeList from "./Employee/EmployeeList";
 import VisaRequestsList from "./visa/VisaRequestsList";
 import VisaManagement from "./visa/visaManagement/VisaManagement";
+import Criteria from "./country/criteria";
+import CriteriaList from "./country/criteriaList";
+import CountryCreate from "./country/countryCreate";
 
 const AdminDashboard = () => {
   const [activeView, setActiveView] = useState(() => {
@@ -63,6 +66,18 @@ const AdminDashboard = () => {
         return <HeroForm />;
       case "modifyHero":
         return <HeroModify />;
+
+      //Muslim
+      
+      case "criteriaCountry":
+        return <Criteria />;
+      case "modifyListCriterias":
+        return <CriteriaList />;
+      case "createCountry":
+        return <CountryCreate />;
+
+
+    
       case "TeacherRegistration":
         return (
           <TeacherRegistration setNotificationCount={setNotificationCount} />

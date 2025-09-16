@@ -14,7 +14,8 @@ import {
   FiUser,
   FiLayers,
   FiBook,
-  FiGlobe
+  FiGlobe,
+  FiFlag
 } from "react-icons/fi";
 import axios from "axios";
 import { toast } from "react-hot-toast";
@@ -68,6 +69,16 @@ const Sidebar = ({
       children: [
         { name: "Create Hero ", component: "createHero" },
         { name: "Modify Hero ", component: "modifyHero" }
+      ]
+    },
+    {
+      name: "Country",
+      icon: <FiFlag />,
+      children: [
+        { name: "Criteria ", component: "criteriaCountry" },
+        { name: "Modify & List Ctiterias ", component: "modifyListCtiterias" },
+        { name: "Country Create ", component: "createCountry" },
+        { name: "Modify Country ", component: "modifyCountry" }
       ]
     },
     {
