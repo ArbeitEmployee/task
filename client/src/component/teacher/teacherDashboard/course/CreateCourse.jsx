@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
 import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -13,11 +12,61 @@ import {
   FiChevronDown,
   FiChevronUp,
 } from "react-icons/fi";
-import ReactQuill from "react-quill";
-import "react-quill/dist/quill.snow.css";
 import toast, { Toaster } from "react-hot-toast";
 import axios from "axios";
+import { DndProvider, useDrag, useDrop } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
+const ItemTypes = {
+  CONTENT_ITEM: "contentItem",
+};
+const DraggableItem = ({ id, index, moveItem, children }) => {
+  const ref = useRef(null);
 
+  const [{ isDragging }, drag] = useDrag({
+    type: ItemTypes.CONTENT_ITEM,
+    item: { id, index },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
+
+  const [, drop] = useDrop({
+    accept: ItemTypes.CONTENT_ITEM,
+    hover(item, monitor) {
+      if (!ref.current) return;
+      const dragIndex = item.index;
+      const hoverIndex = index;
+
+      if (dragIndex === hoverIndex) return;
+
+      const hoverBoundingRect = ref.current?.getBoundingClientRect();
+      const hoverMiddleY =
+        (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
+      const clientOffset = monitor.getClientOffset();
+      const hoverClientY = clientOffset.y - hoverBoundingRect.top;
+
+      if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) return;
+      if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) return;
+
+      moveItem(dragIndex, hoverIndex);
+      item.index = hoverIndex;
+    },
+  });
+
+  drag(drop(ref));
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        opacity: isDragging ? 0.5 : 1,
+        cursor: "move",
+      }}
+    >
+      {children}
+    </div>
+  );
+};
 const CreateCourse = () => {
   const base_url = import.meta.env.VITE_API_KEY_Base_URL;
   const [courseType, setCourseType] = useState(null);
@@ -29,40 +78,29 @@ const CreateCourse = () => {
     content: [],
     price: "",
     categories: [],
-    requirements: [],
-    whatYouWillLearn: [],
     level: "beginner",
-    category: "", // Added category field
+    category: "",
   });
+
+  const moveContentItem = (dragIndex, hoverIndex) => {
+    setCourseData((prev) => {
+      const newContent = [...prev.content];
+      const draggedItem = newContent[dragIndex];
+
+      newContent.splice(dragIndex, 1);
+      newContent.splice(hoverIndex, 0, draggedItem);
+
+      return {
+        ...prev,
+        content: newContent,
+      };
+    });
+  };
   const [expandedSections, setExpandedSections] = useState({});
-  const [newCategory, setNewCategory] = useState("");
-  const [newRequirement, setNewRequirement] = useState("");
-  const [newLearningPoint, setNewLearningPoint] = useState("");
+
   const [categories, setCategories] = useState([]); // Added categories state
   const [loadingCategories, setLoadingCategories] = useState(false); // Added loading state
 
-  // React Quill modules configuration
-  const quillModules = {
-    toolbar: [
-      [{ header: [1, 2, 3, false] }],
-      ["bold", "italic", "underline", "strike"],
-      [{ list: "ordered" }, { list: "bullet" }],
-      ["link", "image"],
-      ["clean"],
-    ],
-  };
-
-  const quillFormats = [
-    "header",
-    "bold",
-    "italic",
-    "underline",
-    "strike",
-    "list",
-    "bullet",
-    "link",
-    "image",
-  ];
   // Fetch categories when component mounts
   useEffect(() => {
     const fetchCategories = async () => {
@@ -92,6 +130,7 @@ const CreateCourse = () => {
     if (courseType) {
       fetchCategories();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseType]);
 
   // Toggle section expansion
@@ -102,64 +141,12 @@ const CreateCourse = () => {
     }));
   };
 
-  // Add a new category
-  const addCategory = () => {
-    if (
-      newCategory.trim() &&
-      !courseData.categories.includes(newCategory.trim())
-    ) {
-      setCourseData((prev) => ({
-        ...prev,
-        categories: [...prev.categories, newCategory.trim()],
-      }));
-      setNewCategory("");
-    }
-  };
+  const [activeView, setActiveView] = useState("dashboard");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // Remove a category
-  const removeCategory = (index) => {
-    setCourseData((prev) => ({
-      ...prev,
-      categories: prev.categories.filter((_, i) => i !== index),
-    }));
-  };
-
-  // Add a new requirement
-  const addRequirement = () => {
-    if (newRequirement.trim()) {
-      setCourseData((prev) => ({
-        ...prev,
-        requirements: [...prev.requirements, newRequirement.trim()],
-      }));
-      setNewRequirement("");
-    }
-  };
-
-  // Remove a requirement
-  const removeRequirement = (index) => {
-    setCourseData((prev) => ({
-      ...prev,
-      requirements: prev.requirements.filter((_, i) => i !== index),
-    }));
-  };
-
-  // Add a new learning point
-  const addLearningPoint = () => {
-    if (newLearningPoint.trim()) {
-      setCourseData((prev) => ({
-        ...prev,
-        whatYouWillLearn: [...prev.whatYouWillLearn, newLearningPoint.trim()],
-      }));
-      setNewLearningPoint("");
-    }
-  };
-
-  // Remove a learning point
-  const removeLearningPoint = (index) => {
-    setCourseData((prev) => ({
-      ...prev,
-      whatYouWillLearn: prev.whatYouWillLearn.filter((_, i) => i !== index),
-    }));
+  // Toggle sidebar function
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
   };
 
   const addTutorial = (isPremium = false) => {
@@ -168,9 +155,8 @@ const CreateCourse = () => {
       type: "tutorial",
       title: "",
       description: "",
-      content: isPremium ? null : "",
-      youtubeLink: !isPremium ? "" : null,
       isPremium: isPremium,
+      ...(isPremium ? { contentFile: null, content: "" } : { youtubeLink: "" }),
       isExpanded: true,
     };
     setCourseData((prev) => ({
@@ -197,6 +183,7 @@ const CreateCourse = () => {
           options: ["", ""],
           correctAnswer: 0,
           answer: "",
+          marks: 1,
         },
       ],
       isExpanded: true,
@@ -237,22 +224,31 @@ const CreateCourse = () => {
       id: Date.now(),
       question: "",
       type: questionType,
-      answer: "",
+      marks: 1,
     };
 
     let question;
     switch (questionType) {
       case "mcq-single":
+        question = {
+          ...baseQuestion,
+          options: ["", ""],
+          correctAnswer: 0,
+        };
+        break;
       case "mcq-multiple":
         question = {
           ...baseQuestion,
           options: ["", ""],
-          correctAnswer: questionType === "mcq-single" ? 0 : [],
+          correctAnswer: [],
         };
         break;
       case "short-answer":
       case "broad-answer":
-        question = baseQuestion;
+        question = {
+          ...baseQuestion,
+          expectedAnswer: "", // Use expectedAnswer instead of correctAnswer
+        };
         break;
       default:
         question = baseQuestion;
@@ -320,6 +316,13 @@ const CreateCourse = () => {
         return item;
       }),
     }));
+  };
+
+  const calculateQuizTotalMarks = (quiz) => {
+    return quiz.questions.reduce(
+      (total, question) => total + (question.marks || 1),
+      0
+    );
   };
 
   const handleQuestionChange = (quizId, questionId, field, value) => {
@@ -402,7 +405,14 @@ const CreateCourse = () => {
             ...item,
             questions: item.questions.map((q) => {
               if (q.id === questionId) {
-                return { ...q, answer: value };
+                // For short/broad answers, update expectedAnswer
+                if (["short-answer", "broad-answer"].includes(q.type)) {
+                  return { ...q, expectedAnswer: value };
+                }
+                // For MCQ questions, update answer (for student responses)
+                else {
+                  return { ...q, answer: value };
+                }
               }
               return q;
             }),
@@ -412,7 +422,6 @@ const CreateCourse = () => {
       }),
     }));
   };
-
   const handleFileUpload = (e, id, field = "content") => {
     const file = e.target.files[0];
     if (file) {
@@ -491,6 +500,27 @@ const CreateCourse = () => {
 
   const publishCourse = async () => {
     try {
+      // Convert HTML descriptions to plain text
+      const contentWithPlainText = courseData.content.map((item) => {
+        if (item.type === "quiz") {
+          return {
+            ...item,
+            questions: item.questions.map((question) => {
+              // For broad answer questions, ensure we use expectedAnswer
+              if (question.type === "broad-answer") {
+                return {
+                  ...question,
+                  // Remove any answer field if it exists
+                  answer: undefined,
+                };
+              }
+              return question;
+            }),
+          };
+        }
+        return item;
+      });
+
       // Validate required fields
       if (
         !courseData.title ||
@@ -499,17 +529,22 @@ const CreateCourse = () => {
       ) {
         throw new Error("Please fill all required fields");
       }
-
-      if (courseData.content.length === 0) {
+      if (!courseData.category) {
+        throw new Error("Please select a category");
+      }
+      if (contentWithPlainText.length === 0) {
         throw new Error("Please add at least one content item");
       }
 
-      if (courseType === "premium" && !courseData.price) {
-        throw new Error("Please set a price for premium courses");
+      if (
+        (courseType === "premium" || courseType === "live") &&
+        !courseData.price
+      ) {
+        throw new Error("Please set a price for this course");
       }
 
       // Validate content items
-      for (const item of courseData.content) {
+      for (const item of contentWithPlainText) {
         if (!item.title) {
           throw new Error(`Please add a title for all content items`);
         }
@@ -520,7 +555,7 @@ const CreateCourse = () => {
               `Please add a YouTube link for tutorial "${item.title}"`
             );
           }
-          if (courseType === "premium" && !item.content) {
+          if (courseType === "premium" && !item.contentFile) {
             throw new Error(
               `Please upload a video for tutorial "${item.title}"`
             );
@@ -578,30 +613,62 @@ const CreateCourse = () => {
       const formData = new FormData();
       formData.append("title", courseData.title);
       formData.append("description", courseData.description);
-      formData.append("thumbnail", courseData.thumbnail);
-      formData.append("type", courseType);
-      formData.append("price", courseType === "premium" ? courseData.price : 0);
-      formData.append("content", JSON.stringify(courseData.content));
-      formData.append("categories", JSON.stringify(courseData.categories));
-      formData.append("requirements", JSON.stringify(courseData.requirements));
-      formData.append(
-        "whatYouWillLearn",
-        JSON.stringify(courseData.whatYouWillLearn)
-      );
+      formData.append("category", courseData.category);
       formData.append("level", courseData.level);
-      formData.append("status", "draft");
+      formData.append("type", courseType);
+      formData.append(
+        "price",
+        courseType === "premium" || courseType === "live" ? courseData.price : 0
+      );
+
+      // Append thumbnail
+      if (courseData.thumbnail) {
+        formData.append("thumbnail", courseData.thumbnail);
+      }
+
+      // Process content items
+      const processedContent = courseData.content.map((item) => {
+        const contentItem = {
+          ...item,
+          description: item.description ? item.description : "",
+        };
+
+        // For premium tutorials, include the filename reference
+        if (
+          item.type === "tutorial" &&
+          courseType === "premium" &&
+          item.contentFile
+        ) {
+          contentItem.content = {
+            filename: item.contentFile.name,
+          };
+        }
+
+        // For live sessions, include thumbnail filename if exists
+        if (item.type === "live" && item.thumbnail) {
+          contentItem.thumbnail = {
+            filename: item.thumbnail.name,
+          };
+        }
+
+        // Remove the file objects before stringifying
+        delete contentItem.contentFile;
+        return contentItem;
+      });
+
+      formData.append("content", JSON.stringify(processedContent));
       formData.append("user_id", teacherdata._id);
-      formData.append("category", courseData.category); // Added category
+
       // Add attachments
       courseData.attachments.forEach((file) => {
         formData.append("attachments", file);
       });
 
-      // Add content files (videos and thumbnails for premium courses)
+      // Add content files (videos for premium courses)
       if (courseType === "premium") {
         courseData.content.forEach((item) => {
-          if (item.type === "tutorial" && item.content) {
-            formData.append("contentVideos", item.content);
+          if (item.type === "tutorial" && item.contentFile) {
+            formData.append("contentVideos", item.contentFile);
           }
           if (item.type === "live" && item.thumbnail) {
             formData.append("contentThumbnails", item.thumbnail);
@@ -626,7 +693,7 @@ const CreateCourse = () => {
 
       // Success handling
       toast.dismiss(loadingToast);
-      toast.success(`Course "${courseData.title}" published successfully!`);
+      toast.success("Course published successfully!");
 
       // Reset form
       setCourseData({
@@ -636,10 +703,8 @@ const CreateCourse = () => {
         attachments: [],
         content: [],
         price: "",
-        categories: [],
-        requirements: [],
-        whatYouWillLearn: [],
         level: "beginner",
+        category: "",
       });
       setCourseType(null);
       setExpandedSections({});
@@ -650,1032 +715,943 @@ const CreateCourse = () => {
           error.message ||
           "Failed to publish course"
       );
-      console.error("Publish error:", error);
     }
   };
-
   return (
-    <div className="">
-      <div className="flex w-full h-[94vh] bg-white overflow-hidden">
-        {/* Main Content Section */}
-        <div className="flex-1 h-full overflow-auto">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-            className="min-h-screen"
-          >
-            <div className="max-w-full mx-auto">
-              {!courseType ? (
-                <div className="flex flex-col items-center justify-center h-[70vh]">
-                  <motion.h1
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                    className="text-3xl font-bold text-gray-800 mb-8"
-                  >
-                    Create New Course
-                  </motion.h1>
+    <DndProvider backend={HTML5Backend}>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="min-h-screen"
+      >
+        <div className="max-w-full mx-auto">
+          {!courseType ? (
+            <div className="flex flex-col items-center justify-center h-[70vh]">
+              <motion.h1
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="text-3xl font-bold text-gray-800 mb-8"
+              >
+                Create New Course
+              </motion.h1>
 
-                  <div className="flex gap-6">
-                    {/* Free Course Button */}
-                    <motion.button
-                      initial={{ opacity: 0, x: -50 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.5, delay: 0.2 }}
-                      whileHover={{
-                        scale: 1.05,
-                        boxShadow: "0 10px 25px -5px rgba(59, 130, 246, 0.4)",
-                      }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setCourseType("free")}
-                      className="bg-white p-8 rounded-xl shadow-md border cursor-pointer border-gray-200 hover:border-blue-500 transition-all flex flex-col items-center w-64 relative overflow-hidden group"
-                    >
-                      {/* Background animation element */}
-                      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-
-                      <motion.div
-                        whileHover={{ rotate: 10 }}
-                        className="bg-blue-100 p-4 rounded-full mb-4 z-10"
-                      >
-                        <FiYoutube className="text-blue-600 text-2xl" />
-                      </motion.div>
-
-                      <h2 className="text-xl font-semibold text-gray-800 mb-2 z-10">
-                        Free Course
-                      </h2>
-
-                      <p className="text-gray-600 text-center z-10">
-                        Create course with YouTube video links
-                      </p>
-
-                      {/* Ripple effect on hover */}
-                      <span className="absolute inset-0 rounded-xl border-2 border-transparent group-hover:border-blue-300 group-hover:animate-ping-once pointer-events-none"></span>
-                    </motion.button>
-
-                    {/* Premium Course Button */}
-                    <motion.button
-                      initial={{ opacity: 0, x: 50 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.5, delay: 0.2 }}
-                      whileHover={{
-                        scale: 1.05,
-                        boxShadow: "0 10px 25px -5px rgba(168, 85, 247, 0.4)",
-                      }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setCourseType("premium")}
-                      className="bg-white p-8 rounded-xl shadow-md border cursor-pointer border-gray-200 hover:border-purple-500 transition-all flex flex-col items-center w-64 relative overflow-hidden group"
-                    >
-                      {/* Background animation element */}
-                      <div className="absolute inset-0 bg-gradient-to-br from-purple-50  to-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-
-                      <motion.div
-                        whileHover={{ rotate: 10 }}
-                        className="bg-purple-100 p-4 rounded-full mb-4 z-10 "
-                      >
-                        <FiDollarSign className="text-purple-600 text-2xl" />
-                      </motion.div>
-
-                      <h2 className="text-xl font-semibold text-gray-800 mb-2 z-10">
-                        Premium Course
-                      </h2>
-
-                      <p className="text-gray-600 text-center z-10">
-                        Upload videos and charge for access
-                      </p>
-
-                      {/* Ripple effect on hover */}
-                      <span className="absolute inset-0 rounded-xl border-2 border-transparent group-hover:border-purple-300 group-hover:animate-ping-once pointer-events-none"></span>
-                    </motion.button>
+              <div className="flex gap-6">
+                {/* Free Course Option */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setCourseType("free")}
+                  className="bg-white p-8 rounded-xl shadow-md border border-gray-200 hover:border-gray-500 focus:border-gray-500 transition-all flex flex-col items-center w-64"
+                >
+                  <div className="bg-gray-100 p-4 rounded-full mb-4">
+                    <FiYoutube className="text-gray-600 text-2xl" />
                   </div>
-                </div>
-              ) : (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold text-gray-800">
-                      Create {courseType === "free" ? "Free" : "Premium"} Course
-                    </h1>
-                    <button
-                      onClick={() => {
-                        setCourseType(null);
-                        setCourseData({
-                          title: "",
-                          description: "",
-                          thumbnail: null,
-                          attachments: [],
-                          content: [],
-                          price: "",
-                          categories: [],
-                          requirements: [],
-                          whatYouWillLearn: [],
-                          level: "beginner",
-                        });
-                      }}
-                      className="text-gray-500 cursor-pointer hover:text-gray-700"
-                    >
-                      Back to selection
-                    </button>
-                  </div>
+                  <h2 className="text-xl font-semibold text-gray-800 mb-2">
+                    Free Course
+                  </h2>
+                  <p className="text-gray-600 text-center">
+                    Create course with YouTube video links
+                  </p>
+                </motion.button>
 
-                  {/* Course Basic Info */}
-                  <div className="mb-8">
-                    <div className="grid grid-cols-1 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Course Title *
-                        </label>
+                {/* Premium Course Option */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setCourseType("premium")}
+                  className="bg-white p-8 rounded-xl shadow-md border border-gray-200 hover:border-gray-500 focus:border-gray-500 transition-all flex flex-col items-center w-64"
+                >
+                  <div className="bg-gray-100 p-4 rounded-full mb-4">
+                    <FiDollarSign className="text-gray-600 text-2xl" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-gray-800 mb-2">
+                    Premium Course
+                  </h2>
+                  <p className="text-gray-600 text-center">
+                    Upload videos and charge for access
+                  </p>
+                </motion.button>
+
+                {/* Live Course Option */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setCourseType("live")}
+                  className="bg-white p-8 rounded-xl shadow-md border border-gray-200 hover:border-gray-500 transition-all flex flex-col items-center w-64"
+                >
+                  <div className="bg-gray-100 p-4 rounded-full mb-4">
+                    <FiVideo className="text-gray-600 text-2xl" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-gray-800 mb-2">
+                    Live Course
+                  </h2>
+                  <p className="text-gray-600 text-center">
+                    Schedule live classes with pricing
+                  </p>
+                </motion.button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold text-gray-800">
+                  Create{" "}
+                  {courseType === "free"
+                    ? "Free"
+                    : courseType === "premium"
+                    ? "Premium"
+                    : "Live"}
+                  Course
+                </h1>
+                <button
+                  onClick={() => {
+                    setCourseType(null);
+                    setCourseData({
+                      title: "",
+                      description: "",
+                      thumbnail: null,
+                      attachments: [],
+                      content: [],
+                      price: "",
+                      categories: [],
+                      level: "beginner",
+                    });
+                  }}
+                  className="text-gray-500 cursor-pointer hover:text-gray-700"
+                >
+                  Back to selection
+                </button>
+              </div>
+
+              {/* Course Basic Info */}
+              <div className="mb-8">
+                <div className="grid grid-cols-1 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Course Title *
+                    </label>
+                    <input
+                      type="text"
+                      name="title"
+                      value={courseData.title}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-[6px] focus:outline-gray-600 transition-colors"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Course Description *
+                    </label>
+                    <textarea
+                      name="description"
+                      value={courseData.description}
+                      onChange={handleInputChange}
+                      rows={6}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gray-500 hover:border-gray-500 resize-vertical"
+                      required
+                      placeholder="Enter course description"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Course Thumbnail *
+                    </label>
+                    <div className="w-full flex items-center gap-4 bg-gray-50 hover:bg-gray-100 p-3 rounded-lg border border-gray-300 hover:border-gray-500 transition-colors">
+                      <label className="cursor-pointer flex items-center w-full gap-4">
+                        <FiImage className="text-xl text-gray-600" />
+                        <span className="text-md flex-1 text-gray-700">
+                          {courseData.thumbnail
+                            ? courseData.thumbnail.name
+                            : "Select Thumbnail Image"}
+                        </span>
                         <input
-                          type="text"
-                          name="title"
-                          value={courseData.title}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-[6px] focus:outline-blue-600 transition-colors"
-                          required
+                          type="file"
+                          accept="image/*"
+                          onChange={handleThumbnailUpload}
+                          className="hidden"
                         />
-                      </div>
-                      <div className="h-[300px]">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Course Description *
-                        </label>
-                        <ReactQuill
-                          theme="snow"
-                          value={courseData.description}
-                          onChange={(value) =>
-                            handleInputChange({
-                              target: { name: "description", value },
-                            })
+                      </label>
+                      {courseData.thumbnail && (
+                        <button
+                          onClick={() =>
+                            setCourseData((prev) => ({
+                              ...prev,
+                              thumbnail: null,
+                            }))
                           }
-                          modules={quillModules}
-                          formats={quillFormats}
-                          className=" rounded-lg h-[250px]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Course Thumbnail *
-                        </label>
-                        <div className="w-full flex items-center gap-4 bg-gray-50 hover:bg-gray-100 p-3 rounded-lg border border-gray-300 hover:border-blue-500 transition-colors">
-                          <label className="cursor-pointer flex items-center w-full gap-4">
-                            <FiImage className="text-xl text-gray-600" />
-                            <span className="text-md flex-1 text-gray-700">
-                              {courseData.thumbnail
-                                ? courseData.thumbnail.name
-                                : "Select Thumbnail Image"}
-                            </span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleThumbnailUpload}
-                              className="hidden"
-                            />
-                          </label>
-                          {courseData.thumbnail && (
-                            <button
-                              onClick={() =>
-                                setCourseData((prev) => ({
-                                  ...prev,
-                                  thumbnail: null,
-                                }))
-                              }
-                              className="text-gray-400 hover:text-red-500 p-3 rounded-full flex items-center justify-center transition-colors"
-                              type="button"
-                            >
-                              <FiTrash2 size={20} />
-                            </button>
-                          )}
-                        </div>
-                        {courseData.thumbnail && (
-                          <div className="mt-2 text-sm text-gray-500">
-                            Selected Image: {courseData.thumbnail.name} (
-                            {(
-                              courseData.thumbnail.size /
-                              (1024 * 1024)
-                            ).toFixed(2)}{" "}
-                            MB)
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Attachments (PDFs, Docs, etc.)
-                        </label>
-                        <div className="flex items-center gap-4">
-                          <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors w-56 flex justify-center items-center border border-gray-300 hover:border-blue-500">
-                            <FiUpload className="inline mr-2" />
-                            Upload Files
-                            <input
-                              type="file"
-                              multiple
-                              onChange={handleAttachmentUpload}
-                              className="hidden"
-                            />
-                          </label>
-                          <div className="flex flex-wrap gap-2 max-h-36 overflow-auto w-full">
-                            {courseData.attachments.map((file, index) => (
-                              <div
-                                key={index}
-                                className="bg-gray-100 px-3 py-1 rounded-lg text-sm flex items-center max-w-xs border border-gray-200"
-                              >
-                                <span className="truncate max-w-xs">
-                                  {file.name}
-                                </span>
-                                <button
-                                  onClick={() => removeAttachment(index)}
-                                  className="ml-2 text-gray-500 hover:text-red-500 transition-colors"
-                                >
-                                  <FiTrash2 size={14} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      {/* Add this new category field */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Category *
-                        </label>
-                        {loadingCategories ? (
-                          <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 animate-pulse">
-                            Loading categories...
-                          </div>
-                        ) : (
-                          <select
-                            name="category"
-                            value={courseData.category}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 hover:border-gray-500"
-                            required
-                          >
-                            <option value="">Select a category</option>
-                            {categories.map((category) => (
-                              <option key={category._id} value={category.name}>
-                                {category.name}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-                      {/* <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Requirements
-                                                </label>
-                                                <div className="flex gap-2">
-                                                    <input
-                                                        type="text"
-                                                        value={newRequirement}
-                                                        onChange={(e) => setNewRequirement(e.target.value)}
-                                                        placeholder="Add a requirement"
-                                                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
-                                                    />
-                                                    <button
-                                                        onClick={addRequirement}
-                                                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-                                                    >
-                                                        Add
-                                                    </button>
-                                                </div>
-                                                <ul className="list-disc pl-5 mt-2 space-y-1">
-                                                    {courseData.requirements.map((req, index) => (
-                                                        <li key={index} className="flex justify-between items-center">
-                                                            <span>{req}</span>
-                                                            <button
-                                                                onClick={() => removeRequirement(index)}
-                                                                className="text-gray-500 hover:text-red-500 ml-2 transition-colors"
-                                                            >
-                                                                <FiTrash2 size={14} />
-                                                            </button>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    What Students Will Learn
-                                                </label>
-                                                <div className="flex gap-2">
-                                                    <input
-                                                        type="text"
-                                                        value={newLearningPoint}
-                                                        onChange={(e) => setNewLearningPoint(e.target.value)}
-                                                        placeholder="Add a learning point"
-                                                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
-                                                    />
-                                                    <button
-                                                        onClick={addLearningPoint}
-                                                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-                                                    >
-                                                        Add
-                                                    </button>
-                                                </div>
-                                                <ul className="list-disc pl-5 mt-2 space-y-1">
-                                                    {courseData.whatYouWillLearn.map((point, index) => (
-                                                        <li key={index} className="flex justify-between items-center">
-                                                            <span>{point}</span>
-                                                            <button
-                                                                onClick={() => removeLearningPoint(index)}
-                                                                className="text-gray-500 hover:text-red-500 ml-2 transition-colors"
-                                                            >
-                                                                <FiTrash2 size={14} />
-                                                            </button>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div> */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Course Level
-                        </label>
-                        <select
-                          name="level"
-                          value={courseData.level}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
+                          className="text-gray-400 hover:text-red-500 p-3 rounded-full flex items-center justify-center transition-colors"
+                          type="button"
                         >
-                          <option value="beginner">Beginner</option>
-                          <option value="intermediate">Intermediate</option>
-                          <option value="advanced">Advanced</option>
-                        </select>
+                          <FiTrash2 size={20} />
+                        </button>
+                      )}
+                    </div>
+                    {courseData.thumbnail && (
+                      <div className="mt-2 text-sm text-gray-500">
+                        Selected Image: {courseData.thumbnail.name} (
+                        {(courseData.thumbnail.size / (1024 * 1024)).toFixed(2)}{" "}
+                        MB)
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Attachments (PDFs, Docs, etc.)
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors w-56 flex justify-center items-center border border-gray-300 hover:border-gray-500">
+                        <FiUpload className="inline mr-2" />
+                        Upload Files
+                        <input
+                          type="file"
+                          multiple
+                          onChange={handleAttachmentUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      <div className="flex flex-wrap gap-2 max-h-36 overflow-auto w-full">
+                        {courseData.attachments.map((file, index) => (
+                          <div
+                            key={index}
+                            className="bg-gray-100 px-3 py-1 rounded-lg text-sm flex items-center max-w-xs border border-gray-200"
+                          >
+                            <span className="truncate max-w-xs">
+                              {file.name}
+                            </span>
+                            <button
+                              onClick={() => removeAttachment(index)}
+                              className="ml-2 text-gray-500 hover:text-red-500 transition-colors"
+                            >
+                              <FiTrash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
+                  {/* Add this new category field */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Category *
+                    </label>
+                    {loadingCategories ? (
+                      <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 animate-pulse">
+                        Loading categories...
+                      </div>
+                    ) : (
+                      <select
+                        name="category"
+                        value={courseData.category}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500"
+                        required
+                      >
+                        <option value="">Select a category</option>
+                        {categories.map((category) => (
+                          <option key={category._id} value={category.name}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
 
-                  {/* Course Content */}
-                  <div className="mb-8">
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-xl font-semibold text-gray-800">
-                        Course Content
-                      </h2>
-                      <div className="flex gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Course Level
+                    </label>
+                    <select
+                      name="level"
+                      value={courseData.level}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 transition-colors"
+                    >
+                      <option value="beginner">Beginner</option>
+                      <option value="intermediate">Intermediate</option>
+                      <option value="advanced">Advanced</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Course Content */}
+              <div className="mb-8">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    Course Content
+                  </h2>
+                  <div className="flex gap-3">
+                    {courseType === "live" ? (
+                      <button
+                        onClick={addLiveClass}
+                        className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center"
+                      >
+                        <FiPlus className="mr-2" />
+                        Add Live Session
+                      </button>
+                    ) : (
+                      <>
                         <button
                           onClick={() => addTutorial(courseType === "premium")}
-                          className="bg-theme_color text-white px-4 py-2 rounded-lg flex items-center transition-colors"
+                          className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center"
                         >
                           <FiPlus className="mr-2" />
                           Add Tutorial
                         </button>
                         <button
                           onClick={addQuiz}
-                          className="bg-theme_color text-white px-4 py-2 rounded-lg flex items-center transition-colors"
+                          className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center"
                         >
                           <FiPlus className="mr-2" />
                           Add Quiz
                         </button>
-                        <button
-                          onClick={addLiveClass}
-                          className="bg-theme_color text-white px-4 py-2 rounded-lg flex items-center transition-colors"
-                        >
-                          <FiPlus className="mr-2" />
-                          Add Live Class
-                        </button>
-                      </div>
-                    </div>
+                      </>
+                    )}
+                  </div>
+                </div>
 
-                    <div className="space-y-6">
-                      {courseData.content.map((item, index) => (
-                        <motion.div
-                          key={item.id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3 }}
-                          className="border border-gray-200 rounded-lg p-0 relative hover:border-blue-500 transition-colors"
+                <div className="space-y-6">
+                  {courseData.content.map((item, index) => (
+                    <DraggableItem
+                      key={item.id}
+                      id={item.id}
+                      index={index}
+                      moveItem={moveContentItem}
+                    >
+                      <motion.div
+                        key={item.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="border border-gray-200 rounded-lg p-0 relative hover:border-gray-500 transition-colors"
+                      >
+                        <div
+                          className="flex justify-between items-center p-4 bg-gray-50 cursor-pointer rounded-t-lg"
+                          onClick={() => toggleSection(item.id)}
                         >
-                          <div
-                            className="flex justify-between items-center p-4 bg-gray-50 cursor-pointer rounded-t-lg"
-                            onClick={() => toggleSection(item.id)}
-                          >
-                            <div className="flex items-center">
-                              <h3 className="font-medium text-gray-800">
-                                {index + 1}.{" "}
-                                {item.type === "tutorial"
-                                  ? "Tutorial"
-                                  : item.type === "quiz"
-                                  ? "Quiz"
-                                  : "Live Class"}
-                              </h3>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeContentItem(item.id);
-                                }}
-                                className="text-gray-400 hover:text-red-500 transition-colors"
-                              >
-                                <FiTrash2 />
-                              </button>
-                              {expandedSections[item.id] ? (
-                                <FiChevronUp className="text-gray-500" />
-                              ) : (
-                                <FiChevronDown className="text-gray-500" />
-                              )}
-                            </div>
+                          <div className="flex items-center">
+                            <h3 className="font-medium text-gray-800">
+                              {index + 1}.{" "}
+                              {item.type === "tutorial"
+                                ? "Tutorial"
+                                : item.type === "quiz"
+                                ? "Quiz"
+                                : "Live Class"}
+                            </h3>
                           </div>
-                          {expandedSections[item.id] && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: "auto" }}
-                              exit={{ opacity: 0, height: 0 }}
-                              transition={{ duration: 0.3 }}
-                              className="p-6"
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeContentItem(item.id);
+                              }}
+                              className="text-gray-400 hover:text-red-500 transition-colors"
                             >
-                              {item.type === "tutorial" ? (
-                                <div className="space-y-4">
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                      Title *
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={item.title}
-                                      onChange={(e) =>
-                                        handleContentChange(
-                                          item.id,
-                                          "title",
-                                          e.target.value
-                                        )
-                                      }
-                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
-                                      required
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                      Description
-                                    </label>
-                                    <ReactQuill
-                                      theme="snow"
-                                      value={item.description}
-                                      onChange={(value) =>
-                                        handleContentChange(
-                                          item.id,
-                                          "description",
-                                          value
-                                        )
-                                      }
-                                      modules={quillModules}
-                                      formats={quillFormats}
-                                      className="border border-gray-300 rounded-lg hover:border-blue-500 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200"
-                                    />
-                                  </div>
-                                  {courseType === "free" ? (
-                                    <div>
-                                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        YouTube Video Link *
-                                      </label>
-                                      <div className="flex items-center">
-                                        <FiYoutube className="text-red-500 mr-2 text-xl" />
-                                        <input
-                                          type="url"
-                                          value={item.youtubeLink}
-                                          onChange={(e) =>
-                                            handleContentChange(
-                                              item.id,
-                                              "youtubeLink",
-                                              e.target.value
-                                            )
-                                          }
-                                          placeholder="https://www.youtube.com/watch?v=..."
-                                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
-                                          required
-                                        />
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div>
-                                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Upload Video *
-                                      </label>
-                                      <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors inline-flex items-center border border-gray-300 hover:border-blue-500">
-                                        <FiUpload className="mr-2" />
-                                        {item.content
-                                          ? item.content.name
-                                          : "Select Video File"}
-                                        <input
-                                          type="file"
-                                          accept="video/*"
-                                          onChange={(e) =>
-                                            handleFileUpload(e, item.id)
-                                          }
-                                          className="hidden"
-                                        />
-                                      </label>
-                                      {item.content && (
-                                        <div className="mt-2 text-sm text-gray-500">
-                                          Selected: {item.content.name} (
-                                          {(
-                                            item.content.size /
-                                            (1024 * 1024)
-                                          ).toFixed(2)}{" "}
-                                          MB)
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
+                              <FiTrash2 />
+                            </button>
+                            {expandedSections[item.id] ? (
+                              <FiChevronUp className="text-gray-500" />
+                            ) : (
+                              <FiChevronDown className="text-gray-500" />
+                            )}
+                          </div>
+                        </div>
+                        {expandedSections[item.id] && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="p-6"
+                          >
+                            {item.type === "tutorial" ? (
+                              <div className="space-y-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Title *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={item.title}
+                                    onChange={(e) =>
+                                      handleContentChange(
+                                        item.id,
+                                        "title",
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 transition-colors"
+                                    required
+                                  />
                                 </div>
-                              ) : item.type === "live" ? (
-                                <div className="space-y-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Description
+                                  </label>
+                                  <textarea
+                                    value={item.description}
+                                    onChange={(e) =>
+                                      handleContentChange(
+                                        item.id,
+                                        "description",
+                                        e.target.value
+                                      )
+                                    }
+                                    rows={4}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gray-500 hover:border-gray-500 resize-vertical"
+                                    placeholder="Enter tutorial description"
+                                  />
+                                </div>
+                                {courseType === "free" ? (
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                      Title *
+                                      YouTube Video Link *
                                     </label>
-                                    <input
-                                      type="text"
-                                      value={item.title}
-                                      onChange={(e) =>
-                                        handleContentChange(
-                                          item.id,
-                                          "title",
-                                          e.target.value
-                                        )
-                                      }
-                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
-                                      required
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                      Description
-                                    </label>
-                                    <ReactQuill
-                                      theme="snow"
-                                      value={item.description}
-                                      onChange={(value) =>
-                                        handleContentChange(
-                                          item.id,
-                                          "description",
-                                          value
-                                        )
-                                      }
-                                      modules={quillModules}
-                                      formats={quillFormats}
-                                      className="border border-gray-300 rounded-lg hover:border-blue-500 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                      Thumbnail Image
-                                    </label>
-                                    <div className="w-full flex items-center gap-4 bg-gray-50 hover:bg-gray-100 p-3 rounded-lg border border-gray-300 hover:border-blue-500 transition-colors">
-                                      <label className="cursor-pointer flex items-center w-full gap-4">
-                                        <FiImage className="text-md text-gray-600" />
-                                        <span className="text-md flex-1 text-gray-700">
-                                          {item.thumbnail
-                                            ? item.thumbnail.name
-                                            : "Select Thumbnail Image"}
-                                        </span>
-                                        <input
-                                          type="file"
-                                          accept="image/*"
-                                          onChange={(e) =>
-                                            handleFileUpload(
-                                              e,
-                                              item.id,
-                                              "thumbnail"
-                                            )
-                                          }
-                                          className="hidden"
-                                        />
-                                      </label>
-                                      {item.thumbnail && (
-                                        <button
-                                          onClick={() =>
-                                            handleContentChange(
-                                              item.id,
-                                              "thumbnail",
-                                              null
-                                            )
-                                          }
-                                          className="text-gray-400 hover:text-red-500 p-3 rounded-full flex items-center justify-center transition-colors"
-                                          type="button"
-                                        >
-                                          <FiTrash2 size={20} />
-                                        </button>
-                                      )}
+                                    <div className="flex items-center">
+                                      <FiYoutube className="text-red-500 mr-2 text-xl" />
+                                      <input
+                                        type="url"
+                                        value={item.youtubeLink}
+                                        onChange={(e) =>
+                                          handleContentChange(
+                                            item.id,
+                                            "youtubeLink",
+                                            e.target.value
+                                          )
+                                        }
+                                        placeholder="https://www.youtube.com/watch?v=..."
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 transition-colors"
+                                        required
+                                      />
                                     </div>
-                                    {item.thumbnail && (
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                      Upload Video *
+                                    </label>
+                                    <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors inline-flex items-center border border-gray-300 hover:border-gray-500">
+                                      <FiUpload className="mr-2" />
+                                      {item.content
+                                        ? item.content.name
+                                        : "Select Video File"}
+                                      <input
+                                        type="file"
+                                        accept="video/*"
+                                        onChange={(e) =>
+                                          handleFileUpload(e, item.id)
+                                        }
+                                        className="hidden"
+                                      />
+                                    </label>
+                                    {item.content && (
                                       <div className="mt-2 text-sm text-gray-500">
-                                        Selected Image: {item.thumbnail.name} (
+                                        Selected: {item.content.name} (
                                         {(
-                                          item.thumbnail.size /
+                                          item.content.size /
                                           (1024 * 1024)
                                         ).toFixed(2)}{" "}
                                         MB)
                                       </div>
                                     )}
                                   </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                      Meeting Link (Zoom/Google Meet)
-                                    </label>
-                                    <input
-                                      type="url"
-                                      value={item.meetingLink}
-                                      onChange={(e) =>
-                                        handleContentChange(
-                                          item.id,
-                                          "meetingLink",
-                                          e.target.value
-                                        )
-                                      }
-                                      placeholder="https://zoom.us/j/... or https://meet.google.com/..."
-                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                      Schedule *
-                                    </label>
-                                    <input
-                                      type="datetime-local"
-                                      value={item.schedule}
-                                      onChange={(e) =>
-                                        handleContentChange(
-                                          item.id,
-                                          "schedule",
-                                          e.target.value
-                                        )
-                                      }
-                                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
-                                      required
-                                    />
+                                )}
+                              </div>
+                            ) : item.type === "live" ? (
+                              <div className="space-y-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Title *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={item.title}
+                                    onChange={(e) =>
+                                      handleContentChange(
+                                        item.id,
+                                        "title",
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 transition-colors"
+                                    required
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Description
+                                  </label>
+                                  <textarea
+                                    value={item.description}
+                                    onChange={(e) =>
+                                      handleContentChange(
+                                        item.id,
+                                        "description",
+                                        e.target.value
+                                      )
+                                    }
+                                    rows={4}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gray-500 hover:border-gray-500 resize-vertical"
+                                    placeholder="Enter live class description"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Meeting Link (Zoom/Google Meet)
+                                  </label>
+                                  <input
+                                    type="url"
+                                    value={item.meetingLink}
+                                    onChange={(e) =>
+                                      handleContentChange(
+                                        item.id,
+                                        "meetingLink",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="https://zoom.us/j/... or https://meet.google.com/..."
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 transition-colors"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Schedule *
+                                  </label>
+                                  <input
+                                    type="datetime-local"
+                                    value={item.schedule}
+                                    onChange={(e) =>
+                                      handleContentChange(
+                                        item.id,
+                                        "schedule",
+                                        e.target.value
+                                      )
+                                    }
+                                    className="px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 transition-colors"
+                                    required
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-4">
+                                <div className="flex justify-between items-center"></div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Quiz Title *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={item.title}
+                                    onChange={(e) =>
+                                      handleContentChange(
+                                        item.id,
+                                        "title",
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 transition-colors"
+                                    required
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Description
+                                  </label>
+                                  <textarea
+                                    value={item.description}
+                                    onChange={(e) =>
+                                      handleContentChange(
+                                        item.id,
+                                        "description",
+                                        e.target.value
+                                      )
+                                    }
+                                    rows={4}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gray-500 hover:border-gray-500 resize-vertical"
+                                    placeholder="Enter quiz description"
+                                  />
+                                </div>
+                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium text-gray-800">
+                                      Total Quiz Marks:{" "}
+                                      {calculateQuizTotalMarks(item)}
+                                    </span>
+                                    <span className="text-xs text-gray-600">
+                                      {item.questions.length} question
+                                      {item.questions.length !== 1 ? "s" : ""}
+                                    </span>
                                   </div>
                                 </div>
-                              ) : (
-                                <div className="space-y-4">
-                                  <div className="flex justify-between items-center"></div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                      Quiz Title *
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={item.title}
-                                      onChange={(e) =>
-                                        handleContentChange(
-                                          item.id,
-                                          "title",
-                                          e.target.value
-                                        )
-                                      }
-                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
-                                      required
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                      Description
-                                    </label>
-                                    <ReactQuill
-                                      theme="snow"
-                                      value={item.description}
-                                      onChange={(value) =>
-                                        handleContentChange(
-                                          item.id,
-                                          "description",
-                                          value
-                                        )
-                                      }
-                                      modules={quillModules}
-                                      formats={quillFormats}
-                                      className="border border-gray-300 rounded-lg hover:border-blue-500 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200"
-                                    />
-                                  </div>
-
-                                  <div className="space-y-6">
-                                    {item.questions.map((question, qIndex) => (
-                                      <div
-                                        key={question.id}
-                                        className="border-l-4 border-blue-500 pl-4"
-                                      >
-                                        <div className="flex justify-between items-start mb-2">
-                                          <h4 className="font-medium text-gray-800 mb-2">
-                                            Question {qIndex + 1}
-                                          </h4>
-                                          <div className="flex gap-2">
-                                            <select
-                                              value={question.type}
-                                              onChange={(e) =>
-                                                handleQuestionChange(
-                                                  item.id,
-                                                  question.id,
-                                                  "type",
-                                                  e.target.value
-                                                )
-                                              }
-                                              className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
-                                            >
-                                              <option value="mcq-single">
-                                                Single Choice MCQ
-                                              </option>
-                                              <option value="mcq-multiple">
-                                                Multiple Choice MCQ
-                                              </option>
-                                              <option value="short-answer">
-                                                Short Answer
-                                              </option>
-                                              <option value="broad-answer">
-                                                Broad Answer
-                                              </option>
-                                            </select>
-                                            <button
-                                              onClick={() => {
-                                                setCourseData((prev) => ({
-                                                  ...prev,
-                                                  content: prev.content.map(
-                                                    (contentItem) => {
-                                                      if (
-                                                        contentItem.id ===
-                                                        item.id
-                                                      ) {
-                                                        return {
-                                                          ...contentItem,
-                                                          questions:
-                                                            contentItem.questions.filter(
-                                                              (q) =>
-                                                                q.id !==
-                                                                question.id
-                                                            ),
-                                                        };
-                                                      }
-                                                      return contentItem;
-                                                    }
-                                                  ),
-                                                }));
-                                              }}
-                                              className="text-gray-400 hover:text-red-500 transition-colors"
-                                            >
-                                              <FiTrash2 size={14} />
-                                            </button>
-                                          </div>
-                                        </div>
-                                        <div className="mb-3">
-                                          <input
-                                            type="text"
-                                            value={question.question}
+                                <div className="space-y-6">
+                                  {item.questions.map((question, qIndex) => (
+                                    <div
+                                      key={question.id}
+                                      className="border-l-4 border-gray-500 pl-4"
+                                    >
+                                      <div className="flex justify-between items-start mb-2">
+                                        <h4 className="font-medium text-gray-800 mb-2">
+                                          Question {qIndex + 1}
+                                        </h4>
+                                        <div className="flex gap-2">
+                                          <select
+                                            value={question.type}
                                             onChange={(e) =>
                                               handleQuestionChange(
                                                 item.id,
                                                 question.id,
-                                                "question",
+                                                "type",
                                                 e.target.value
                                               )
                                             }
-                                            placeholder="Enter question"
-                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
-                                            required
-                                          />
+                                            className="text-sm border border-gray-300 rounded px-2 py-1  focus:border-gray-500 hover:border-gray-500 transition-colors"
+                                          >
+                                            <option value="mcq-single">
+                                              Single Choice MCQ
+                                            </option>
+                                            <option value="mcq-multiple">
+                                              Multiple Choice MCQ
+                                            </option>
+                                            <option value="short-answer">
+                                              Short Answer
+                                            </option>
+                                            <option value="broad-answer">
+                                              Broad Answer
+                                            </option>
+                                          </select>
+                                          <button
+                                            onClick={() => {
+                                              setCourseData((prev) => ({
+                                                ...prev,
+                                                content: prev.content.map(
+                                                  (contentItem) => {
+                                                    if (
+                                                      contentItem.id === item.id
+                                                    ) {
+                                                      return {
+                                                        ...contentItem,
+                                                        questions:
+                                                          contentItem.questions.filter(
+                                                            (q) =>
+                                                              q.id !==
+                                                              question.id
+                                                          ),
+                                                      };
+                                                    }
+                                                    return contentItem;
+                                                  }
+                                                ),
+                                              }));
+                                            }}
+                                            className="text-gray-400 hover:text-red-500 transition-colors"
+                                          >
+                                            <FiTrash2 size={14} />
+                                          </button>
                                         </div>
+                                      </div>
+                                      <div className="mb-3">
+                                        <input
+                                          type="text"
+                                          value={question.question}
+                                          onChange={(e) =>
+                                            handleQuestionChange(
+                                              item.id,
+                                              question.id,
+                                              "question",
+                                              e.target.value
+                                            )
+                                          }
+                                          placeholder="Enter question"
+                                          className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 transition-colors"
+                                          required
+                                        />
+                                      </div>
 
-                                        {[
-                                          "mcq-single",
-                                          "mcq-multiple",
-                                        ].includes(question.type) ? (
-                                          <div className="space-y-2">
-                                            {question.options.map(
-                                              (option, oIndex) => (
-                                                <div
-                                                  key={oIndex}
-                                                  className={`flex items-center gap-2 p-2 rounded-lg ${
-                                                    (question.type ===
-                                                      "mcq-single" &&
-                                                      question.correctAnswer ===
-                                                        oIndex) ||
-                                                    (question.type ===
-                                                      "mcq-multiple" &&
-                                                      Array.isArray(
-                                                        question.correctAnswer
-                                                      ) &&
-                                                      question.correctAnswer.includes(
+                                      <div className="mb-3">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                          Marks/Points
+                                        </label>
+                                        <input
+                                          type="number"
+                                          min="1"
+                                          max="100"
+                                          value={question.marks || 1}
+                                          onChange={(e) =>
+                                            handleQuestionChange(
+                                              item.id,
+                                              question.id,
+                                              "marks",
+                                              parseInt(e.target.value) || 1
+                                            )
+                                          }
+                                          placeholder="Enter marks for this question"
+                                          className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-gray-500 hover:border-gray-500 transition-colors"
+                                          required
+                                        />
+                                      </div>
+
+                                      {["mcq-single", "mcq-multiple"].includes(
+                                        question.type
+                                      ) ? (
+                                        <div className="space-y-2">
+                                          {question.options.map(
+                                            (option, oIndex) => (
+                                              <div
+                                                key={oIndex}
+                                                className={`flex items-center gap-2 p-2 rounded-lg ${
+                                                  (question.type ===
+                                                    "mcq-single" &&
+                                                    question.correctAnswer ===
+                                                      oIndex) ||
+                                                  (question.type ===
+                                                    "mcq-multiple" &&
+                                                    Array.isArray(
+                                                      question.correctAnswer
+                                                    ) &&
+                                                    question.correctAnswer.includes(
+                                                      oIndex
+                                                    ))
+                                                    ? "border-2 border-green-500 bg-green-50"
+                                                    : "border border-gray-300"
+                                                }`}
+                                              >
+                                                <input
+                                                  type={
+                                                    question.type ===
+                                                    "mcq-single"
+                                                      ? "radio"
+                                                      : "checkbox"
+                                                  }
+                                                  name={`correct-${question.id}`}
+                                                  checked={
+                                                    question.type ===
+                                                    "mcq-single"
+                                                      ? question.correctAnswer ===
                                                         oIndex
-                                                      ))
-                                                      ? "border-2 border-green-500 bg-green-50"
-                                                      : "border border-gray-300"
-                                                  }`}
-                                                >
-                                                  <input
-                                                    type={
-                                                      question.type ===
-                                                      "mcq-single"
-                                                        ? "radio"
-                                                        : "checkbox"
-                                                    }
-                                                    name={`correct-${question.id}`}
-                                                    checked={
-                                                      question.type ===
-                                                      "mcq-single"
-                                                        ? question.correctAnswer ===
-                                                          oIndex
-                                                        : Array.isArray(
-                                                            question.correctAnswer
-                                                          ) &&
-                                                          question.correctAnswer.includes(
-                                                            oIndex
-                                                          )
-                                                    }
-                                                    onChange={() =>
-                                                      handleCorrectAnswerChange(
-                                                        item.id,
-                                                        question.id,
-                                                        oIndex
-                                                      )
-                                                    }
-                                                    className={`focus:ring-green-500 h-4 w-4 ${
-                                                      question.type ===
-                                                      "mcq-single"
-                                                        ? "text-green-600"
-                                                        : "text-green-600"
-                                                    }`}
-                                                  />
-                                                  <input
-                                                    type="text"
-                                                    value={option}
-                                                    onChange={(e) =>
-                                                      handleOptionChange(
-                                                        item.id,
-                                                        question.id,
-                                                        oIndex,
-                                                        e.target.value
-                                                      )
-                                                    }
-                                                    className="flex-1 px-3 py-1 border-none focus:ring-0 bg-transparent"
-                                                    placeholder={`Option ${
-                                                      oIndex + 1
-                                                    }`}
-                                                    required
-                                                  />
-                                                  {question.options.length >
-                                                    2 && (
-                                                    <button
-                                                      onClick={() =>
-                                                        removeOption(
-                                                          item.id,
-                                                          question.id,
+                                                      : Array.isArray(
+                                                          question.correctAnswer
+                                                        ) &&
+                                                        question.correctAnswer.includes(
                                                           oIndex
                                                         )
-                                                      }
-                                                      className="text-gray-400 hover:text-red-500 transition-colors"
-                                                    >
-                                                      <FiTrash2 size={14} />
-                                                    </button>
-                                                  )}
-                                                </div>
-                                              )
-                                            )}
-                                            <div className="flex justify-end">
-                                              <button
-                                                onClick={() =>
-                                                  addOption(
-                                                    item.id,
-                                                    question.id
-                                                  )
-                                                }
-                                                className="text-green-600 hover:text-green-800 flex items-center text-sm mt-2 bg-green-50 hover:bg-green-100 px-3 py-1 rounded border border-green-200 transition-colors"
-                                              >
-                                                <FiPlus className="mr-1" /> Add
-                                                Option
-                                              </button>
-                                            </div>
-                                          </div>
-                                        ) : question.type === "short-answer" ? (
-                                          <div className="mt-2">
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                              Answer
-                                            </label>
-                                            <input
-                                              type="text"
-                                              value={question.answer}
-                                              onChange={(e) =>
-                                                handleAnswerChange(
-                                                  item.id,
-                                                  question.id,
-                                                  e.target.value
-                                                )
+                                                  }
+                                                  onChange={() =>
+                                                    handleCorrectAnswerChange(
+                                                      item.id,
+                                                      question.id,
+                                                      oIndex
+                                                    )
+                                                  }
+                                                  className={`focus:ring-green-500 h-4 w-4 ${
+                                                    question.type ===
+                                                    "mcq-single"
+                                                      ? "text-green-600"
+                                                      : "text-green-600"
+                                                  }`}
+                                                />
+                                                <input
+                                                  type="text"
+                                                  value={option}
+                                                  onChange={(e) =>
+                                                    handleOptionChange(
+                                                      item.id,
+                                                      question.id,
+                                                      oIndex,
+                                                      e.target.value
+                                                    )
+                                                  }
+                                                  className="flex-1 px-3 py-1 border-none focus:ring-0 bg-transparent"
+                                                  placeholder={`Option ${
+                                                    oIndex + 1
+                                                  }`}
+                                                  required
+                                                />
+                                                {question.options.length >
+                                                  2 && (
+                                                  <button
+                                                    onClick={() =>
+                                                      removeOption(
+                                                        item.id,
+                                                        question.id,
+                                                        oIndex
+                                                      )
+                                                    }
+                                                    className="text-gray-400 hover:text-red-500 transition-colors"
+                                                  >
+                                                    <FiTrash2 size={14} />
+                                                  </button>
+                                                )}
+                                              </div>
+                                            )
+                                          )}
+                                          <div className="flex justify-end">
+                                            <button
+                                              onClick={() =>
+                                                addOption(item.id, question.id)
                                               }
-                                              placeholder="Enter expected short answer"
-                                              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                                                question.answer
-                                                  ? "border-green-500 bg-green-50"
-                                                  : "border-gray-300"
-                                              }`}
-                                            />
-                                          </div>
-                                        ) : (
-                                          <div className="mt-2">
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                              Answer
-                                            </label>
-                                            <div
-                                              className={`border rounded-lg ${
-                                                question.answer
-                                                  ? "border-green-500 bg-green-50"
-                                                  : "border-gray-300"
-                                              }`}
+                                              className="text-green-600 hover:text-green-800 flex items-center text-sm mt-2 bg-green-50 hover:bg-green-100 px-3 py-1 rounded border border-green-200 transition-colors"
                                             >
-                                              <ReactQuill
-                                                theme="snow"
-                                                value={question.answer}
-                                                onChange={(value) =>
-                                                  handleAnswerChange(
-                                                    item.id,
-                                                    question.id,
-                                                    value
-                                                  )
-                                                }
-                                                modules={quillModules}
-                                                formats={quillFormats}
-                                              />
-                                            </div>
+                                              <FiPlus className="mr-1" /> Add
+                                              Option
+                                            </button>
                                           </div>
-                                        )}
-                                      </div>
-                                    ))}
-                                    <div className="flex flex-wrap gap-2">
-                                      <button
-                                        onClick={() =>
-                                          addQuestion(item.id, "mcq-single")
-                                        }
-                                        className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1 rounded text-sm flex items-center border border-green-200 transition-colors"
-                                      >
-                                        <FiPlus className="mr-1" /> Single
-                                        Choice
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          addQuestion(item.id, "mcq-multiple")
-                                        }
-                                        className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1 rounded text-sm flex items-center border border-green-200 transition-colors"
-                                      >
-                                        <FiPlus className="mr-1" /> Multiple
-                                        Choice
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          addQuestion(item.id, "short-answer")
-                                        }
-                                        className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1 rounded text-sm flex items-center border border-green-200 transition-colors"
-                                      >
-                                        <FiPlus className="mr-1" /> Short Answer
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          addQuestion(item.id, "broad-answer")
-                                        }
-                                        className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1 rounded text-sm flex items-center border border-green-200 transition-colors"
-                                      >
-                                        <FiPlus className="mr-1" /> Broad Answer
-                                      </button>
+                                        </div>
+                                      ) : question.type === "short-answer" ? (
+                                        <div className="mt-2">
+                                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Expected Answer
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={
+                                              question.expectedAnswer || ""
+                                            }
+                                            onChange={(e) =>
+                                              handleAnswerChange(
+                                                item.id,
+                                                question.id,
+                                                e.target.value
+                                              )
+                                            }
+                                            placeholder="Enter expected answer"
+                                            className={`w-full px-4 py-2 border rounded-lg focus:border-gray-500 ${
+                                              question.expectedAnswer
+                                                ? "border-green-500 bg-green-50"
+                                                : "border-gray-300"
+                                            }`}
+                                          />
+                                        </div>
+                                      ) : question.type === "broad-answer" ? (
+                                        <div className="mt-2">
+                                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Expected Answer
+                                          </label>
+                                          <textarea
+                                            value={
+                                              question.expectedAnswer || ""
+                                            }
+                                            onChange={(e) =>
+                                              handleAnswerChange(
+                                                item.id,
+                                                question.id,
+                                                e.target.value
+                                              )
+                                            }
+                                            rows={6}
+                                            className={`w-full px-4 py-2 border rounded-lg focus:border-gray-500 hover:border-gray-500 resize-vertical ${
+                                              question.expectedAnswer
+                                                ? "border-green-500 bg-green-50"
+                                                : "border-gray-300"
+                                            }`}
+                                            placeholder="Enter expected answer"
+                                          />
+                                        </div>
+                                      ) : null}
                                     </div>
+                                  ))}
+                                  <div className="flex flex-wrap gap-2">
+                                    <button
+                                      onClick={() =>
+                                        addQuestion(item.id, "mcq-single")
+                                      }
+                                      className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1 rounded text-sm flex items-center border border-green-200 transition-colors"
+                                    >
+                                      <FiPlus className="mr-1" /> Single Choice
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        addQuestion(item.id, "mcq-multiple")
+                                      }
+                                      className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1 rounded text-sm flex items-center border border-green-200 transition-colors"
+                                    >
+                                      <FiPlus className="mr-1" /> Multiple
+                                      Choice
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        addQuestion(item.id, "short-answer")
+                                      }
+                                      className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1 rounded text-sm flex items-center border border-green-200 transition-colors"
+                                    >
+                                      <FiPlus className="mr-1" /> Short Answer
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        addQuestion(item.id, "broad-answer")
+                                      }
+                                      className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1 rounded text-sm flex items-center border border-green-200 transition-colors"
+                                    >
+                                      <FiPlus className="mr-1" /> Broad Answer
+                                    </button>
                                   </div>
                                 </div>
-                              )}
-                            </motion.div>
-                          )}
-                        </motion.div>
-                      ))}
-                    </div>
-                  </div>
+                              </div>
+                            )}
+                          </motion.div>
+                        )}
+                      </motion.div>
+                    </DraggableItem>
+                  ))}
+                </div>
+              </div>
 
-                  {/* Pricing (for premium courses) */}
-                  {courseType === "premium" && (
-                    <div className="mb-8">
-                      <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                        Pricing
-                      </h2>
-                      <div className="flex items-center">
-                        <span className="mr-2 text-gray-700">$</span>
-                        <input
-                          type="number"
-                          name="price"
-                          value={courseData.price}
-                          onChange={handleInputChange}
-                          placeholder="Enter course price"
-                          min="0"
-                          step="0.01"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-500 transition-colors"
-                          required
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Publish Button */}
-                  <div className="flex justify-end">
-                    <button
-                      onClick={publishCourse}
-                      className="bg-theme_color text-white px-6 py-3 rounded-lg text-lg font-medium transition-colors shadow-md"
-                    >
-                      Publish Course
-                    </button>
+              {/* Pricing (for premium courses) */}
+              {(courseType === "premium" || courseType === "live") && (
+                <div className="mb-8">
+                  <h2 className="text-xl font-semibold text-gray-800 mb-4">
+                    Pricing
+                  </h2>
+                  <div className="flex items-center">
+                    <span className="mr-2 text-gray-700">BDT</span>
+                    <input
+                      type="number"
+                      name="price"
+                      value={courseData.price}
+                      onChange={handleInputChange}
+                      placeholder="Enter course price"
+                      min="0"
+                      step="0.01"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gray-500 hover:border-gray-500"
+                      required
+                    />
                   </div>
                 </div>
               )}
+              {/* Publish Button */}
+              <div className="flex justify-end">
+                <button
+                  onClick={publishCourse}
+                  disabled={
+                    !courseData.title ||
+                    !courseData.description ||
+                    !courseData.thumbnail ||
+                    courseData.content.length === 0 ||
+                    ((courseType === "premium" || courseType === "live") &&
+                      !courseData.price)
+                  }
+                  className={`px-6 py-3 rounded-lg font-medium text-white ${
+                    !courseData.title ||
+                    !courseData.description ||
+                    !courseData.thumbnail ||
+                    courseData.content.length === 0 ||
+                    ((courseType === "premium" || courseType === "live") &&
+                      !courseData.price)
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-gray-600 hover:bg-gray-700"
+                  } transition-colors`}
+                >
+                  Publish Course
+                </button>
+              </div>
             </div>
-          </motion.div>
+          )}
         </div>
-      </div>
-      <Toaster position="top-right" />
-    </div>
+      </motion.div>
+    </DndProvider>
   );
 };
 

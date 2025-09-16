@@ -34,7 +34,7 @@ const Studentpaper = () => {
   const [passed, setPassed] = useState(false);
   const [expandedQuestions, setExpandedQuestions] = useState({});
   const base_url = import.meta.env.VITE_API_KEY_Base_URL;
-
+  const [contentItemId, setContentItemId] = useState(null);
   // Get teacher ID from localStorage
   const teacherData = JSON.parse(localStorage.getItem("teacherData"));
 
@@ -53,7 +53,6 @@ const Studentpaper = () => {
       setSubmissions(response.data.data);
       setLoading(false);
     } catch (error) {
-      console.error("Error fetching submissions:", error);
       toast.error("Failed to fetch submissions");
       setLoading(false);
     }
@@ -78,7 +77,7 @@ const Studentpaper = () => {
         `${base_url}/api/teacher/grade-submission`,
         {
           studentEmail: selectedSubmission.student.email,
-          contentTitle: selectedSubmission.contentItem.title,
+          contentItemId: contentItemId,
           answers: answersToSubmit,
         },
         {
@@ -96,7 +95,6 @@ const Studentpaper = () => {
         toast.error(response.data.message);
       }
     } catch (error) {
-      console.error("Error grading submission:", error);
       toast.error(
         error.response?.data?.message || "Failed to grade submission"
       );
@@ -138,6 +136,9 @@ const Studentpaper = () => {
   const viewSubmission = (submission) => {
     setSelectedSubmission(submission);
 
+    // Store the contentItemId for later use in grading
+    const contentItemId = submission.contentItem._id;
+
     // Initialize grading data and calculate totals
     const initialGradingData = {};
     let total = 0;
@@ -170,6 +171,7 @@ const Studentpaper = () => {
     setExpandedQuestions(initialExpanded);
     setTotalScore(total);
     setMaxTotalScore(maxTotal);
+    setContentItemId(contentItemId); // Store the contentItemId
     calculateResults(total, maxTotal, submission);
     setIsModalOpen(true);
   };
@@ -211,8 +213,7 @@ const Studentpaper = () => {
   };
 
   // Auto-grade function for MCQ questions
-  const autoGradeMCQ = (answerKey) => {
-    const answerData = gradingData[answerKey];
+  const calculateAutoGradeMCQ = (answerData) => {
     if (!answerData) return 0;
 
     let isCorrect = false;
@@ -228,23 +229,40 @@ const Studentpaper = () => {
       }
     }
 
-    const marks = isCorrect ? answerData.maxMarks : 0;
-
-    handleGradeChange(answerKey, "marks", marks);
-    handleGradeChange(answerKey, "isCorrect", isCorrect);
-    return marks;
+    return {
+      marks: isCorrect ? answerData.maxMarks : 0,
+      isCorrect: isCorrect,
+    };
   };
+  const autoGradeMCQ = (answerKey) => {
+    const answerData = gradingData[answerKey];
+    if (!answerData) return 0;
 
+    const autoGradeResult = calculateAutoGradeMCQ(answerData);
+
+    handleGradeChange(answerKey, "marks", autoGradeResult.marks);
+    handleGradeChange(answerKey, "isCorrect", autoGradeResult.isCorrect);
+
+    return autoGradeResult.marks;
+  };
   // Auto-grade all MCQ questions
   const autoGradeAllMCQs = () => {
+    const updatedGradingData = { ...gradingData };
     let newTotal = 0;
-    Object.entries(gradingData).forEach(([answerKey, answer]) => {
+
+    Object.entries(updatedGradingData).forEach(([answerKey, answer]) => {
       if (answer.type === "mcq-single" || answer.type === "mcq-multiple") {
-        newTotal += autoGradeMCQ(answerKey);
-      } else {
-        newTotal += answer.marks || 0;
+        const autoGradeResult = calculateAutoGradeMCQ(answer);
+        updatedGradingData[answerKey] = {
+          ...answer,
+          marks: autoGradeResult.marks,
+          isCorrect: autoGradeResult.isCorrect,
+        };
       }
+      newTotal += updatedGradingData[answerKey].marks || 0;
     });
+
+    setGradingData(updatedGradingData);
     setTotalScore(newTotal);
     calculateResults(newTotal, maxTotalScore, selectedSubmission);
     toast.success("Auto-graded all MCQ questions");
@@ -285,7 +303,7 @@ const Studentpaper = () => {
   };
 
   return (
-    <div className="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+    <div className=" min-h-screen">
       <div className="flex w-full h-[100vh] bg-white overflow-hidden">
         {/* Main Content Section */}
         <div className="flex-1 h-full overflow-auto">
@@ -293,7 +311,7 @@ const Studentpaper = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
-            className="min-h-screen p-6 bg-gray-50"
+            className="min-h-screen"
           >
             <div className="w-full mx-auto">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">

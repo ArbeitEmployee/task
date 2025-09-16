@@ -133,6 +133,11 @@ const studentProgressSchema = new Schema(
       ],
       default: "not-graded",
     },
+    attendanceStatus: {
+      type: String,
+      enum: ["present", "absent", "pending"], // ✅ all strings
+      default: "pending",
+    },
   },
   { _id: true }
 );
@@ -237,7 +242,7 @@ const courseSchema = new Schema(
       default: "beginner",
     },
     gradingPolicy: {
-      passingGrade: { type: Number, default: 70 },
+      passingGrade: { type: Number, default: 40 },
       gradeScale: [
         {
           letter: String,

@@ -915,12 +915,29 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                   <div className="bg-indigo-100 text-indigo-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                     <FiUsers size={24} />
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">
+                  <h2 className="text-2xl font-bold !text-white mb-2">
                     {currentItem.title}
                   </h2>
                   <p className="text-gray-300 mb-6">
                     {currentItem.description.replace(/<[^>]+>/g, "")}
                   </p>
+
+                  {/* Add attendance status display here */}
+                  {currentItem.attendanceStatus && (
+                    <div className="mb-4">
+                      <span
+                        className={`px-4 py-2 rounded-full text-sm font-medium ${
+                          currentItem.attendanceStatus === "present"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {currentItem.attendanceStatus === "present"
+                          ? "Present"
+                          : "Absent"}
+                      </span>
+                    </div>
+                  )}
 
                   <div className="bg-white rounded-lg p-4 mb-6">
                     <div className="flex items-center justify-between mb-3">
@@ -1152,7 +1169,7 @@ const CoursePlayer = ({ courseId, setActiveView }) => {
                         </span>
                       )}
                       {item.type === "live" && (
-                        <span className="inline-block mt-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
+                        <span className="inline-block mt-2 text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">
                           Live Class
                         </span>
                       )}

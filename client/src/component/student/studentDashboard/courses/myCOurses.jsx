@@ -360,34 +360,30 @@ const MyCourses = ({ setActiveView }) => {
 
   const handleViewCertificate = async (courseId) => {
     try {
-      // Check if student has completed the course
       const course = myCourses.find((c) => c.id === courseId);
       if (!course) {
         toast.error("Course not found");
         return;
       }
 
-      if (!course.completed) {
+      // 🔹 Allow both completed normal courses and live courses
+      if (!course.completed && !course.isLive) {
         toast.error("Please complete the course to get your certificate");
         return;
       }
 
-      // Show loading
       toast.loading("Generating your certificate...");
 
-      // Generate/download certificate
       const response = await axios.get(
         `${base_url}/api/student/certificate/${courseId}/${studentData.id}`,
         {
-          responseType: "blob", // Important for file downloads
+          responseType: "blob",
         }
       );
 
-      // Create blob URL for the PDF
       const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
 
-      // Create a temporary anchor element to trigger download
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute(
@@ -399,8 +395,6 @@ const MyCourses = ({ setActiveView }) => {
       );
       document.body.appendChild(link);
       link.click();
-
-      // Clean up
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 

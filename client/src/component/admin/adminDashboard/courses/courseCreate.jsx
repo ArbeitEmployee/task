@@ -469,12 +469,7 @@ const CourseCreator = () => {
         toast.error(err.response?.data?.message || "Could not load categories")
       );
   }, []);
-  const stripHtmlTags = (html) => {
-    if (!html) return "";
-    const tmp = document.createElement("div");
-    tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || "";
-  };
+
   const publishCourse = async () => {
     try {
       // Convert HTML descriptions to plain text
@@ -608,7 +603,7 @@ const CourseCreator = () => {
       const processedContent = courseData.content.map((item) => {
         const contentItem = {
           ...item,
-          description: item.description ? stripHtmlTags(item.description) : "",
+          description: item.description ? item.description : "",
         };
 
         // For premium tutorials, include the filename reference

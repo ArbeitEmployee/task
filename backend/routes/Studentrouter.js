@@ -915,8 +915,8 @@ Studentrouter.get("/certificate/:courseId/:studentId", async (req, res) => {
       });
     }
 
-    // Check if course is completed
-    if (!enrollment.completed) {
+    // Allow certificate if course is completed OR if it's a live course
+    if (!enrollment.completed && course.type !== "live") {
       return res
         .status(400)
         .json({ success: false, message: "Course not completed yet" });
@@ -955,7 +955,7 @@ Studentrouter.get("/certificate/:courseId/:studentId", async (req, res) => {
     )}_Certificate_${student.full_name.replace(/[^\w\s.-]/gi, "")}.pdf`;
     const encodedFilename = encodeURIComponent(filename);
 
-    // Set response headers with properly encoded filename
+    // Set response headers
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
@@ -965,96 +965,272 @@ Studentrouter.get("/certificate/:courseId/:studentId", async (req, res) => {
     // Pipe the PDF to response
     doc.pipe(res);
 
-    // Background
-    doc.rect(0, 0, doc.page.width, doc.page.height).fill("#f8f9fa");
+    // STUNNING CERTIFICATE DESIGN STARTS HERE
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
 
-    // Border
-    doc
-      .strokeColor("#343a40")
-      .lineWidth(20)
-      .rect(10, 10, doc.page.width - 20, doc.page.height - 20)
-      .stroke();
-
-    // Logo (replace with your logo path)
-    const logoPath = path.join(__dirname, "../public/images/logo.png");
-    if (fs.existsSync(logoPath)) {
-      doc.image(logoPath, doc.page.width / 2 - 50, 60, { width: 100 });
+    // 1. ELEGANT GRADIENT BACKGROUND
+    // Create a radial gradient effect using overlapping rectangles
+    const gradientSteps = 20;
+    for (let i = 0; i < gradientSteps; i++) {
+      const opacity = 0.1 - i * 0.005;
+      const size = i * 30;
+      doc
+        .save()
+        .fillColor("#1e3c72", opacity)
+        .rect(pageWidth / 2 - size, pageHeight / 2 - size / 2, size * 2, size)
+        .fill()
+        .restore();
     }
 
-    // Title
-    doc
-      .fontSize(36)
-      .fill("#343a40")
-      .text("Certificate of Completion", {
-        align: "center",
-        underline: true,
-        lineGap: 10,
-      })
-      .moveDown(0.5);
+    // Base background with premium color
+    doc.rect(0, 0, pageWidth, pageHeight).fillAndStroke("#f8f9ff", "#e8ecff");
 
-    // Subtitle
+    // 2. DECORATIVE BORDER WITH GOLDEN ACCENTS
+    // Outer border
     doc
-      .fontSize(18)
-      .fill("#6c757d")
-      .text("This is to certify that", { align: "center" })
-      .moveDown(1);
+      .strokeColor("#d4af37")
+      .lineWidth(8)
+      .rect(20, 20, pageWidth - 40, pageHeight - 40)
+      .stroke();
 
-    // Student name
+    // Inner border with elegant pattern
     doc
-      .fontSize(32)
-      .fill("#007bff")
-      .text(student.full_name, { align: "center", lineGap: 5 })
-      .moveDown(0.5);
+      .strokeColor("#b8860b")
+      .lineWidth(2)
+      .rect(35, 35, pageWidth - 70, pageHeight - 70)
+      .stroke();
 
-    // Completion text
-    doc
-      .fontSize(16)
-      .fill("#6c757d")
-      .text("has successfully completed the course", { align: "center" })
-      .moveDown(1);
+    // Corner decorations
+    const cornerSize = 50;
+    const corners = [
+      [45, 45],
+      [pageWidth - 45 - cornerSize, 45],
+      [45, pageHeight - 45 - cornerSize],
+      [pageWidth - 45 - cornerSize, pageHeight - 45 - cornerSize],
+    ];
 
-    // Course title
-    doc
-      .fontSize(24)
-      .fill("#28a745")
-      .text(`"${course.title}"`, { align: "center", lineGap: 5 })
-      .moveDown(1.5);
+    corners.forEach(([x, y]) => {
+      doc
+        .save()
+        .translate(x + cornerSize / 2, y + cornerSize / 2)
+        .rotate(45)
+        .strokeColor("#d4af37")
+        .lineWidth(3)
+        .rect(-15, -15, 30, 30)
+        .stroke()
+        .restore();
+    });
 
-    // Details
+    // 3. ELEGANT HEADER SECTION
+    // Premium header background
     doc
-      .fontSize(14)
-      .fill("#495057")
-      .text(`Course Duration: ${course.duration} hours`, { align: "center" })
-      .text(
-        `Completion Date: ${moment(enrollment.completedAt).format(
-          "MMMM Do, YYYY"
-        )}`,
-        { align: "center" }
-      )
-      .moveDown(2);
+      .save()
+      .fillColor("#1e3c72", 0.1)
+      .rect(80, 60, pageWidth - 160, 120)
+      .fill()
+      .restore();
 
-    // Verification
+    // Logo placeholder (premium circle)
+    const logoX = pageWidth / 2;
+    const logoY = 90;
+    doc.circle(logoX, logoY, 25).fillAndStroke("#d4af37", "#b8860b", 3);
+
+    // Add elegant "LOGO" text if no logo file
     doc
+      .fillColor("#ffffff")
       .fontSize(12)
-      .fill("#6c757d")
-      .text(`Certificate ID: ${enrollment.certificate.certificateId}`, {
-        align: "center",
-      })
-      .text(`Verification Code: ${enrollment.certificate.verificationCode}`, {
-        align: "center",
-      })
-      .moveDown(3);
+      .font("Helvetica-Bold")
+      .text("LOGO", logoX - 20, logoY - 8);
 
-    // Signatures
-    const signatureY = doc.page.height - 150;
+    // 4. MAGNIFICENT TITLE
     doc
+      .fillColor("#1e3c72")
+      .fontSize(48)
+      .font("Helvetica-Bold")
+      .text("CERTIFICATE", 0, 200, {
+        align: "center",
+        characterSpacing: 4,
+      });
+
+    doc
+      .fillColor("#2980b9")
+      .fontSize(24)
+      .font("Helvetica")
+      .text("OF ACHIEVEMENT", 0, 255, {
+        align: "center",
+        characterSpacing: 2,
+      });
+
+    // Decorative line under title
+    const lineY = 285;
+    doc
+      .strokeColor("#d4af37")
+      .lineWidth(3)
+      .moveTo(pageWidth / 2 - 100, lineY)
+      .lineTo(pageWidth / 2 + 100, lineY)
+      .stroke();
+
+    // Small decorative diamonds
+    [-50, 0, 50].forEach((offset) => {
+      const x = pageWidth / 2 + offset;
+      doc
+        .save()
+        .translate(x, lineY)
+        .rotate(45)
+        .fillColor("#d4af37")
+        .rect(-4, -4, 8, 8)
+        .fill()
+        .restore();
+    });
+
+    // 5. ELEGANT PRESENTATION TEXT
+    doc
+      .fillColor("#4a5568")
+      .fontSize(18)
+      .font("Helvetica")
+      .text("This is to certify that", 0, 320, { align: "center" });
+
+    // 6. STUDENT NAME - THE STAR OF THE SHOW
+    doc
+      .fillColor("#1a202c")
+      .fontSize(42)
+      .font("Helvetica-Bold")
+      .text(student.full_name.toUpperCase(), 0, 360, {
+        align: "center",
+        characterSpacing: 1,
+      });
+
+    // Elegant underline for name
+    const nameY = 410;
+    doc
+      .strokeColor("#d4af37")
+      .lineWidth(2)
+      .moveTo(pageWidth / 2 - 150, nameY)
+      .lineTo(pageWidth / 2 + 150, nameY)
+      .stroke();
+
+    // 7. COURSE COMPLETION TEXT
+    doc
+      .fillColor("#4a5568")
+      .fontSize(16)
+      .font("Helvetica")
+      .text("has successfully completed the comprehensive course", 0, 435, {
+        align: "center",
+      });
+
+    // 8. COURSE TITLE - HIGHLIGHTED
+    // Background for course title
+    doc
+      .save()
+      .fillColor("#2980b9", 0.1)
+      .roundedRect(150, 465, pageWidth - 300, 50, 10)
+      .fill()
+      .restore();
+
+    doc
+      .fillColor("#1e3c72")
+      .fontSize(26)
+      .font("Helvetica-Bold")
+      .text(`"${course.title}"`, 0, 485, {
+        align: "center",
+        characterSpacing: 0.5,
+      });
+
+    // 9. DATE AND DETAILS SECTION
+    const completionDate = enrollment.completedAt || new Date();
+    doc
+      .fillColor("#4a5568")
       .fontSize(14)
-      .text("________________________", 100, signatureY, { align: "left" })
-      .text("Instructor Signature", 100, signatureY + 20, { align: "left" })
-      .text("________________________", doc.page.width - 300, signatureY, {
-        align: "right",
+      .font("Helvetica")
+      .text(
+        `Awarded on ${moment(completionDate).format("MMMM Do, YYYY")}`,
+        0,
+        540,
+        { align: "center" }
+      );
+
+    // 10. VERIFICATION SECTION (Bottom Left)
+    doc
+      .fillColor("#6b7280")
+      .fontSize(10)
+      .font("Helvetica")
+      .text("Certificate ID:", 60, pageHeight - 80)
+      .font("Helvetica-Bold")
+      .text(enrollment.certificate.certificateId, 60, pageHeight - 65)
+      .font("Helvetica")
+      .text("Verification Code:", 60, pageHeight - 45)
+      .font("Helvetica-Bold")
+      .text(enrollment.certificate.verificationCode, 60, pageHeight - 30);
+
+    // 11. SIGNATURE SECTION (Bottom Right)
+    const sigY = pageHeight - 90;
+    // Signature line
+    doc
+      .strokeColor("#4a5568")
+      .lineWidth(1)
+      .moveTo(pageWidth - 250, sigY + 20)
+      .lineTo(pageWidth - 80, sigY + 20)
+      .stroke();
+
+    doc
+      .fillColor("#4a5568")
+      .fontSize(12)
+      .font("Helvetica")
+      .text("Authorized Signature", pageWidth - 250, sigY + 30, {
+        align: "left",
+      });
+
+    doc
+      .fontSize(10)
+      .text("Director of Education", pageWidth - 250, sigY + 45, {
+        align: "left",
+      });
+
+    // 12. PREMIUM SEAL (Bottom Center)
+    const sealX = pageWidth / 2;
+    const sealY = pageHeight - 70;
+
+    // Outer seal circle
+    doc.circle(sealX, sealY, 35).fillAndStroke("#d4af37", "#b8860b", 2);
+
+    // Inner seal circle
+    doc.circle(sealX, sealY, 25).stroke("#b8860b", 1);
+
+    // Seal text
+    doc
+      .fillColor("#ffffff")
+      .fontSize(8)
+      .font("Helvetica-Bold")
+      .text("CERTIFIED", sealX - 25, sealY - 10, { align: "center" })
+      .text("AUTHENTIC", sealX - 25, sealY + 2, { align: "center" });
+
+    // 13. WATERMARK EFFECT
+    doc
+      .save()
+      .fillColor("#1e3c72", 0.03)
+      .fontSize(100)
+      .font("Helvetica-Bold")
+      .text("CERTIFIED", 0, pageHeight / 2 - 50, {
+        align: "center",
+        rotate: -45,
       })
-      .text("Date", doc.page.width - 300, signatureY + 20, { align: "right" });
+      .restore();
+
+    // 14. FINAL DECORATIVE ELEMENTS
+    // Top decorative flourish
+    const flourishY = 140;
+    for (let i = 0; i < 5; i++) {
+      const x = pageWidth / 2 - 40 + i * 20;
+      doc.circle(x, flourishY, 2).fill("#d4af37");
+    }
+
+    // Bottom decorative flourish
+    const bottomFlourishY = pageHeight - 20;
+    for (let i = 0; i < 7; i++) {
+      const x = pageWidth / 2 - 60 + i * 20;
+      doc.circle(x, bottomFlourishY, 1.5).fill("#b8860b");
+    }
 
     // Finalize the PDF
     doc.end();

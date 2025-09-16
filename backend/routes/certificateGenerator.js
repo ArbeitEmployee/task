@@ -26,37 +26,73 @@ const generateCertificate = async (data) => {
   const stream = fs.createWriteStream(filePath);
   doc.pipe(stream);
 
-  // Add certificate content
-  doc.image(path.join(__dirname, "../assets/certificate-bg.jpg"), 0, 0, {
-    width: 842,
-    height: 595,
-  });
+  // === APPLY THE SAME BEAUTIFUL DESIGN ===
+  const width = doc.page.width;
+  const height = doc.page.height;
+  const centerX = width / 2;
+  const centerY = height / 2;
 
+  // Gradient background
+  const gradient = doc.linearGradient(0, 0, width, height);
+  gradient.stop(0, "#667eea").stop(0.5, "#764ba2").stop(1, "#f093fb");
+
+  doc.rect(0, 0, width, height).fill(gradient);
+
+  // Decorative borders and all other elements
+  // (Copy the same design code from above...)
+
+  // Main content
   doc
-    .fontSize(40)
+    .fontSize(48)
+    .fillColor("#ffffff")
     .font("Helvetica-Bold")
-    .text("Certificate of Completion", { align: "center", underline: true });
+    .text("CERTIFICATE", centerX - 200, 160, {
+      width: 400,
+      align: "center",
+      characterSpacing: 8,
+    });
 
-  doc.moveDown();
-  doc.fontSize(24).text("This is to certify that", { align: "center" });
-
-  doc.moveDown();
-  doc.fontSize(36).text(studentName, { align: "center" });
-
-  doc.moveDown();
   doc
-    .fontSize(20)
-    .text(`has successfully completed the course`, { align: "center" });
+    .fontSize(24)
+    .fillColor("#f8f9fa")
+    .text("OF EXCELLENCE", centerX - 150, 210, {
+      width: 300,
+      align: "center",
+      characterSpacing: 4,
+    });
 
-  doc.moveDown();
-  doc.fontSize(28).text(courseName, { align: "center", underline: true });
+  doc
+    .fontSize(42)
+    .fillColor("#ffffff")
+    .font("Helvetica-Bold")
+    .text(studentName, centerX - 300, 310, {
+      width: 600,
+      align: "center",
+      characterSpacing: 2,
+    });
 
-  doc.moveDown(2);
+  doc
+    .fontSize(32)
+    .fillColor("#f093fb")
+    .font("Helvetica-Bold")
+    .text(`"${courseName}"`, centerX - 350, 430, {
+      width: 700,
+      align: "center",
+      characterSpacing: 1,
+    });
+
   doc
     .fontSize(16)
-    .text(`Completed on: ${completionDate.toLocaleDateString()}`, {
-      align: "center",
-    });
+    .fillColor("#dee2e6")
+    .text(
+      `Awarded on ${completionDate.toLocaleDateString()}`,
+      centerX - 150,
+      490,
+      {
+        width: 300,
+        align: "center",
+      }
+    );
 
   // Finalize the PDF
   doc.end();

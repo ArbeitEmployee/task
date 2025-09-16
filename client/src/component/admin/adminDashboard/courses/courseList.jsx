@@ -125,6 +125,7 @@ const CourseList = () => {
       course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       course.description.toLowerCase().includes(searchTerm.toLowerCase());
 
+    // Fix the type filtering logic
     const matchesFilterType =
       filterType === "all" || course.type === filterType;
 
@@ -798,8 +799,7 @@ const CourseList = () => {
             // Check for either existing content or new upload
             const hasExistingContent =
               contentItem.content &&
-              contentItem.content.filename &&
-              contentItem.content.path;
+              (contentItem.content.filename || contentItem.content._id);
             const hasNewUpload = contentItem.contentFile instanceof File;
 
             if (!hasExistingContent && !hasNewUpload) {
@@ -1082,7 +1082,7 @@ const CourseList = () => {
                   Premium Courses
                 </option>
                 <option
-                  value="livem"
+                  value="live"
                   className="text-gray-700 hover:bg-indigo-50"
                 >
                   Live Courses
@@ -1747,34 +1747,18 @@ const CourseList = () => {
                                             </label>
                                             <div className="flex items-center gap-2">
                                               {item.contentFile ||
-                                              item.content ? (
+                                              (item.content &&
+                                                (item.content.filename ||
+                                                  item.content._id)) ? (
                                                 <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg">
                                                   <FiVideo className="text-gray-600" />
                                                   <span className="text-sm truncate max-w-xs">
-                                                    {(() => {
-                                                      try {
-                                                        if (
-                                                          item.contentFile instanceof
-                                                          File
-                                                        ) {
-                                                          return item
-                                                            .contentFile.name;
-                                                        }
-                                                        if (
-                                                          item.content?.filename
-                                                        ) {
-                                                          return item.content
-                                                            .filename;
-                                                        }
-                                                        return "Video uploaded";
-                                                      } catch (e) {
-                                                        console.error(
-                                                          "Error displaying video name:",
-                                                          e
-                                                        );
-                                                        return "Video";
-                                                      }
-                                                    })()}
+                                                    {item.contentFile instanceof
+                                                    File
+                                                      ? item.contentFile.name
+                                                      : item.content
+                                                          ?.filename ||
+                                                        "Uploaded video"}
                                                   </span>
                                                 </div>
                                               ) : (
@@ -2564,23 +2548,6 @@ const CourseList = () => {
                             <div className="text-sm text-gray-500">
                               {course.totalStudents.toLocaleString()} students
                             </div>
-
-                            {course.type === "live" &&
-                            course.content?.[0]?.schedule ? (
-                              <div className="text-sm text-gray-500">
-                                Next:{" "}
-                                {new Date(
-                                  course.content[0].schedule
-                                ).toLocaleDateString()}
-                              </div>
-                            ) : (
-                              <div className="text-sm text-gray-500">
-                                Created:{" "}
-                                {new Date(
-                                  course.createdAt
-                                ).toLocaleDateString()}
-                              </div>
-                            )}
                           </div>
                         </div>
                       </div>
