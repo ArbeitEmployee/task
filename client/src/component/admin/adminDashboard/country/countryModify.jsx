@@ -27,21 +27,22 @@ function CountryModify() {
   const [editingId, setEditingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Form state
   const [form, setForm] = useState({
     name: "",
-    description: "",
-    criteria: ""
   });
+  const [criteriaFields, setCriteriaFields] = useState([
+    { criteria: "", description: "" }
+  ]);
   const [files, setFiles] = useState({
     flag: null
   });
   const [currentFlag, setCurrentFlag] = useState("");
   const [errors, setErrors] = useState({
     name: "",
-    criteria: ""
   });
+  const [fieldErrors, setFieldErrors] = useState([{ criteria: "", description: "" }]);
 
   const token = localStorage.getItem("token");
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
@@ -86,12 +87,12 @@ function CountryModify() {
   const resetForm = () => {
     setForm({
       name: "",
-      description: "",
-      criteria: ""
     });
+    setCriteriaFields([{ criteria: "", description: "" }]);
+    setFieldErrors([{ criteria: "", description: "" }]);
     setFiles({ flag: null });
     setCurrentFlag("");
-    setErrors({ name: "", criteria: "" });
+    setErrors({ name: "" });
     setEditingId(null);
   };
 
@@ -122,17 +123,36 @@ function CountryModify() {
         `http://localhost:3500/api/countries/${id}`,
         { headers: authHeaders }
       );
-      
+
       setForm({
         name: data.name,
-        description: data.description,
-        criteria: data.criteria._id
       });
-      
+
+      // If country has multiple criteria/descriptions
+      if (Array.isArray(data.criteria) && data.criteria.length > 0) {
+        setCriteriaFields(
+          data.criteria.map((c, idx) => ({
+            criteria: c._id || "",
+            description: data.description?.[idx] || ""
+          }))
+        );
+        setFieldErrors(
+          data.criteria.map(() => ({ criteria: "", description: "" }))
+        );
+      } else {
+        setCriteriaFields([
+          {
+            criteria: data.criteria?._id || "",
+            description: data.description || ""
+          }
+        ]);
+        setFieldErrors([{ criteria: "", description: "" }]);
+      }
+
       if (data.flag) {
         setCurrentFlag(`http://localhost:3500/api/countries/flag/${data.flag}`);
       }
-      
+
       setEditingId(id);
       setShowForm(true);
     } catch (err) {
@@ -158,7 +178,8 @@ function CountryModify() {
     toast.success("Countries refreshed!");
   };
 
-  const validateField = (name, value) => {
+  // Validation function
+  const validateField = (name, value, index = 0) => {
     let error = "";
 
     switch (name) {
@@ -172,69 +193,119 @@ function CountryModify() {
         break;
     }
 
-    setErrors((prev) => ({ ...prev, [name]: error }));
+    if (index >= 0) {
+      // For criteria fields array
+      const newFieldErrors = [...fieldErrors];
+      newFieldErrors[index] = { ...newFieldErrors[index], [name]: error };
+      setFieldErrors(newFieldErrors);
+    } else {
+      // For main form
+      setErrors((prev) => ({ ...prev, [name]: error }));
+    }
+    
     return !error;
   };
 
-  const handleChange = (e) => {
+  const handleChange = (e, index) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) validateField(name, value);
+    if (index >= 0) {
+      // Handle criteria fields
+      const newFields = [...criteriaFields];
+      newFields[index] = { ...newFields[index], [name]: value };
+      setCriteriaFields(newFields);
+
+      if (fieldErrors[index] && fieldErrors[index][name]) {
+        validateField(name, value, index);
+      }
+    } else {
+      // Handle main form
+      setForm((prev) => ({ ...prev, [name]: value }));
+      if (errors[name]) validateField(name, value);
+    }
   };
 
   const handleFileChange = (e) => {
     const { name } = e.target;
     const file = e.target.files[0];
-    
+
     if (!file) return;
-    
+
     // Validate file type
     const validTypes = ["image/jpeg", "image/png", "image/jpg", "image/svg+xml"];
     if (!validTypes.includes(file.type)) {
       toast.error("Only JPG, PNG, or SVG images are allowed");
       return;
     }
-    
+
     // Validate file size (max 5MB for flags)
     if (file.size > 5 * 1024 * 1024) {
       toast.error("Flag image must be less than 5MB");
       return;
     }
-    
+
     setFiles((prev) => ({ ...prev, [name]: file }));
     setCurrentFlag(URL.createObjectURL(file));
+  };
+
+  const addCriteriaField = () => {
+    setCriteriaFields([...criteriaFields, { criteria: "", description: "" }]);
+    setFieldErrors([...fieldErrors, { criteria: "", description: "" }]);
+  };
+
+  const removeCriteriaField = (index) => {
+    if (criteriaFields.length <= 1) {
+      toast.error("At least one criteria is required");
+      return;
+    }
+
+    const newFields = [...criteriaFields];
+    newFields.splice(index, 1);
+    setCriteriaFields(newFields);
+
+    const newErrors = [...fieldErrors];
+    newErrors.splice(index, 1);
+    setFieldErrors(newErrors);
   };
 
   const validateForm = () => {
     let isValid = true;
     isValid = validateField("name", form.name) && isValid;
-    isValid = validateField("criteria", form.criteria) && isValid;
+
+    // Validate all criteria fields
+    criteriaFields.forEach((field, index) => {
+      isValid = validateField("criteria", field.criteria, index) && isValid;
+    });
+
     return isValid;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       toast.error("Please fix all errors before submitting");
       return;
     }
-    
+
     setIsSubmitting(true);
     const toastId = toast.loading(editingId ? "Updating country..." : "Creating country...");
-    
+
     try {
       // Prepare form data for image upload
       const formData = new FormData();
       formData.append("name", form.name);
-      formData.append("description", form.description);
-      formData.append("criteria", form.criteria);
-      
+
+      // Add criteria and descriptions as arrays
+      criteriaFields.forEach((field, index) => {
+        formData.append(`criteria[${index}]`, field.criteria);
+        formData.append(`description[${index}]`, field.description);
+      });
+
       // Add flag file if exists
       if (files.flag) {
         formData.append("flag", files.flag);
       }
-      
+
       if (editingId) {
         // Update existing country
         await axios.put(
@@ -262,11 +333,11 @@ function CountryModify() {
         );
         toast.success("Country created successfully", { id: toastId });
       }
-      
+
       // Reset form and refresh data
       cancelForm();
       fetchCountries();
-      
+
     } catch (err) {
       let errorMessage = editingId ? "Failed to update country" : "Failed to create country";
       if (err.response) {
@@ -284,7 +355,7 @@ function CountryModify() {
       } else if (err.message) {
         errorMessage = err.message;
       }
-      
+
       toast.error(errorMessage, { id: toastId });
     } finally {
       setIsSubmitting(false);
@@ -356,7 +427,7 @@ function CountryModify() {
                   name="name"
                   type="text"
                   value={form.name}
-                  onChange={handleChange}
+                  onChange={(e) => handleChange(e)}
                   onBlur={() => validateField("name", form.name)}
                   placeholder="Enter country name"
                   className={`w-full px-4 py-3 rounded-lg border ${
@@ -374,131 +445,157 @@ function CountryModify() {
                 )}
               </div>
 
-              {/* Criteria Dropdown */}
-              <div className="space-y-2">
-                <label className="flex items-center text-sm font-medium text-gray-700">
-                  <FiType className="mr-2 text-gray-500" /> Criteria *
-                </label>
-                <select
-                  name="criteria"
-                  value={form.criteria}
-                  onChange={handleChange}
-                  onBlur={() => validateField("criteria", form.criteria)}
-                  className={`w-full px-4 py-3 rounded-lg border ${
-                    errors.criteria ? "border-red-500" : "border-gray-300"
-                  } focus:border-gray-500 transition-all text-gray-900`}
-                >
-                  <option value="">Select a criteria</option>
-                  {criteriaOptions.map((criteria) => (
-                    <option key={criteria._id} value={criteria._id}>
-                      {criteria.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.criteria && (
-                  <motion.p
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-sm text-red-500"
-                  >
-                    {errors.criteria}
-                  </motion.p>
-                )}
-              </div>
+              {/* Criteria and Description Fields */}
+              {criteriaFields.map((field, index) => (
+                <div key={index} className="border border-gray-200 rounded-lg p-4 relative">
+                  {criteriaFields.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeCriteriaField(index)}
+                      className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors duration-200"
+                    >
+                      <FiTrash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                  
+                  <div className="space-y-4">
+                    {/* Criteria Dropdown */}
+                    <div className="space-y-2">
+                      <label className="flex items-center text-sm font-medium text-gray-700">
+                        <FiType className="mr-2 text-gray-500" /> Criteria *
+                      </label>
+                      <select
+                        name="criteria"
+                        value={field.criteria}
+                        onChange={(e) => handleChange(e, index)}
+                        onBlur={() => validateField("criteria", field.criteria, index)}
+                        className={`w-full px-4 py-3 rounded-lg border ${
+                          fieldErrors[index]?.criteria ? "border-red-500" : "border-gray-300"
+                        } focus:border-gray-500 transition-all text-gray-900`}
+                      >
+                        <option value="">Select a criteria</option>
+                        {criteriaOptions.map((criteria) => (
+                          <option key={criteria._id} value={criteria._id}>
+                            {criteria.name}
+                          </option>
+                        ))}
+                      </select>
+                      {fieldErrors[index]?.criteria && (
+                        <motion.p
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="text-sm text-red-500"
+                        >
+                          {fieldErrors[index].criteria}
+                        </motion.p>
+                      )}
+                    </div>
 
-              {/* Description */}
-              <div className="space-y-2">
-                <label className="flex items-center text-sm font-medium text-gray-700">
-                  <FiFileText className="mr-2 text-gray-500" /> Description
-                </label>
-                <textarea
-                  name="description"
-                  value={form.description}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-gray-500 transition-all"
-                  placeholder="Enter country description"
-                  rows="3"
-                />
+                    {/* Description */}
+                    <div className="space-y-2">
+                      <label className="flex items-center text-sm font-medium text-gray-700">
+                        <FiFileText className="mr-2 text-gray-500" /> Description
+                      </label>
+                      <textarea
+                        name="description"
+                        value={field.description}
+                        onChange={(e) => handleChange(e, index)}
+                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-gray-500 transition-all"
+                        placeholder="Enter criteria description"
+                        rows="3"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* Add Criteria Button */}
+              <div className="flex justify-center">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="button"
+                  onClick={addCriteriaField}
+                  className="flex items-center justify-center py-2 px-4 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"
+                >
+                  <FiPlus className="mr-2" />
+                  Add Another Criteria
+                </motion.button>
               </div>
 
               {/* Flag Upload */}
-            <div className="space-y-2">
-  <label className="block text-sm font-medium text-gray-700">
-    Flag Image (JPG/PNG/SVG, max 5MB)
-  </label>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Flag Image (JPG/PNG/SVG, max 5MB)
+                </label>
+                <div className="relative flex-shrink-0">
+                  {files.flag || currentFlag ? (
+                    <div className="relative group">
+                      <div className="w-full md:w-48 h-32 rounded-md overflow-hidden border border-gray-200 bg-gray-100">
+                        <img
+                          src={
+                            files.flag
+                              ? URL.createObjectURL(files.flag)
+                              : currentFlag
+                          }
+                          alt="Flag preview"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = "/placeholder-image.jpg";
+                          }}
+                        />
 
-  {/* Image Preview Box */}
-  <div className="relative flex-shrink-0">
-    {files.flag || currentFlag ? (
-      <div className="relative group">
-        {/* Compact Image Preview (120x90 - 4:3 ratio) */}
-        <div className="w-full md:w-48 h-32 rounded-md overflow-hidden border border-gray-200 bg-gray-100">
-          <img
-            src={
-              files.flag
-                ? URL.createObjectURL(files.flag)
-                : currentFlag
-            }
-            alt="Flag preview"
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.src = "/placeholder-image.jpg";
-            }}
-          />
+                        <motion.label
+                          initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          whileHover={{ scale: 1.1, rotate: -5 }}
+                          whileTap={{ scale: 0.95 }}
+                          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                          className="absolute -bottom-2 -right-2 bg-white p-1 rounded-full shadow-md border border-gray-300 cursor-pointer hover:bg-gray-100 transition-colors"
+                        >
+                          <FiEdit2 className="text-gray-600 text-[16px]" />
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                            className="hidden"
+                            name="flag"
+                          />
+                        </motion.label>
+                      </div>
 
-          {/* Edit Button - Bottom Right Corner */}
-          <motion.label
-            initial={{ opacity: 0, scale: 0.8, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            whileHover={{ scale: 1.1, rotate: -5 }}
-            whileTap={{ scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            className="absolute -bottom-2 -right-2 bg-white p-1 rounded-full shadow-md border border-gray-300 cursor-pointer hover:bg-gray-100 transition-colors"
-          >
-            <FiEdit2 className="text-gray-600 text-[16px]" />
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="hidden"
-              name="flag"
-            />
-          </motion.label>
-        </div>
-
-        {/* Remove Button - Top Right Corner */}
-        <motion.button
-          onClick={() => {
-            setFiles((prev) => ({ ...prev, flag: null }));
-            if (!editingId) setCurrentFlag("");
-          }}
-          initial={{ opacity: 0, scale: 0.8, y: -10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          whileHover={{ scale: 1.1, rotate: 10 }}
-          whileTap={{ scale: 0.9 }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          className="absolute -right-2 -top-2 bg-white p-1.5 rounded-full shadow-md border border-gray-200 hover:bg-red-50 text-red-500"
-          type="button"
-        >
-          <FiTrash2 className="text-[16px]" />
-        </motion.button>
-      </div>
-    ) : (
-      <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors w-56 flex justify-center items-center border border-gray-300 hover:border-gray-500">
-        <FiUpload className="inline mr-2" />
-        Upload Flag
-        <input
-          type="file"
-          accept="image/*"
-          onChange={handleFileChange}
-          className="hidden"
-          name="flag"
-        />
-      </label>
-    )}
-  </div>
-</div>
+                      <motion.button
+                        onClick={() => {
+                          setFiles((prev) => ({ ...prev, flag: null }));
+                          if (!editingId) setCurrentFlag("");
+                        }}
+                        initial={{ opacity: 0, scale: 0.8, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        whileHover={{ scale: 1.1, rotate: 10 }}
+                        whileTap={{ scale: 0.9 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                        className="absolute -right-2 -top-2 bg-white p-1.5 rounded-full shadow-md border border-gray-200 hover:bg-red-50 text-red-500"
+                        type="button"
+                      >
+                        <FiTrash2 className="text-[16px]" />
+                      </motion.button>
+                    </div>
+                  ) : (
+                    <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors w-56 flex justify-center items-center border border-gray-300 hover:border-gray-500">
+                      <FiUpload className="inline mr-2" />
+                      Upload Flag
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                        name="flag"
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
 
               <div className="pt-4">
                 <p className="text-sm text-gray-500 mb-4">* Mandatory fields</p>
@@ -687,11 +784,23 @@ function CountryModify() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
               {/* Criteria Badge */}
-              {country.criteria?.name && (
-                <span className="absolute top-2 right-2 px-2 py-1 rounded-md text-xs font-medium bg-gray-500 text-white">
-                  {country.criteria.name}
-                </span>
-              )}
+              {Array.isArray(country.criteria)
+                ? country.criteria.map((c, idx) =>
+                    c?.name ? (
+                      <span
+                        key={c._id || idx}
+                        className="absolute top-2 right-2 px-2 py-1 rounded-md text-xs font-medium bg-gray-500 text-white"
+                        style={{ top: `${2 + idx * 24}px` }}
+                      >
+                        {c.name}
+                      </span>
+                    ) : null
+                  )
+                : country.criteria?.name && (
+                    <span className="absolute top-2 right-2 px-2 py-1 rounded-md text-xs font-medium bg-gray-500 text-white">
+                      {country.criteria.name}
+                    </span>
+                  )}
             </div>
           </div>
 
@@ -702,11 +811,20 @@ function CountryModify() {
                 <h2 className="text-xl font-bold text-gray-900">
                   {country.name}
                 </h2>
-                {country.description && (
-                  <p className="text-sm text-gray-600 mt-1 line-clamp-3">
-                    {country.description}
-                  </p>
-                )}
+                {/* Show multiple descriptions if available */}
+                {Array.isArray(country.description)
+                  ? country.description.map((desc, idx) =>
+                      desc ? (
+                        <p key={idx} className="text-sm text-gray-600 mt-1 line-clamp-3">
+                          {desc}
+                        </p>
+                      ) : null
+                    )
+                  : country.description && (
+                      <p className="text-sm text-gray-600 mt-1 line-clamp-3">
+                        {country.description}
+                      </p>
+                    )}
               </div>
 
               {/* Action Buttons */}
