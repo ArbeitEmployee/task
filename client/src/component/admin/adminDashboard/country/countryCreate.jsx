@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { toast } from "react-hot-toast";
-// eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
-import { FiMap, FiType, FiFileText, FiX } from "react-icons/fi";
+import { FiMap, FiType, FiFileText, FiX, FiPlus, FiTrash2 } from "react-icons/fi";
 
 function CountryCreate() {
   const [criteriaOptions, setCriteriaOptions] = useState([]);
@@ -13,6 +12,9 @@ function CountryCreate() {
     description: "",
     criteria: ""
   });
+  const [criteriaFields, setCriteriaFields] = useState([
+    { criteria: "", description: "" }
+  ]);
   const [files, setFiles] = useState({
     flag: null
   });
@@ -20,6 +22,7 @@ function CountryCreate() {
     name: "",
     criteria: ""
   });
+  const [fieldErrors, setFieldErrors] = useState([{ criteria: "", description: "" }]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const token = localStorage.getItem("token");
@@ -30,7 +33,7 @@ function CountryCreate() {
       setLoading(true);
       try {
         const { data } = await axios.get(
-          "http://localhost:3500/api/criteri/create",
+          "http://localhost:3500/api/criterias",
           { headers: authHeaders }
         );
         setCriteriaOptions(data);
@@ -50,7 +53,7 @@ function CountryCreate() {
   }, []);
 
   // Validation function
-  const validateField = (name, value) => {
+  const validateField = (name, value, index = 0) => {
     let error = "";
 
     switch (name) {
@@ -64,19 +67,43 @@ function CountryCreate() {
         break;
     }
 
-    setErrors((prev) => ({ ...prev, [name]: error }));
+    if (index >= 0) {
+      // For criteria fields array
+      const newFieldErrors = [...fieldErrors];
+      newFieldErrors[index] = { ...newFieldErrors[index], [name]: error };
+      setFieldErrors(newFieldErrors);
+    } else {
+      // For main form
+      setErrors((prev) => ({ ...prev, [name]: error }));
+    }
+    
     return !error;
   };
 
-  const handleChange = (e) => {
+  const handleChange = (e, index) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) validateField(name, value);
+    
+    if (index >= 0) {
+      // Handle criteria fields
+      const newFields = [...criteriaFields];
+      newFields[index] = { ...newFields[index], [name]: value };
+      setCriteriaFields(newFields);
+      
+      if (fieldErrors[index] && fieldErrors[index][name]) {
+        validateField(name, value, index);
+      }
+    } else {
+      // Handle main form
+      setForm((prev) => ({ ...prev, [name]: value }));
+      if (errors[name]) validateField(name, value);
+    }
   };
 
   const handleFileChange = (e) => {
     const { name } = e.target;
     const file = e.target.files[0];
+    
+    if (!file) return;
     
     // Validate file type
     const validTypes = ["image/jpeg", "image/png", "image/jpg", "image/svg+xml"];
@@ -94,10 +121,35 @@ function CountryCreate() {
     setFiles((prev) => ({ ...prev, [name]: file }));
   };
 
+  const addCriteriaField = () => {
+    setCriteriaFields([...criteriaFields, { criteria: "", description: "" }]);
+    setFieldErrors([...fieldErrors, { criteria: "", description: "" }]);
+  };
+
+  const removeCriteriaField = (index) => {
+    if (criteriaFields.length <= 1) {
+      toast.error("At least one criteria is required");
+      return;
+    }
+    
+    const newFields = [...criteriaFields];
+    newFields.splice(index, 1);
+    setCriteriaFields(newFields);
+    
+    const newErrors = [...fieldErrors];
+    newErrors.splice(index, 1);
+    setFieldErrors(newErrors);
+  };
+
   const validateForm = () => {
     let isValid = true;
     isValid = validateField("name", form.name) && isValid;
-    isValid = validateField("criteria", form.criteria) && isValid;
+    
+    // Validate all criteria fields
+    criteriaFields.forEach((field, index) => {
+      isValid = validateField("criteria", field.criteria, index) && isValid;
+    });
+    
     return isValid;
   };
 
@@ -116,8 +168,12 @@ function CountryCreate() {
       // Prepare form data for image upload
       const formData = new FormData();
       formData.append("name", form.name);
-      formData.append("description", form.description);
-      formData.append("criteria", form.criteria);
+      
+      // Add criteria and descriptions as arrays
+      criteriaFields.forEach((field, index) => {
+        formData.append(`criteria[${index}]`, field.criteria);
+        formData.append(`description[${index}]`, field.description);
+      });
       
       // Add flag file if exists
       if (files.flag) {
@@ -125,7 +181,7 @@ function CountryCreate() {
       }
       
       await axios.post(
-        "http://localhost:3500/api/auth/countries",
+        "http://localhost:3500/api/countries",
         formData,
         {
           headers: {
@@ -141,6 +197,8 @@ function CountryCreate() {
         description: "",
         criteria: ""
       });
+      setCriteriaFields([{ criteria: "", description: "" }]);
+      setFieldErrors([{ criteria: "", description: "" }]);
       setFiles({
         flag: null
       });
@@ -169,7 +227,6 @@ function CountryCreate() {
       setIsSubmitting(false);
     }
   };
-
 
   if (loading) {
     return (
@@ -224,7 +281,7 @@ function CountryCreate() {
                 name="name"
                 type="text"
                 value={form.name}
-                onChange={handleChange}
+                onChange={(e) => handleChange(e)}
                 onBlur={() => validateField("name", form.name)}
                 placeholder="Enter country name"
                 className={`w-full px-4 py-3 rounded-lg border ${
@@ -242,51 +299,82 @@ function CountryCreate() {
               )}
             </div>
 
-            {/* Criteria Dropdown */}
-            <div className="space-y-2">
-              <label className="flex items-center text-sm font-medium text-gray-700">
-                <FiType className="mr-2 text-gray-500" /> Criteria *
-              </label>
-              <select
-                name="criteria"
-                value={form.criteria}
-                onChange={handleChange}
-                onBlur={() => validateField("criteria", form.criteria)}
-                className={`w-full px-4 py-3 rounded-lg border ${
-                  errors.criteria ? "border-red-500" : "border-gray-300"
-                } focus:border-gray-500 transition-all text-gray-900`}
-              >
-                <option value="">Select a criteria</option>
-                {criteriaOptions.map((criteria) => (
-                  <option key={criteria._id} value={criteria._id}>
-                    {criteria.name}
-                  </option>
-                ))}
-              </select>
-              {errors.criteria && (
-                <motion.p
-                  initial={{ opacity: 0, y: -5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-sm text-red-500"
-                >
-                  {errors.criteria}
-                </motion.p>
-              )}
-            </div>
+            {/* Criteria and Description Fields */}
+            {criteriaFields.map((field, index) => (
+              <div key={index} className="border border-gray-200 rounded-lg p-4 relative">
+                {criteriaFields.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeCriteriaField(index)}
+                    className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors duration-200"
+                  >
+                    <FiTrash2 className="h-4 w-4" />
+                  </button>
+                )}
+                
+                <div className="space-y-4">
+                  {/* Criteria Dropdown */}
+                  <div className="space-y-2">
+                    <label className="flex items-center text-sm font-medium text-gray-700">
+                      <FiType className="mr-2 text-gray-500" /> Criteria *
+                    </label>
+                    <select
+                      name="criteria"
+                      value={field.criteria}
+                      onChange={(e) => handleChange(e, index)}
+                      onBlur={() => validateField("criteria", field.criteria, index)}
+                      className={`w-full px-4 py-3 rounded-lg border ${
+                        fieldErrors[index]?.criteria ? "border-red-500" : "border-gray-300"
+                      } focus:border-gray-500 transition-all text-gray-900`}
+                    >
+                      <option value="">Select a criteria</option>
+                      {criteriaOptions.map((criteria) => (
+                        <option key={criteria._id} value={criteria._id}>
+                          {criteria.name}
+                        </option>
+                      ))}
+                    </select>
+                    {fieldErrors[index]?.criteria && (
+                      <motion.p
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-sm text-red-500"
+                      >
+                        {fieldErrors[index].criteria}
+                      </motion.p>
+                    )}
+                  </div>
 
-            {/* Description */}
-            <div className="space-y-2">
-              <label className="flex items-center text-sm font-medium text-gray-700">
-                <FiFileText className="mr-2 text-gray-500" /> Description
-              </label>
-              <textarea
-                name="description"
-                value={form.description}
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-gray-500 transition-all"
-                placeholder="Enter country description"
-                rows="3"
-              />
+                  {/* Description */}
+                  <div className="space-y-2">
+                    <label className="flex items-center text-sm font-medium text-gray-700">
+                      <FiFileText className="mr-2 text-gray-500" /> Description
+                    </label>
+                    <textarea
+                      name="description"
+                      value={field.description}
+                      onChange={(e) => handleChange(e, index)}
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-gray-500 transition-all"
+                      placeholder="Enter criteria description"
+                      rows="3"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Add Criteria Button */}
+            <div className="flex justify-center">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                type="button"
+                onClick={addCriteriaField}
+                className="flex items-center justify-center py-2 px-4 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"
+              >
+                <FiPlus className="mr-2" />
+                Add Another Criteria
+              </motion.button>
             </div>
 
             {/* Flag Upload */}

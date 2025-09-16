@@ -20,8 +20,9 @@ import EmployeeList from "./Employee/EmployeeList";
 import VisaRequestsList from "./visa/VisaRequestsList";
 import VisaManagement from "./visa/visaManagement/VisaManagement";
 import Criteria from "./country/criteria";
-import CriteriaList from "./country/criteriaList";
 import CountryCreate from "./country/countryCreate";
+import CriteriaList from "./country/criteriaList";
+import CountryModify from "./country/countryModify";
 
 const AdminDashboard = () => {
   const [activeView, setActiveView] = useState(() => {
@@ -71,12 +72,12 @@ const AdminDashboard = () => {
       
       case "criteriaCountry":
         return <Criteria />;
-      case "modifyListCriterias":
-        return <CriteriaList />;
+      case "modifyListCtiterias":
+        return <CriteriaList/>;
       case "createCountry":
-        return <CountryCreate />;
-
-
+        return <CountryCreate />;      
+      case "modifyCountry":
+        return <CountryModify />;
     
       case "TeacherRegistration":
         return (

@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 3500;
 
 //Muslim
 const criteriaRoutes = require('./routes/criteria');
-
+const countryRoutes = require("./routes/Country");
 
 // CORS Configuration
 const corsOptions = {
@@ -45,6 +45,8 @@ app.use("/api/employee/visa", employeeRoutes);
 
 //Muslim
 app.use('/api/criterias', criteriaRoutes);
+app.use("/api/countries", countryRoutes);
+
 
 // DB Connection
 connectDB();

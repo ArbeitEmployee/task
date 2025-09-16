@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { toast } from "react-hot-toast";
+// eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 
 function CriteriaList() {
@@ -46,6 +47,7 @@ function CriteriaList() {
     return () => {
       window.removeEventListener('criteriaUpdated', handleCriteriaUpdate);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDelete = async (id) => {
